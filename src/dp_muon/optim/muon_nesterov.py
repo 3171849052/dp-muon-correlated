@@ -86,7 +86,7 @@ def muon_nesterov_step(
   if step.shape != () or not jnp.issubdtype(step.dtype, jnp.integer):
     raise ValueError("state.step must be an integer scalar")
 
-  def advance(old_momentum: jax.Array, gradient_leaf: jax.Array):
+  def advance_momentum(old_momentum: jax.Array, gradient_leaf: jax.Array):
     old = jnp.asarray(old_momentum)
     grad = jnp.asarray(gradient_leaf)
     if old.shape != grad.shape:
@@ -95,12 +95,17 @@ def muon_nesterov_step(
       raise ValueError("gradient leaf dtypes must match state momentum leaf dtypes")
     leaf_beta = jnp.asarray(beta, dtype=old.dtype)
     new_momentum = leaf_beta * old + (1.0 - leaf_beta) * grad
-    update = (1.0 - leaf_beta) * grad + leaf_beta * new_momentum
-    return update.astype(old.dtype), new_momentum.astype(old.dtype)
+    return new_momentum.astype(old.dtype)
 
-  pairs = jax.tree_util.tree_map(advance, state.momentum, gradient)
-  update = jax.tree_util.tree_map(lambda pair: pair[0], pairs, is_leaf=lambda x: isinstance(x, tuple))
-  new_momentum = jax.tree_util.tree_map(lambda pair: pair[1], pairs, is_leaf=lambda x: isinstance(x, tuple))
+  new_momentum = jax.tree_util.tree_map(advance_momentum, state.momentum, gradient)
+
+  def compute_update(gradient_leaf: jax.Array, momentum_leaf: jax.Array):
+    grad = jnp.asarray(gradient_leaf)
+    new = jnp.asarray(momentum_leaf)
+    leaf_beta = jnp.asarray(beta, dtype=grad.dtype)
+    return ((1.0 - leaf_beta) * grad + leaf_beta * new).astype(grad.dtype)
+
+  update = jax.tree_util.tree_map(compute_update, gradient, new_momentum)
   return update, MuonNesterovState(
       momentum=new_momentum,
       step=step + jnp.array(1, dtype=step.dtype),

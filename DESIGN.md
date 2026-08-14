@@ -52,8 +52,7 @@
   `query_sensitivity = 2 * clip_norm / normalize_by`.
 - For query sensitivity `s_q` and matrix sensitivity `S(C)`, the final iid
   Gaussian standard deviation is `tau = m * s_q * S(C)`, where `m = 1 / mu`.
-- Clipping calculations, participation scheduling, optimizer integration, and
-  the training loop remain out of scope for this phase.
+- Full trainer integration remains out of scope for this phase.
 - M5 isolates Muon's public linear pre-Q dynamics: with EMA momentum followed
   by Nesterov, gradients map as `G -> H_beta^Nes -> U`, where
   `h_0 = 1 - beta^2` and `h_j = (1 - beta) beta^(j + 1)` for `j >= 1`.
