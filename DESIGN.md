@@ -59,3 +59,18 @@
   For a fixed public learning rate `eta`, the post-update displacement
   trajectory is the linear baseline `G -> eta P H_beta^Nes -> parameter
   trajectory`; its Toeplitz coefficients are `eta (1 - beta^(j + 2))`.
+- M6 composes the completed linear components as
+  `q -> q + C^{-1} Z -> H_beta^Nes -> eta -> parameter trajectory`, where
+  `q` is M3's clipped normalized query and `Z` has M1's calibrated iid
+  Gaussian standard deviation. It has exactly one momentum state, and that
+  state receives only the noisy query `q + C^{-1} Z`; there is no clean
+  momentum state or clean/noise pair of optimizer states.
+- The M6 dense-matrix oracle is conditional on the same query sequence. With
+  `D = C^{-1}` and `A = eta P H_beta^Nes`, it checks
+  `theta - theta_0 = -A(q + D Z)` and, for the corresponding clean trajectory,
+  `theta_noisy - theta_clean = -A D Z`.
+- M6 is intentionally limited to this fixed-learning-rate linear baseline. It
+  does not contain Q or Muon's nonlinear matrix operations, variable learning
+  rates, weight decay, amplification accounting, CIFAR/data-loader code, or
+  model definitions. Participation scheduling and batch loading remain outside
+  its `loss_fn(params, batch)` step API.

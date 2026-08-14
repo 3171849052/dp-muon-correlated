@@ -31,7 +31,7 @@ from dp_muon.optim import (
 from dp_muon.privacy import (
     ParticipationSpec,
     PrivacyCalibration,
-    compute_query_sensitivity,
+    calibrate_nonamplified_bandinv,
     make_clipped_gradient_query,
     validate_participation_spec_against_strategy,
 )
@@ -182,49 +182,37 @@ def validate_nonamplified_bandinv_setup(
         "workload for runtime momentum and learning_rate"
     )
 
-  expected_query_sensitivity = compute_query_sensitivity(
-      calibration.clip_norm, calibration.normalize_by, calibration.adjacency
-  )
-  calibrated_query_sensitivity = _concrete_finite_scalar(
-      calibration.query_sensitivity, "calibration.query_sensitivity"
-  )
-  if not np.isclose(
-      calibrated_query_sensitivity,
-      expected_query_sensitivity,
-      rtol=_RTOL,
-      atol=_ATOL,
-  ):
-    raise ValueError(
-        "calibration.query_sensitivity must match clip_norm, normalize_by, and adjacency"
-    )
-
-  calibrated_matrix_sensitivity = _concrete_finite_scalar(
-      calibration.matrix_sensitivity, "calibration.matrix_sensitivity"
-  )
-  if calibrated_matrix_sensitivity <= 0:
-    raise ValueError("calibration.matrix_sensitivity must be positive")
   strategy_sensitivity_squared = _concrete_finite_scalar(
       strategy.sensitivity_squared, "strategy.sensitivity_squared"
   )
   if strategy_sensitivity_squared <= 0:
     raise ValueError("strategy.sensitivity_squared must be positive")
-  if not np.isclose(
-      calibrated_matrix_sensitivity**2,
-      strategy_sensitivity_squared,
-      rtol=_RTOL,
-      atol=_ATOL,
-  ):
-    raise ValueError(
-        "calibration.matrix_sensitivity squared must match strategy.sensitivity_squared"
-    )
-
-  # Sampling validates this again when it runs; doing it here reports a broken
-  # calibration before the first compiled training invocation.
-  iid_noise_std = _concrete_finite_scalar(
-      calibration.iid_noise_std, "calibration.iid_noise_std"
+  expected_calibration = calibrate_nonamplified_bandinv(
+      epsilon=calibration.epsilon,
+      delta=calibration.delta,
+      clip_norm=calibration.clip_norm,
+      normalize_by=calibration.normalize_by,
+      adjacency=calibration.adjacency,
+      sensitivity_squared=strategy_sensitivity_squared,
   )
-  if iid_noise_std < 0:
-    raise ValueError("calibration.iid_noise_std must be non-negative")
+  for field in (
+      "query_sensitivity",
+      "matrix_sensitivity",
+      "total_sensitivity",
+      "mu",
+      "noise_multiplier",
+      "iid_noise_std",
+  ):
+    actual = _concrete_finite_scalar(
+        getattr(calibration, field), f"calibration.{field}"
+    )
+    expected = _concrete_finite_scalar(
+        getattr(expected_calibration, field), f"expected calibration.{field}"
+    )
+    if not np.isclose(actual, expected, rtol=_RTOL, atol=_ATOL):
+      raise ValueError(
+          f"calibration.{field} must match calibrate_nonamplified_bandinv"
+      )
 
   validate_participation_spec_against_strategy(participation_spec, strategy)
 
@@ -253,11 +241,8 @@ def make_nonamplified_bandinv_train_step(
     participation_spec: ParticipationSpec,
     momentum: float,
     learning_rate: float,
-    *,
-    batch_argnums: int | tuple[int, ...] = 1,
-    keep_batch_dim: bool = True,
 ) -> Callable[[NonAmplifiedBandInvState, Any], NonAmplifiedBandInvState]:
-  """Builds a JIT-compatible private fixed-LR Nesterov training step."""
+  """Builds a JIT-compatible private step for ``loss_fn(params, batch)``."""
   if not callable(loss_fn):
     raise TypeError("loss_fn must be callable")
   validate_nonamplified_bandinv_setup(
@@ -267,8 +252,8 @@ def make_nonamplified_bandinv_train_step(
       loss_fn,
       clip_norm=calibration.clip_norm,
       normalize_by=calibration.normalize_by,
-      batch_argnums=batch_argnums,
-      keep_batch_dim=keep_batch_dim,
+      batch_argnums=1,
+      keep_batch_dim=True,
   )
 
   def train_step(
