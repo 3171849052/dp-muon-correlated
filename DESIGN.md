@@ -12,6 +12,15 @@
   correlated outputs `E`.  Here `tau` is the standard deviation of `Z_t`.
   M1 has already completed privacy scaling; M2 applies no sensitivity or noise
   multiplier of its own.
+- Per-example clipping is delegated to `jax_privacy.clipping.clipped_grad`.
+  A scalar `l2_clip_norm = L` means global L2 clipping over the entire gradient
+  PyTree, and the query is `q_t = (1 / B0) * sum_i clipped_grad_i`, where
+  `B0 = normalize_by` is fixed and public (never the realized batch size).
+  Its add/remove sensitivity is `L / B0`; replace-one sensitivity is
+  `2L / B0`. Per-example norms, clip factors, losses, and similar private
+  diagnostics are neither returned nor logged.
+- M3 produces only this clipped query; it does not add BandInvMF noise. A later
+  phase will combine the M2 correlated noise with `q_t`.
 - This phase prepares only a non-amplified linear baseline.
 - `jax_privacy` provides the underlying mathematics. This repository imports
   it and does not fork or reimplement Toeplitz, BISR, sensitivity, or the
