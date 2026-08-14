@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from jax_privacy.matrix_factorization import toeplitz
 
 from dp_muon.bandinvmf import BandInvMFStrategy, sample_bandinv_noise
 from dp_muon.optim import (
@@ -42,7 +43,12 @@ def _artifacts(
     *, horizon=6, momentum=0.6, learning_rate=0.15, noising_coef=(1.0, -0.35)
 ):
   noising_coef = jnp.asarray(noising_coef, dtype=jnp.float32)
-  sensitivity_squared = 1.0
+  sensitivity_squared = toeplitz.compute_banded_inverse_sensitivity_squared(
+      n=horizon,
+      noising_coef=noising_coef,
+      min_sep=1,
+      max_participations=None,
+  )
   strategy = BandInvMFStrategy(
       horizon=horizon,
       bandwidth=len(noising_coef),
@@ -53,7 +59,7 @@ def _artifacts(
       ),
       noising_coef=noising_coef,
       strategy_coef=jnp.array([1.0], dtype=jnp.float32),
-      sensitivity_squared=jnp.asarray(sensitivity_squared, dtype=jnp.float32),
+      sensitivity_squared=sensitivity_squared,
       objective=jnp.array(0.0, dtype=jnp.float32),
   )
   calibration = calibrate_nonamplified_bandinv(
@@ -62,7 +68,7 @@ def _artifacts(
       clip_norm=2.0,
       normalize_by=1.0,
       adjacency="add_remove",
-      sensitivity_squared=sensitivity_squared,
+      sensitivity_squared=float(sensitivity_squared),
   )
   return strategy, calibration, ParticipationSpec(horizon, 1, None)
 
@@ -281,6 +287,39 @@ def test_mismatched_workload_and_participation_fail_fast():
         momentum=0.6,
         learning_rate=0.15,
     )
+
+
+@pytest.mark.parametrize(
+    "forged_strategy",
+    [
+        lambda strategy: replace(
+            strategy, noising_coef=jnp.array([1.0, 0.2], dtype=jnp.float32)
+        ),
+        lambda strategy: replace(
+            strategy, sensitivity_squared=strategy.sensitivity_squared * 1.1
+        ),
+    ],
+)
+def test_forged_strategy_sensitivity_or_noising_coef_fails_fast(forged_strategy):
+  strategy, calibration, participation = _artifacts()
+  with pytest.raises(
+      ValueError,
+      match="strategy.sensitivity_squared must match strategy.noising_coef and participation metadata",
+  ):
+    validate_nonamplified_bandinv_setup(
+        forged_strategy(strategy),
+        calibration,
+        participation,
+        momentum=0.6,
+        learning_rate=0.15,
+    )
+
+
+def test_strategy_with_jax_privacy_computed_sensitivity_passes_setup_validation():
+  strategy, calibration, participation = _artifacts()
+  validate_nonamplified_bandinv_setup(
+      strategy, calibration, participation, momentum=0.6, learning_rate=0.15
+  )
 
 
 def test_train_step_exposes_only_one_batch_pytree_argument():

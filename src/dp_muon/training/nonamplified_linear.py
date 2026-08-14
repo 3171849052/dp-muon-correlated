@@ -15,6 +15,7 @@ from typing import Any, Callable
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax_privacy.matrix_factorization import toeplitz
 
 from dp_muon.bandinvmf import (
     BandInvMFNoiseState,
@@ -187,6 +188,25 @@ def validate_nonamplified_bandinv_setup(
   )
   if strategy_sensitivity_squared <= 0:
     raise ValueError("strategy.sensitivity_squared must be positive")
+  expected_sensitivity_squared = _concrete_finite_scalar(
+      toeplitz.compute_banded_inverse_sensitivity_squared(
+          n=strategy.horizon,
+          noising_coef=strategy.noising_coef,
+          min_sep=strategy.min_sep,
+          max_participations=strategy.max_participations,
+      ),
+      "expected strategy sensitivity_squared",
+  )
+  if not np.isclose(
+      strategy_sensitivity_squared,
+      expected_sensitivity_squared,
+      rtol=_RTOL,
+      atol=_ATOL,
+  ):
+    raise ValueError(
+        "strategy.sensitivity_squared must match strategy.noising_coef and "
+        "participation metadata"
+    )
   expected_calibration = calibrate_nonamplified_bandinv(
       epsilon=calibration.epsilon,
       delta=calibration.delta,
