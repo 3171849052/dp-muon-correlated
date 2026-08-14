@@ -54,3 +54,9 @@
   Gaussian standard deviation is `tau = m * s_q * S(C)`, where `m = 1 / mu`.
 - Clipping calculations, participation scheduling, optimizer integration, and
   the training loop remain out of scope for this phase.
+- M5 isolates Muon's public linear pre-Q dynamics: with EMA momentum followed
+  by Nesterov, gradients map as `G -> H_beta^Nes -> U`, where
+  `h_0 = 1 - beta^2` and `h_j = (1 - beta) beta^(j + 1)` for `j >= 1`.
+  For a fixed public learning rate `eta`, the post-update displacement
+  trajectory is the linear baseline `G -> eta P H_beta^Nes -> parameter
+  trajectory`; its Toeplitz coefficients are `eta (1 - beta^(j + 2))`.
