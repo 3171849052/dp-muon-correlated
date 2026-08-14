@@ -67,23 +67,30 @@ def compute_query_sensitivity(
 
 
 def _solve_gdp_mu(epsilon: float, delta: float) -> float:
-  """Numerically inverts Opacus' ``eps_from_mu`` without reimplementing GDP."""
+  """Solves Opacus' ``delta_eps_mu(epsilon, mu) == delta`` for ``mu``."""
   epsilon, delta = _validate_privacy_parameters(epsilon, delta)
 
-  def residual(mu: float) -> float:
-    return float(gdp.eps_from_mu(mu=mu, delta=delta)) - epsilon
+  def opacus_delta(mu: float) -> float:
+    value = float(gdp.delta_eps_mu(eps=epsilon, mu=mu))
+    if not math.isfinite(value):
+      raise RuntimeError("Opacus GDP conversion returned a non-finite delta")
+    return value
 
-  low, high = 0.0, 1.0
-  while residual(high) < 0:
+  # Opacus 1.6.0 evaluates ``eps / mu`` internally, so it cannot be invoked
+  # at exactly zero. The smallest positive float is the numerical zero limit.
+  low, high = math.nextafter(0.0, 1.0), 1.0
+  if opacus_delta(low) > delta:
+    raise RuntimeError("could not bracket the GDP mu solution at mu=0")
+  while opacus_delta(high) < delta:
     high *= 2.0
     if not math.isfinite(high):
       raise RuntimeError("could not bracket the GDP mu solution")
 
-  # Bisection is sufficient for this scalar monotone inversion and invokes the
-  # installed Opacus conversion at every evaluation.
+  # Bisection is sufficient for this scalar monotone inversion and invokes
+  # Opacus' installed GDP conversion at every evaluation.
   for _ in range(80):
     middle = (low + high) / 2.0
-    if residual(middle) < 0:
+    if opacus_delta(middle) < delta:
       low = middle
     else:
       high = middle

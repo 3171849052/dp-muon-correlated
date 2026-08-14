@@ -22,10 +22,23 @@ def _calibrate(**overrides):
   return calibrate_nonamplified_bandinv(**parameters)
 
 
-def test_gdp_round_trip_uses_opacus_conversion():
+def test_gdp_round_trip_uses_opacus_delta_conversion():
+  result = _calibrate()
+  recovered_delta = gdp.delta_eps_mu(eps=result.epsilon, mu=result.mu)
+  assert recovered_delta == pytest.approx(result.delta, rel=1e-10)
+
+
+def test_gdp_epsilon_conversion_is_consistent():
   result = _calibrate()
   recovered_epsilon = gdp.eps_from_mu(mu=result.mu, delta=result.delta)
   assert recovered_epsilon == pytest.approx(result.epsilon, rel=1e-10)
+
+
+def test_gdp_fixed_numeric_regression():
+  """Values measured from Opacus 1.6.0's delta_eps_mu in the curve environment."""
+  result = _calibrate(epsilon=2.0, delta=1e-5)
+  assert result.mu == pytest.approx(0.5015516891696572, rel=1e-10)
+  assert result.noise_multiplier == pytest.approx(1.9938124456435344, rel=1e-10)
 
 
 def test_noise_scales_only_with_sensitivity_inputs():
