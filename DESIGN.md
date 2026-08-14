@@ -21,6 +21,15 @@
   diagnostics are neither returned nor logged.
 - M3 produces only this clipped query; it does not add BandInvMF noise. A later
   phase will combine the M2 correlated noise with `q_t`.
+- The current privacy unit is one training example/record. Its participation
+  schedule must meet the BandInvMF `(n, k, b)` contract: `n` is exactly the
+  strategy horizon, `k` is the optional maximum total participations, and if a
+  record appears at steps `i` and `j` then `j - i >= b = min_sep`. In
+  particular, `b=1` permits adjacent steps. M4 uses JAX Privacy's batch
+  selection primitive without any subsampling amplification; the fixed-cycle
+  baseline has `sampling_prob=1` and `cycle_length=b`. Independently reshuffling
+  each epoch cannot claim this min-separation guarantee. `normalize_by` remains
+  M3's fixed public `B0`, independent of realized batch size.
 - This phase prepares only a non-amplified linear baseline.
 - `jax_privacy` provides the underlying mathematics. This repository imports
   it and does not fork or reimplement Toeplitz, BISR, sensitivity, or the
