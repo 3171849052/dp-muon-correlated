@@ -137,21 +137,23 @@ def filter_latent_noise(
   cursor = state.cursor
   indices = jnp.mod(cursor - jnp.arange(bandwidth, dtype=cursor.dtype), bandwidth)
 
-  def write_and_filter(buffer_leaf: jax.Array, latent_leaf: jax.Array) -> tuple[jax.Array, jax.Array]:
+  def write_buffer(buffer_leaf: jax.Array, latent_leaf: jax.Array) -> jax.Array:
     latent = jnp.asarray(latent_leaf)
     if buffer_leaf.shape[1:] != latent.shape:
       raise ValueError("latent_noise leaf shapes must match state buffer leaf shapes")
     if buffer_leaf.dtype != latent.dtype:
       raise ValueError("latent_noise leaf dtypes must match state buffer leaf dtypes")
-    new_buffer = buffer_leaf.at[cursor].set(latent)
+    return buffer_leaf.at[cursor].set(latent)
+
+  new_buffer = jax.tree_util.tree_map(write_buffer, state.buffer, latent_noise)
+
+  def filter_buffer(buffer_leaf: jax.Array) -> jax.Array:
     # Keep the gradient/state dtype even when the fitted strategy is float64.
     leaf_coef = coef.astype(buffer_leaf.dtype)
-    correlated = jnp.tensordot(leaf_coef, new_buffer[indices], axes=1)
-    return correlated.astype(buffer_leaf.dtype), new_buffer
+    correlated = jnp.tensordot(leaf_coef, buffer_leaf[indices], axes=1)
+    return correlated.astype(buffer_leaf.dtype)
 
-  pairs = jax.tree_util.tree_map(write_and_filter, state.buffer, latent_noise)
-  correlated_noise = jax.tree_util.tree_map(lambda pair: pair[0], pairs, is_leaf=lambda x: isinstance(x, tuple))
-  new_buffer = jax.tree_util.tree_map(lambda pair: pair[1], pairs, is_leaf=lambda x: isinstance(x, tuple))
+  correlated_noise = jax.tree_util.tree_map(filter_buffer, new_buffer)
   new_state = BandInvMFNoiseState(
       buffer=new_buffer,
       cursor=jnp.mod(cursor + 1, bandwidth),

@@ -30,6 +30,16 @@ def _stream_scalar(latents: jax.Array, coef: jax.Array) -> jax.Array:
   return jnp.stack(outputs)
 
 
+def _assert_tree_allclose(actual, expected):
+  assert jax.tree_util.tree_structure(actual) == jax.tree_util.tree_structure(expected)
+  for actual_leaf, expected_leaf in zip(
+      jax.tree_util.tree_leaves(actual),
+      jax.tree_util.tree_leaves(expected),
+      strict=True,
+  ):
+    np.testing.assert_allclose(actual_leaf, expected_leaf, rtol=1e-6, atol=1e-6)
+
+
 def test_deterministic_dense_vs_streaming():
   coef = jnp.array([1.0, -0.4, 0.2])
   latent = jnp.array([0.3, -2.0, 1.1, 0.5, -0.8])
@@ -72,6 +82,69 @@ def test_pytree_dense_vs_streaming_and_leaf_metadata():
     assert actual.shape == (len(latents), *latents[0][name].shape)
     assert actual.dtype == latents[0][name].dtype
     np.testing.assert_allclose(actual, expected)
+
+
+def test_tuple_pytree_streaming_matches_dense_oracle_and_preserves_structure():
+  coef = jnp.array([1.0, -0.25], dtype=jnp.float32)
+  latents = [
+      (jnp.array([1.0, -2.0]), jnp.array([[0.5]])),
+      (jnp.array([3.0, 4.0]), jnp.array([[-1.0]])),
+      (jnp.array([-0.5, 2.0]), jnp.array([[3.0]])),
+  ]
+  state = init_bandinv_noise_state(latents[0], len(coef))
+  outputs = []
+  for latent in latents:
+    output, state = filter_latent_noise(state, latent, coef)
+    assert jax.tree_util.tree_structure(output) == jax.tree_util.tree_structure(latent)
+    assert jax.tree_util.tree_structure(state.buffer) == jax.tree_util.tree_structure(latent)
+    outputs.append(output)
+  dense = _dense_toeplitz(coef, len(latents))
+  for index in range(2):
+    actual = jnp.stack([output[index] for output in outputs])
+    expected = jnp.tensordot(dense, jnp.stack([latent[index] for latent in latents]), axes=1)
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+
+
+def test_nested_tuple_mixed_pytree_preserves_structure_and_values():
+  coef = jnp.array([1.5, -0.25], dtype=jnp.float32)
+  latent = {
+      "a": (jnp.array([2.0]), jnp.array([-4.0, 1.0])),
+      "b": {"c": jnp.array([[3.0]], dtype=jnp.float32)},
+  }
+  state = init_bandinv_noise_state(latent, len(coef))
+  output, new_state = filter_latent_noise(state, latent, coef)
+  assert jax.tree_util.tree_structure(output) == jax.tree_util.tree_structure(latent)
+  assert jax.tree_util.tree_structure(new_state.buffer) == jax.tree_util.tree_structure(state.buffer)
+  _assert_tree_allclose(output, jax.tree_util.tree_map(lambda leaf: coef[0] * leaf, latent))
+  _assert_tree_allclose(
+      new_state.buffer,
+      jax.tree_util.tree_map(
+          lambda leaf: jnp.stack((leaf, jnp.zeros_like(leaf))), latent
+      ),
+  )
+
+
+def test_tuple_pytree_filter_jit_matches_eager():
+  coef = jnp.array([1.0, 0.5], dtype=jnp.float32)
+  latent = (jnp.array([1.0, -2.0]), (jnp.array([[3.0]]),))
+  eager_state = init_bandinv_noise_state(latent, len(coef))
+  jitted_state = init_bandinv_noise_state(latent, len(coef))
+  eager_output, eager_state = filter_latent_noise(eager_state, latent, coef)
+  jitted_output, jitted_state = jax.jit(filter_latent_noise)(jitted_state, latent, coef)
+  _assert_tree_allclose(jitted_output, eager_output)
+  _assert_tree_allclose(jitted_state.buffer, eager_state.buffer)
+  np.testing.assert_array_equal(jitted_state.cursor, eager_state.cursor)
+  np.testing.assert_array_equal(jitted_state.step, eager_state.step)
+
+
+def test_tuple_pytree_sampling_preserves_structure():
+  template = (jnp.zeros(2, dtype=jnp.float32), (jnp.zeros((1, 2), dtype=jnp.float32),))
+  state = init_bandinv_noise_state(template, 2)
+  output, new_state, _ = sample_bandinv_noise(
+      jax.random.key(4), state, jnp.array([1.0, -0.2]), 0.3
+  )
+  assert jax.tree_util.tree_structure(output) == jax.tree_util.tree_structure(template)
+  assert jax.tree_util.tree_structure(new_state.buffer) == jax.tree_util.tree_structure(state.buffer)
 
 
 def _sample_sequence(key: jax.Array, steps: int = 5):
