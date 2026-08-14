@@ -55,13 +55,24 @@ def _require_floating_tree(tree: PyTree, name: str) -> list[jax.Array]:
   return arrays
 
 
+def _is_tracer(value: object) -> bool:
+  """Whether value is a JAX tracing value rather than a concrete input."""
+  return isinstance(value, jax.core.Tracer)
+
+
 def _validated_coef(noising_coef: jax.Array) -> jax.Array:
+  """Performs shape/dtype checks always and value checks for eager inputs.
+
+  Finiteness is necessarily a runtime numerical property for a dynamic JIT
+  argument.  It is checked at eager API boundaries, while traced values remain
+  on the pure JAX execution path (where Python boolean conversion is invalid).
+  """
   coef = jnp.asarray(noising_coef)
   if coef.ndim != 1 or coef.shape[0] == 0:
     raise ValueError("noising_coef must be a non-empty one-dimensional array")
   if not jnp.issubdtype(coef.dtype, jnp.floating):
     raise ValueError("noising_coef must be a floating array")
-  if not bool(jnp.all(jnp.isfinite(coef))):
+  if not _is_tracer(coef) and not bool(jnp.all(jnp.isfinite(coef))):
     raise ValueError("noising_coef must contain only finite values")
   return coef
 
@@ -70,7 +81,7 @@ def _validated_iid_noise_std(iid_noise_std: float | jax.Array) -> jax.Array:
   std = jnp.asarray(iid_noise_std)
   if std.ndim != 0 or not jnp.issubdtype(std.dtype, jnp.number):
     raise ValueError("iid_noise_std must be a finite scalar")
-  if not bool(jnp.isfinite(std)) or not bool(std >= 0):
+  if not _is_tracer(std) and (not bool(jnp.isfinite(std)) or not bool(std >= 0)):
     raise ValueError("iid_noise_std must be finite and non-negative")
   return std
 
@@ -91,7 +102,7 @@ def _validate_state(state: BandInvMFNoiseState, bandwidth: int) -> None:
     raise ValueError("state.cursor must be an integer scalar")
   if step.shape != () or not jnp.issubdtype(step.dtype, jnp.integer):
     raise ValueError("state.step must be an integer scalar")
-  if not bool((cursor >= 0) & (cursor < bandwidth)):
+  if not _is_tracer(cursor) and not bool((cursor >= 0) & (cursor < bandwidth)):
     raise ValueError("state.cursor must be in [0, bandwidth)")
 
 
@@ -117,7 +128,7 @@ def filter_latent_noise(
 ) -> tuple[PyTree, BandInvMFNoiseState]:
   """Filters supplied iid latent noise without sampling any random values."""
   coef = _validated_coef(noising_coef)
-  bandwidth = int(coef.shape[0])
+  bandwidth = coef.shape[0]
   _validate_state(state, bandwidth)
   _require_floating_tree(latent_noise, "latent_noise")
   if jax.tree_util.tree_structure(latent_noise) != jax.tree_util.tree_structure(state.buffer):
@@ -133,7 +144,10 @@ def filter_latent_noise(
     if buffer_leaf.dtype != latent.dtype:
       raise ValueError("latent_noise leaf dtypes must match state buffer leaf dtypes")
     new_buffer = buffer_leaf.at[cursor].set(latent)
-    return jnp.tensordot(coef, new_buffer[indices], axes=1), new_buffer
+    # Keep the gradient/state dtype even when the fitted strategy is float64.
+    leaf_coef = coef.astype(buffer_leaf.dtype)
+    correlated = jnp.tensordot(leaf_coef, new_buffer[indices], axes=1)
+    return correlated.astype(buffer_leaf.dtype), new_buffer
 
   pairs = jax.tree_util.tree_map(write_and_filter, state.buffer, latent_noise)
   correlated_noise = jax.tree_util.tree_map(lambda pair: pair[0], pairs, is_leaf=lambda x: isinstance(x, tuple))
@@ -156,7 +170,7 @@ def sample_bandinv_noise(
   """Samples iid latent Gaussian noise, then applies ``filter_latent_noise``."""
   std = _validated_iid_noise_std(iid_noise_std)
   coef = _validated_coef(noising_coef)
-  _validate_state(state, int(coef.shape[0]))
+  _validate_state(state, coef.shape[0])
   leaves, tree_def = jax.tree_util.tree_flatten(state.buffer)
   new_key, sample_key = jax.random.split(key)
   leaf_keys = jax.random.split(sample_key, len(leaves))

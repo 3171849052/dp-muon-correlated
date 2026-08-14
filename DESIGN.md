@@ -29,5 +29,5 @@
   `query_sensitivity = 2 * clip_norm / normalize_by`.
 - For query sensitivity `s_q` and matrix sensitivity `S(C)`, the final iid
   Gaussian standard deviation is `tau = m * s_q * S(C)`, where `m = 1 / mu`.
-- Clipping calculations, streaming noise, and the training loop remain out of
-  scope for this phase.
+- Clipping calculations, participation scheduling, optimizer integration, and
+  the training loop remain out of scope for this phase.

@@ -3,6 +3,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from dp_muon.bandinvmf import (
     filter_latent_noise,
@@ -124,3 +125,87 @@ def test_empirical_covariance_matches_tau_squared_d_dt():
   dense = np.asarray(_dense_toeplitz(coefficient, horizon))
   expected = tau**2 * dense @ dense.T
   np.testing.assert_allclose(empirical, expected, rtol=0.06, atol=0.012)
+
+
+@pytest.mark.parametrize(
+    "coef, message",
+    [
+        (jnp.array([]), "non-empty"),
+        (jnp.ones((1, 1)), "one-dimensional"),
+        (jnp.array([1, 2]), "floating"),
+        (jnp.array([jnp.nan]), "finite"),
+    ],
+)
+def test_invalid_noising_coef_at_eager_boundary(coef, message):
+  state = init_bandinv_noise_state(jnp.zeros(2, dtype=jnp.float32), 1)
+  with pytest.raises(ValueError, match=message):
+    filter_latent_noise(state, jnp.zeros(2, dtype=jnp.float32), coef)
+
+
+@pytest.mark.parametrize("std", [-0.1, jnp.nan, jnp.inf])
+def test_invalid_iid_noise_std_at_eager_boundary(std):
+  state = init_bandinv_noise_state(jnp.zeros(2, dtype=jnp.float32), 1)
+  with pytest.raises(ValueError, match="finite and non-negative"):
+    sample_bandinv_noise(jax.random.key(0), state, jnp.array([1.0]), std)
+
+
+def test_invalid_static_state_and_tree_inputs():
+  with pytest.raises(ValueError, match="positive integer"):
+    init_bandinv_noise_state(jnp.zeros(2, dtype=jnp.float32), 0)
+  with pytest.raises(ValueError, match="positive integer"):
+    init_bandinv_noise_state(jnp.zeros(2, dtype=jnp.float32), -2)
+
+  state = init_bandinv_noise_state({"a": jnp.zeros(2, dtype=jnp.float32)}, 2)
+  with pytest.raises(ValueError, match="bandwidth"):
+    filter_latent_noise(state, {"a": jnp.zeros(2, dtype=jnp.float32)}, jnp.array([1.0]))
+  with pytest.raises(ValueError, match="PyTree structure"):
+    filter_latent_noise(state, {"b": jnp.zeros(2, dtype=jnp.float32)}, jnp.array([1.0, 0.5]))
+  with pytest.raises(ValueError, match="shapes"):
+    filter_latent_noise(state, {"a": jnp.zeros(3, dtype=jnp.float32)}, jnp.array([1.0, 0.5]))
+  with pytest.raises(ValueError, match="dtypes"):
+    filter_latent_noise(state, {"a": jnp.zeros(2, dtype=jnp.float16)}, jnp.array([1.0, 0.5]))
+
+
+def test_leaf_dtype_policy_keeps_buffer_dtype():
+  template = {"f32": jnp.zeros(2, dtype=jnp.float32), "f16": jnp.zeros(3, dtype=jnp.float16)}
+  with jax.enable_x64():
+    coef = jnp.array([1.0, -0.25], dtype=jnp.float64)
+    state = init_bandinv_noise_state(template, 2)
+    output, new_state = filter_latent_noise(state, template, coef)
+  assert coef.dtype == jnp.float64
+  for name, leaf in template.items():
+    assert output[name].dtype == leaf.dtype
+    assert new_state.buffer[name].dtype == leaf.dtype
+
+
+def test_deterministic_filter_is_jittable_and_matches_eager_sequence():
+  coef = jnp.array([1.0, -0.4, 0.2])
+  latents = jnp.array([0.3, -2.0, 1.1, 0.5], dtype=jnp.float32)
+  eager_state = init_bandinv_noise_state(latents[0], 3)
+  jitted_state = init_bandinv_noise_state(latents[0], 3)
+  jitted_filter = jax.jit(filter_latent_noise)
+  eager_outputs, jitted_outputs = [], []
+  for latent in latents:
+    eager_output, eager_state = filter_latent_noise(eager_state, latent, coef)
+    jitted_output, jitted_state = jitted_filter(jitted_state, latent, coef)
+    eager_outputs.append(eager_output)
+    jitted_outputs.append(jitted_output)
+  np.testing.assert_allclose(jnp.stack(eager_outputs), jnp.stack(jitted_outputs), rtol=1e-6, atol=1e-6)
+
+
+def test_sampling_is_jittable_and_advances_state_and_key_like_eager():
+  coef = jnp.array([1.0, -0.25], dtype=jnp.float32)
+  eager_state = init_bandinv_noise_state(jnp.zeros(3, dtype=jnp.float32), 2)
+  jitted_state = init_bandinv_noise_state(jnp.zeros(3, dtype=jnp.float32), 2)
+  eager_key = jax.random.key(77)
+  jitted_key = jax.random.key(77)
+  jitted_sample = jax.jit(sample_bandinv_noise)
+  eager_outputs, jitted_outputs = [], []
+  for _ in range(4):
+    eager_output, eager_state, eager_key = sample_bandinv_noise(eager_key, eager_state, coef, 0.6)
+    jitted_output, jitted_state, jitted_key = jitted_sample(jitted_key, jitted_state, coef, 0.6)
+    eager_outputs.append(eager_output)
+    jitted_outputs.append(jitted_output)
+  np.testing.assert_allclose(jnp.stack(eager_outputs), jnp.stack(jitted_outputs), rtol=1e-6, atol=1e-6)
+  np.testing.assert_array_equal(jax.random.key_data(eager_key), jax.random.key_data(jitted_key))
+  assert not np.array_equal(np.asarray(jitted_outputs[0]), np.asarray(jitted_outputs[1]))
