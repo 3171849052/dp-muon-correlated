@@ -1,0 +1,6 @@
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.opencode/server.lock.json
+artifacts/strategies/*.npz
+*.egg-info/
