@@ -8,5 +8,12 @@
 - `jax_privacy` provides the underlying mathematics. This repository imports
   it and does not fork or reimplement Toeplitz, BISR, sensitivity, or the
   optimizer.
-- Privacy calibration, clipping, streaming noise, and the training loop are
-  intentionally deferred to the next phase.
+- The current non-amplified BandInvMF mechanism is treated as one
+  full-transcript Gaussian mechanism. It has neither subsampling amplification
+  nor per-step composition.
+- Opacus is used only for GDP dual conversion between `(epsilon, delta)` and
+  `mu`; this project does not use its subsampled DP-SGD accountant APIs.
+- For query sensitivity `s_q` and matrix sensitivity `S(C)`, the final iid
+  Gaussian standard deviation is `tau = m * s_q * S(C)`, where `m = 1 / mu`.
+- Clipping calculations, streaming noise, and the training loop remain out of
+  scope for this phase.

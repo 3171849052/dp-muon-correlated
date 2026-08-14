@@ -10,10 +10,10 @@ not fork or modify its source.
 
 ## Setup
 
-Activate and use the existing `curve` environment. `jax_privacy` comes from
-that environment; this project deliberately does not install, vendor, or
-modify it. Install this project itself in editable mode without resolving
-dependencies:
+Activate and use the existing `curve` environment. `jax_privacy` and Opacus
+come from that environment; this project deliberately does not install,
+vendor, or modify either package. Install this project itself in editable mode
+without resolving dependencies:
 
 ```bash
 conda activate curve
