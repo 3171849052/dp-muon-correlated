@@ -30,6 +30,11 @@
   baseline has `sampling_prob=1` and `cycle_length=b`. Independently reshuffling
   each epoch cannot claim this min-separation guarantee. `normalize_by` remains
   M3's fixed public `B0`, independent of realized batch size.
+- Participation certification is a single-pass streaming verification and does
+  not materialize all horizon batches. The replace-one fixed-cycle baseline uses
+  JAX Privacy's `EQUAL_SPLIT`; to prevent its remainder behavior from silently
+  dropping records, it requires `num_examples % min_sep == 0`. The add/remove
+  baseline uses `INDEPENDENT` partitioning and has no such divisibility rule.
 - This phase prepares only a non-amplified linear baseline.
 - `jax_privacy` provides the underlying mathematics. This repository imports
   it and does not fork or reimplement Toeplitz, BISR, sensitivity, or the

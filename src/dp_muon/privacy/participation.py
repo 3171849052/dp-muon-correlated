@@ -48,8 +48,36 @@ class ParticipationCertificate:
   valid: bool
 
 
+def _partition_type_for_adjacency(adjacency: str) -> batch_selection.PartitionType:
+  if adjacency == "add_remove":
+    return batch_selection.PartitionType.INDEPENDENT
+  if adjacency == "replace_one":
+    return batch_selection.PartitionType.EQUAL_SPLIT
+  raise ValueError("adjacency must be 'add_remove' or 'replace_one'")
+
+
+def validate_fixed_cycle_dataset(
+    *, num_examples: int, min_sep: int, adjacency: str
+) -> None:
+  """Checks whether a dataset can be used without fixed-cycle record loss.
+
+  JAX Privacy's ``EQUAL_SPLIT`` partition intentionally discards the remainder
+  when the dataset size is not divisible by the cycle length.  That behavior is
+  incompatible with this baseline's complete-dataset replace-one semantics.
+  """
+  if not isinstance(num_examples, Integral) or num_examples < 1:
+    raise ValueError("num_examples must be a positive integer")
+  ParticipationSpec(horizon=1, min_sep=min_sep, max_participations=None)
+  _partition_type_for_adjacency(adjacency)
+  if adjacency == "replace_one" and num_examples % min_sep != 0:
+    raise ValueError(
+        "replace_one fixed-cycle baseline requires num_examples % min_sep == 0; "
+        "JAX Privacy EQUAL_SPLIT would otherwise leave remainder records never participating"
+    )
+
+
 def make_fixed_cycle_selection(
-    *, horizon: int, min_sep: int, adjacency: str
+    *, horizon: int, min_sep: int, adjacency: str, num_examples: int | None = None
 ) -> batch_selection.CyclicPoissonSampling:
   """Returns JAX Privacy's full-probability fixed-cycle selector.
 
@@ -58,12 +86,11 @@ def make_fixed_cycle_selection(
   schedule primitive, not an amplification mechanism.
   """
   ParticipationSpec(horizon=horizon, min_sep=min_sep, max_participations=None)
-  if adjacency == "add_remove":
-    partition_type = batch_selection.PartitionType.INDEPENDENT
-  elif adjacency == "replace_one":
-    partition_type = batch_selection.PartitionType.EQUAL_SPLIT
-  else:
-    raise ValueError("adjacency must be 'add_remove' or 'replace_one'")
+  partition_type = _partition_type_for_adjacency(adjacency)
+  if num_examples is not None:
+    validate_fixed_cycle_dataset(
+        num_examples=num_examples, min_sep=min_sep, adjacency=adjacency
+    )
   return batch_selection.CyclicPoissonSampling(
       sampling_prob=1.0,
       iterations=horizon,
@@ -90,14 +117,15 @@ def certify_participation_schedule(
   aggregate extrema; temporary counts and last-seen steps are discarded before
   returning, so no per-record participation history is retained.
   """
-  concrete_batches = list(batches)
-  if len(concrete_batches) != spec.horizon:
-    raise ValueError("number of batches must equal spec.horizon")
-
   counts: dict[int, int] = {}
   last_seen: dict[int, int] = {}
   observed_min_sep: int | None = None
-  for step, batch in enumerate(concrete_batches):
+  observed_max_participations = 0
+  observed_horizon = 0
+  for step, batch in enumerate(batches):
+    if step >= spec.horizon:
+      raise ValueError("number of batches must equal spec.horizon")
+    observed_horizon = step + 1
     indices = np.asarray(batch)
     if indices.ndim != 1:
       raise ValueError("each batch must be a one-dimensional index array")
@@ -116,15 +144,19 @@ def certify_participation_schedule(
         observed_min_sep = gap if observed_min_sep is None else min(observed_min_sep, gap)
       last_seen[record] = step
       counts[record] = counts.get(record, 0) + 1
+      observed_max_participations = max(observed_max_participations, counts[record])
       if spec.max_participations is not None and counts[record] > spec.max_participations:
         raise ValueError("participations exceed max_participations")
+
+  if observed_horizon != spec.horizon:
+    raise ValueError("number of batches must equal spec.horizon")
 
   return ParticipationCertificate(
       horizon=spec.horizon,
       required_min_sep=spec.min_sep,
       observed_min_sep=observed_min_sep,
       required_max_participations=spec.max_participations,
-      observed_max_participations=max(counts.values(), default=0),
+      observed_max_participations=observed_max_participations,
       valid=True,
   )
 
@@ -155,5 +187,6 @@ __all__ = [
     "make_fixed_cycle_selection",
     "participation_spec_from_strategy",
     "theoretical_max_participations",
+    "validate_fixed_cycle_dataset",
     "validate_participation_spec_against_strategy",
 ]

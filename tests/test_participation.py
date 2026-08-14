@@ -12,23 +12,26 @@ from dp_muon.privacy import (
     make_fixed_cycle_selection,
     participation_spec_from_strategy,
     theoretical_max_participations,
+    validate_fixed_cycle_dataset,
     validate_participation_spec_against_strategy,
 )
 
 
 def test_fixed_cycle_schedule_is_certified_and_has_minimum_separation():
   spec = ParticipationSpec(horizon=10, min_sep=3, max_participations=None)
-  selector = make_fixed_cycle_selection(horizon=spec.horizon, min_sep=spec.min_sep, adjacency="add_remove")
-  batches = list(selector.batch_iterator(num_examples=11, rng=123))
-  certificate = certify_participation_schedule(batches, spec)
-  assert len(batches) == 10
+  selector = make_fixed_cycle_selection(
+      horizon=spec.horizon, min_sep=spec.min_sep, adjacency="add_remove", num_examples=11
+  )
+  certificate = certify_participation_schedule(selector.batch_iterator(num_examples=11, rng=123), spec)
   assert certificate.valid
   assert certificate.observed_min_sep is None or certificate.observed_min_sep >= 3
 
 
 def test_theoretical_and_observed_max_participations_for_n10_b3():
   spec = ParticipationSpec(horizon=10, min_sep=3, max_participations=None)
-  selector = make_fixed_cycle_selection(horizon=10, min_sep=3, adjacency="replace_one")
+  selector = make_fixed_cycle_selection(
+      horizon=10, min_sep=3, adjacency="replace_one", num_examples=12
+  )
   certificate = certify_participation_schedule(list(selector.batch_iterator(12, rng=7)), spec)
   assert theoretical_max_participations(spec) == 4
   assert certificate.observed_max_participations <= 4
@@ -51,6 +54,43 @@ def test_horizon_mismatch_fails_fast(batches):
   spec = ParticipationSpec(horizon=3, min_sep=1, max_participations=None)
   with pytest.raises(ValueError, match="number of batches"):
     certify_participation_schedule(batches, spec)
+
+
+def test_streaming_generator_and_single_pass_iterable_are_certified():
+  spec = ParticipationSpec(horizon=3, min_sep=2, max_participations=2)
+
+  class SinglePassBatches:
+    def __init__(self):
+      self.iterated = False
+
+    def __iter__(self):
+      if self.iterated:
+        raise AssertionError("schedule iterable must not be restarted")
+      self.iterated = True
+      yield np.array([0])
+      yield np.array([1])
+      yield np.array([0])
+
+  certificate = certify_participation_schedule(SinglePassBatches(), spec)
+  assert certificate.valid
+  assert certificate.observed_min_sep == 2
+
+
+def test_streaming_certificate_fails_immediately_on_too_many_batches():
+  spec = ParticipationSpec(horizon=2, min_sep=1, max_participations=None)
+
+  def unbounded_batches():
+    while True:
+      yield np.array([], dtype=np.int32)
+
+  with pytest.raises(ValueError, match="number of batches"):
+    certify_participation_schedule(unbounded_batches(), spec)
+
+
+def test_streaming_certificate_fails_on_too_few_batches():
+  spec = ParticipationSpec(horizon=3, min_sep=1, max_participations=None)
+  with pytest.raises(ValueError, match="number of batches"):
+    certify_participation_schedule((np.array([step]) for step in range(2)), spec)
 
 
 def test_duplicate_records_within_a_batch_fail_fast():
@@ -104,3 +144,14 @@ def test_adjacency_selects_expected_partition_type():
   assert replace_one.partition_type is batch_selection.PartitionType.EQUAL_SPLIT
   with pytest.raises(ValueError, match="adjacency"):
     make_fixed_cycle_selection(horizon=10, min_sep=3, adjacency="unknown")
+
+
+def test_fixed_cycle_dataset_compatibility_prevents_replace_one_record_dropping():
+  validate_fixed_cycle_dataset(num_examples=12, min_sep=3, adjacency="replace_one")
+  make_fixed_cycle_selection(horizon=10, min_sep=3, adjacency="replace_one", num_examples=12)
+  with pytest.raises(ValueError, match="EQUAL_SPLIT"):
+    validate_fixed_cycle_dataset(num_examples=11, min_sep=3, adjacency="replace_one")
+  with pytest.raises(ValueError, match="EQUAL_SPLIT"):
+    make_fixed_cycle_selection(horizon=10, min_sep=3, adjacency="replace_one", num_examples=11)
+  validate_fixed_cycle_dataset(num_examples=11, min_sep=3, adjacency="add_remove")
+  make_fixed_cycle_selection(horizon=10, min_sep=3, adjacency="add_remove", num_examples=11)

@@ -8,6 +8,7 @@ from .participation import (
     make_fixed_cycle_selection,
     participation_spec_from_strategy,
     theoretical_max_participations,
+    validate_fixed_cycle_dataset,
     validate_participation_spec_against_strategy,
 )
 from .nonamplified import (
@@ -29,5 +30,6 @@ __all__ = [
     "make_clipped_gradient_query",
     "participation_spec_from_strategy",
     "theoretical_max_participations",
+    "validate_fixed_cycle_dataset",
     "validate_participation_spec_against_strategy",
 ]
