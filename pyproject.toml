@@ -9,7 +9,7 @@ description = "Research scaffolding for non-amplified BandInvMF and DP-Muon"
 readme = "README.md"
 requires-python = ">=3.11"
 # jax_privacy is deliberately supplied by the existing `curve` environment.
-dependencies = ["jax", "Pillow"]
+dependencies = ["jax", "Pillow", "PyYAML", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

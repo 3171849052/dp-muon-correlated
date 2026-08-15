@@ -8,9 +8,9 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import jax
-import jax.image
 import jax.numpy as jnp
 import numpy as np
+from scipy import ndimage
 
 from .vit_tiny import ViTTinyConfig, init_vit_tiny
 
@@ -35,8 +35,8 @@ def _require(archive: np.lib.npyio.NpzFile, name: str, shape: tuple[int, ...] | 
 
 
 def interpolate_positional_embedding(position: jax.Array, target_grid: int) -> jax.Array:
-  """Keeps the CLS embedding and bicubically resizes the 2-D patch grid."""
-  position = jnp.asarray(position, dtype=jnp.float32)
+  """Matches Google's ``interpolate_posembed`` for the patch position grid."""
+  position = np.asarray(position, dtype=np.float32)
   if position.ndim != 3 or position.shape[0] != 1 or position.shape[1] < 2:
     raise ValueError("positional embedding must have shape [1, 1 + grid**2, embed_dim]")
   source_tokens = position.shape[1] - 1
@@ -44,9 +44,13 @@ def interpolate_positional_embedding(position: jax.Array, target_grid: int) -> j
   if source_grid * source_grid != source_tokens:
     raise ValueError("pretrained positional embedding patch tokens must form a square grid")
   cls, patches = position[:, :1], position[:, 1:]
-  patches = patches.reshape(1, source_grid, source_grid, position.shape[-1])
-  patches = jax.image.resize(patches, (1, target_grid, target_grid, position.shape[-1]), method="bicubic")
-  return jnp.concatenate((cls, patches.reshape(1, target_grid * target_grid, position.shape[-1])), axis=1)
+  patches = patches.reshape(source_grid, source_grid, position.shape[-1])
+  zoom = (target_grid / source_grid, target_grid / source_grid, 1)
+  patches = ndimage.zoom(patches, zoom, order=1)
+  resized = np.concatenate(
+      (cls, patches.reshape(1, target_grid * target_grid, position.shape[-1])), axis=1
+  )
+  return jnp.asarray(resized, dtype=jnp.float32)
 
 
 def _load_qkv_projection(

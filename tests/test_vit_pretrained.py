@@ -1,8 +1,10 @@
 import jax
 import numpy as np
 import pytest
+from scipy import ndimage
 
 from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
+from dp_muon.models.vit_pretrained import interpolate_positional_embedding
 
 
 def _checkpoint(path, *, malformed_query: bool = False):
@@ -10,7 +12,9 @@ def _checkpoint(path, *, malformed_query: bool = False):
       "embedding/kernel": np.ones((16, 16, 3, 192), np.float32),
       "embedding/bias": np.ones((192,), np.float32),
       "cls": np.ones((1, 1, 192), np.float32),
-      "Transformer/posembed_input/pos_embedding": np.ones((1, 197, 192), np.float32),
+      "Transformer/posembed_input/pos_embedding": np.arange(
+          197 * 192, dtype=np.float32
+      ).reshape(1, 197, 192) / 100.0,
       "Transformer/encoder_norm/scale": np.ones((192,), np.float32),
       "Transformer/encoder_norm/bias": np.zeros((192,), np.float32),
       # A source classifier is deliberately ignored by the loader.
@@ -73,3 +77,17 @@ def test_google_npz_loader_rejects_non_densegeneral_attention_shapes(tmp_path):
   _checkpoint(path, malformed_query=True)
   with pytest.raises(ValueError, match="query/kernel.*expected"):
     load_pretrained_vit_tiny(path, key=jax.random.key(1))
+
+
+def test_positional_embedding_matches_google_scipy_linear_zoom():
+  position = np.arange(197 * 192, dtype=np.float32).reshape(1, 197, 192) / 37.0
+  actual = interpolate_positional_embedding(position, target_grid=8)
+  cls, patches = position[:, :1], position[:, 1:]
+  expected_patches = ndimage.zoom(
+      patches.reshape(14, 14, 192), (8 / 14, 8 / 14, 1), order=1
+  )
+  expected = np.concatenate((cls, expected_patches.reshape(1, 64, 192)), axis=1)
+
+  assert actual.shape == (1, 65, 192)
+  np.testing.assert_array_equal(np.asarray(actual[:, :1]), cls)
+  np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)
