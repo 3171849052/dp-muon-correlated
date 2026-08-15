@@ -5,6 +5,10 @@
 # Local datasets, experiment logs, and generated artifacts.
 /data/
 /logs/
+/exp*/logs/
+!/exp1/logs/
+/exp1/logs/*
+!/exp1/logs/.gitkeep
 /artifacts/
 
 # Python build and environment outputs.
