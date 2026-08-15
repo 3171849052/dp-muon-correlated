@@ -168,17 +168,10 @@ class MetricsCSVWriter:
     return True
 
 
-def append_train_log(path: str | Path, message: str) -> None:
-  with Path(path).open("a", encoding="utf-8") as target:
-    target.write(message + "\n")
-    target.flush()
-
-
 __all__ = [
     "METRICS_FIELDS",
     "MetricsCSVWriter",
     "RunPaths",
-    "append_train_log",
     "config_content_hash",
     "create_run_directory",
     "existing_run_paths",

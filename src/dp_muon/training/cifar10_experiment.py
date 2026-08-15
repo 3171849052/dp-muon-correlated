@@ -26,7 +26,6 @@ from .cifar10_driver import Cifar10TrainConfig, train_cifar10
 from .nonamplified_linear import validate_nonamplified_bandinv_setup
 from .run_logging import (
     MetricsCSVWriter,
-    append_train_log,
     config_content_hash,
     create_run_directory,
     existing_run_paths,
@@ -521,13 +520,11 @@ def run_cifar10_nonamplified(
     resolved["run"] = _run_metadata(run_paths)
     write_run_configuration(run_paths, source_yaml=source_yaml, resolved=resolved)
     MetricsCSVWriter(run_paths.metrics)
-  append_train_log(run_paths.train_log, f"Starting {'resume' if resume_checkpoint else 'run'}: {run_paths.directory}")
   return train_cifar10(
       train_config,
       resume_checkpoint=resume_checkpoint,
       checkpoint_path=run_paths.checkpoint,
       metrics_path=run_paths.metrics,
-      train_log_path=run_paths.train_log,
   )
 
 

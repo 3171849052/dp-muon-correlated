@@ -56,11 +56,13 @@ def test_driver_prints_eval_progress_and_returns_history(capsys):
   assert capsys.readouterr().out.splitlines() == ["{'step': 2}", "{'step': 3}"]
 
 
-def test_driver_evaluates_on_actual_epoch_progress_and_writes_metrics(tmp_path):
+def test_driver_evaluates_once_to_stdout_without_direct_train_log_append(tmp_path, capsys):
   strategy, step = _setup()
   batches = [{"x": jnp.array([value], jnp.float32)} for value in (1.0, 2.0, 3.0)]
   initial = init_nonamplified_bandinv_state(jnp.array(0.0), strategy, jax.random.key(6))
   metrics_path = tmp_path / "metrics.csv"
+  train_log = tmp_path / "train.log"
+  train_log.write_text("stdout is owned by tee\n", encoding="utf-8")
   _, history = run_training(
       initial_state=initial,
       train_step=step,
@@ -79,6 +81,12 @@ def test_driver_evaluates_on_actual_epoch_progress_and_writes_metrics(tmp_path):
   )
   assert [record["step"] for record in history] == [2, 3]
   assert [record["epoch"] for record in history] == [1, 2]
+  stdout = capsys.readouterr().out
+  assert stdout.count("'step': 2") == 1
+  assert stdout.count("'step': 3") == 1
+  # run_training no longer has a train-log file path or direct append route;
+  # the shell's stdout -> tee pipeline is the sole owner of this file.
+  assert train_log.read_text(encoding="utf-8") == "stdout is owned by tee\n"
   rows = metrics_path.read_text(encoding="utf-8").splitlines()
   assert rows[0].split(",") == list(METRICS_FIELDS)
   assert len(rows) == 3

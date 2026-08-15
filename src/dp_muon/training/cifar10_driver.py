@@ -26,7 +26,7 @@ from dp_muon.privacy import (
 )
 
 from .checkpoint import load_checkpoint, save_checkpoint
-from .run_logging import MetricsCSVWriter, append_train_log
+from .run_logging import MetricsCSVWriter
 from .nonamplified_linear import (
     NonAmplifiedBandInvState,
     init_nonamplified_bandinv_state,
@@ -202,7 +202,6 @@ def run_training(
     logical_batch_size: int | None = None,
     metrics_writer: MetricsCSVWriter | None = None,
     privacy_accountant: Callable[[int], float] | None = None,
-    train_log_path: str | Path | None = None,
 ) -> tuple[Any, list[dict[str, float | int]]]:
   """Runs exactly one private update for each logical batch, with optional resume.
 
@@ -317,8 +316,6 @@ def run_training(
             next_eval_epoch += eval_every
         history.append(record)
         print(record, flush=True)
-        if train_log_path is not None:
-          append_train_log(train_log_path, str(record))
         if checkpoint_path is not None:
           save_checkpoint(
               checkpoint_path,
@@ -340,7 +337,6 @@ def train_cifar10(
     resume_checkpoint: str | Path | None = None,
     checkpoint_path: str | Path | None = None,
     metrics_path: str | Path | None = None,
-    train_log_path: str | Path | None = None,
 ):
   """Loads public assets and delegates all private update math to M6."""
   strategy = load_bandinv_strategy(config.strategy)
@@ -397,7 +393,6 @@ def train_cifar10(
           calibration=calibration,
           full_sensitivity_squared=float(strategy.sensitivity_squared),
       ),
-      train_log_path=train_log_path,
   )
 
 
@@ -407,7 +402,6 @@ def train_cifar10_dpsgd_momentum(
     resume_checkpoint: str | Path | None = None,
     checkpoint_path: str | Path | None = None,
     metrics_path: str | Path | None = None,
-    train_log_path: str | Path | None = None,
 ):
   """Fine-tunes CIFAR-10 with the non-amplified IID DP-SGD baseline."""
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
@@ -466,7 +460,6 @@ def train_cifar10_dpsgd_momentum(
           max_participations=config.max_participations,
           calibration=calibration,
       ),
-      train_log_path=train_log_path,
   )
 
 
