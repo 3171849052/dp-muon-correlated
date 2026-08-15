@@ -5,16 +5,21 @@ from __future__ import annotations
 
 import argparse
 
-from dp_muon.training.cifar10_experiment import run_cifar10_nonamplified
+from dp_muon.training.cifar10_experiment import (
+    resolve_output_log_dir,
+    run_cifar10_nonamplified,
+)
 
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--config", required=True)
+  parser.add_argument("--print-log-dir", action="store_true")
   args = parser.parse_args()
-  _, history = run_cifar10_nonamplified(args.config)
-  for record in history:
-    print(record)
+  if args.print_log_dir:
+    print(resolve_output_log_dir(args.config))
+    return
+  run_cifar10_nonamplified(args.config)
 
 
 if __name__ == "__main__":

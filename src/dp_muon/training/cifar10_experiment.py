@@ -26,6 +26,9 @@ from .cifar10_driver import Cifar10TrainConfig, train_cifar10
 from .nonamplified_linear import validate_nonamplified_bandinv_setup
 
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+
+
 @dataclass(frozen=True)
 class FixedCycleParticipation:
   """Public fixed-cycle values derived from epoch and logical batch settings."""
@@ -52,7 +55,7 @@ class Cifar10NonAmplifiedExperimentConfig:
   schedule_mode: Literal["fixed_cycle"]
   epsilon: float
   delta: float
-  adjacency: Literal["add_remove", "replace_one"]
+  adjacency: Literal["add_remove"]
   bandwidth: int
   reduction: Literal["mean", "max", "last"]
   max_optimizer_steps: int
@@ -160,8 +163,10 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   if mode != "fixed_cycle":
     raise ValueError("schedule.mode must be 'fixed_cycle'")
   adjacency = _string(privacy["adjacency"], "privacy.adjacency")
-  if adjacency not in {"add_remove", "replace_one"}:
-    raise ValueError("privacy.adjacency must be 'add_remove' or 'replace_one'")
+  if adjacency != "add_remove":
+    raise ValueError(
+        "CIFAR-10 YAML runner currently supports only adjacency='add_remove'"
+    )
   reduction = _string(strategy["reduction"], "strategy.reduction")
   if reduction not in {"mean", "max", "last"}:
     raise ValueError("strategy.reduction must be one of: mean, max, last")
@@ -199,6 +204,12 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   if config.logical_batch_size % config.microbatch_size != 0:
     raise ValueError("training.logical_batch_size must be divisible by training.microbatch_size")
   return config
+
+
+def resolve_output_log_dir(config_path: str | Path) -> Path:
+  """Returns the YAML log directory, resolving relative paths from repo root."""
+  log_dir = Path(load_cifar10_nonamplified_config(config_path).log_dir)
+  return log_dir if log_dir.is_absolute() else REPOSITORY_ROOT / log_dir
 
 
 def strategy_artifact_path(
@@ -334,7 +345,10 @@ def _print_resolved_config(
 def run_cifar10_nonamplified(config_path: str | Path):
   """Fits/reuses the public strategy, validates M6 setup, then trains CIFAR-10."""
   config = load_cifar10_nonamplified_config(config_path)
-  Path(config.log_dir).mkdir(parents=True, exist_ok=True)
+  log_dir = Path(config.log_dir)
+  (log_dir if log_dir.is_absolute() else REPOSITORY_ROOT / log_dir).mkdir(
+      parents=True, exist_ok=True
+  )
   train_images, _ = load_cifar10(config.data_dir, train=True)
   num_examples = len(train_images)
   del train_images
@@ -409,6 +423,7 @@ __all__ = [
     "derive_fixed_cycle_participation",
     "get_or_fit_strategy",
     "load_cifar10_nonamplified_config",
+    "resolve_output_log_dir",
     "run_cifar10_nonamplified",
     "strategy_artifact_path",
 ]

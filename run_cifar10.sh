@@ -14,9 +14,10 @@ fi
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG=$(realpath "$CONFIG")
-mkdir -p "$ROOT/logs"
+LOG_DIR=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-log-dir)
+mkdir -p "$LOG_DIR"
 SESSION="cifar10_$(basename "$CONFIG" .yaml)_$(printf '%s' "$CONFIG" | sha256sum | cut -c1-10)"
-LOG="$ROOT/logs/${SESSION}.log"
+LOG="$LOG_DIR/${SESSION}.log"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   echo "tmux session already exists: $SESSION" >&2

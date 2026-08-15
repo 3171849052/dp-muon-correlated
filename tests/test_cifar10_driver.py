@@ -38,6 +38,23 @@ def test_driver_uses_exact_horizon_and_checkpoint_resume(tmp_path):
   assert int(resumed.nesterov_state.step) == int(resumed.noise_state.step) == strategy.horizon
 
 
+def test_driver_prints_eval_progress_and_returns_history(capsys):
+  strategy, step = _setup()
+  batches = [{"x": jnp.array([value], jnp.float32)} for value in (1.0, 2.0, 3.0)]
+  initial = init_nonamplified_bandinv_state(jnp.array(0.0), strategy, jax.random.key(5))
+  _, history = run_training(
+      initial_state=initial,
+      train_step=step,
+      logical_batches=batches,
+      horizon=3,
+      experiment_config={"synthetic": True},
+      artifact_identifiers={"strategy": "test"},
+      eval_every=2,
+  )
+  assert history == [{"step": 2}, {"step": 3}]
+  assert capsys.readouterr().out.splitlines() == ["{'step': 2}", "{'step': 3}"]
+
+
 def test_microbatch_size_must_divide_logical_batch_size():
   from dp_muon.training.cifar10_driver import Cifar10TrainConfig
 

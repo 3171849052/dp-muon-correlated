@@ -1,5 +1,6 @@
 from dataclasses import replace
 from pathlib import Path
+import sys
 
 import jax.numpy as jnp
 import numpy as np
@@ -8,6 +9,7 @@ import pytest
 from dp_muon.bandinvmf import BandInvMFStrategy, save_bandinv_strategy
 from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
 from dp_muon.training import cifar10_experiment as experiment
+from scripts import run_cifar10 as run_cifar10_script
 
 
 CONFIG = Path("config/cifar10_nonamplified.yaml")
@@ -85,6 +87,71 @@ def test_parses_default_yaml_without_manual_participation_values():
   assert config.logical_batch_size == 512
   assert config.momentum == 0.9
   assert config.learning_rate == 0.5
+  assert config.adjacency == "add_remove"
+
+
+def test_yaml_runner_rejects_replace_one_adjacency(tmp_path):
+  config_path = tmp_path / "replace_one.yaml"
+  config_path.write_text(
+      CONFIG.read_text(encoding="utf-8").replace(
+          "adjacency: add_remove", "adjacency: replace_one"
+      ),
+      encoding="utf-8",
+  )
+  with pytest.raises(
+      ValueError,
+      match="CIFAR-10 YAML runner currently supports only adjacency='add_remove'",
+  ):
+    experiment.load_cifar10_nonamplified_config(config_path)
+
+
+def test_print_log_dir_cli_resolves_relative_path_from_repository_root(
+    tmp_path, monkeypatch, capsys
+):
+  config_path = tmp_path / "logs.yaml"
+  config_path.write_text(
+      CONFIG.read_text(encoding="utf-8").replace("log_dir: logs", "log_dir: ci-logs"),
+      encoding="utf-8",
+  )
+  monkeypatch.setattr(
+      sys,
+      "argv",
+      ["run_cifar10.py", "--config", str(config_path), "--print-log-dir"],
+  )
+  run_cifar10_script.main()
+  assert capsys.readouterr().out.strip() == str(experiment.REPOSITORY_ROOT / "ci-logs")
+
+
+def test_print_log_dir_cli_preserves_absolute_path(tmp_path, monkeypatch, capsys):
+  absolute_log_dir = tmp_path / "absolute-logs"
+  config_path = tmp_path / "absolute.yaml"
+  config_path.write_text(
+      CONFIG.read_text(encoding="utf-8").replace(
+          "log_dir: logs", f"log_dir: {absolute_log_dir}"
+      ),
+      encoding="utf-8",
+  )
+  monkeypatch.setattr(
+      sys,
+      "argv",
+      ["run_cifar10.py", "--config", str(config_path), "--print-log-dir"],
+  )
+  run_cifar10_script.main()
+  assert capsys.readouterr().out.strip() == str(absolute_log_dir)
+
+
+def test_runner_cli_does_not_print_history_after_training(monkeypatch, capsys):
+  calls = []
+
+  def fake_run(config_path):
+    calls.append(config_path)
+    return None, [{"step": 50, "accuracy": 0.8}]
+
+  monkeypatch.setattr(run_cifar10_script, "run_cifar10_nonamplified", fake_run)
+  monkeypatch.setattr(sys, "argv", ["run_cifar10.py", "--config", "experiment.yaml"])
+  run_cifar10_script.main()
+  assert calls == ["experiment.yaml"]
+  assert capsys.readouterr().out == ""
 
 
 def test_matching_artifact_is_reused_without_optimizer(tmp_path, monkeypatch):

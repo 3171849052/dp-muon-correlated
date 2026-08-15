@@ -148,6 +148,7 @@ def run_training(
       if evaluate is not None:
         record["accuracy"] = float(evaluate(state))
       history.append(record)
+      print(record, flush=True)
       if checkpoint_path is not None:
         save_checkpoint(
             checkpoint_path,
