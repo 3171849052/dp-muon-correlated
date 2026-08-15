@@ -1,7 +1,29 @@
 **/__pycache__/
 *.py[cod]
 .pytest_cache/
-.opencode/server.lock.json
-artifacts/strategies/*.npz
+
+# Local datasets, experiment logs, and generated artifacts.
+/data/
+/logs/
+/artifacts/
+
+# Python build and environment outputs.
 *.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local IDE and OS files.
+.idea/
+.vscode/
+.DS_Store
+
+.opencode/server.lock.json
 .opencode
+/checkpoints/
+/logs/

@@ -1,4 +1,4 @@
-"""Orchestration for CIFAR-10 fine-tuning with the existing M6 trainer."""
+"""Shared CIFAR-10 orchestration for non-amplified private trainers."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
 from dp_muon.privacy import (
     ParticipationSpec,
     calibrate_nonamplified_bandinv,
+    calibrate_nonamplified_iid,
     certify_participation_schedule,
 )
 
@@ -25,6 +26,11 @@ from .nonamplified_linear import (
     NonAmplifiedBandInvState,
     init_nonamplified_bandinv_state,
     make_nonamplified_bandinv_train_step,
+)
+from .nonamplified_dpsgd import (
+    NonAmplifiedDPSGDState,
+    init_nonamplified_dpsgd_state,
+    make_nonamplified_dpsgd_train_step,
 )
 
 
@@ -59,6 +65,40 @@ class Cifar10TrainConfig:
       raise ValueError("eval_every must be positive")
 
 
+@dataclass(frozen=True)
+class Cifar10DPSGDMomentumTrainConfig:
+  """Public configuration for the IID DP-SGD-Momentum CIFAR-10 baseline."""
+
+  pretrained: str
+  data_dir: str
+  batch_size: int
+  microbatch_size: int | None
+  clip_norm: float
+  epsilon: float
+  delta: float
+  momentum: float
+  learning_rate: float
+  seed: int
+  checkpoint_dir: str
+  eval_every: int
+  horizon: int
+  min_sep: int
+  max_participations: int
+  adjacency: str = "add_remove"
+
+  def __post_init__(self) -> None:
+    if self.batch_size < 1 or self.horizon < 1 or self.min_sep < 1:
+      raise ValueError("batch_size, horizon, and min_sep must be positive")
+    if self.max_participations < 1:
+      raise ValueError("max_participations must be positive")
+    if self.microbatch_size is not None and self.microbatch_size < 1:
+      raise ValueError("microbatch_size must be positive when supplied")
+    if self.microbatch_size is not None and self.batch_size % self.microbatch_size != 0:
+      raise ValueError("batch_size must be divisible by microbatch_size")
+    if self.eval_every < 1:
+      raise ValueError("eval_every must be positive")
+
+
 def build_logical_schedule(
     *, num_examples: int, batch_size: int, strategy: BandInvMFStrategy, seed: int
 ) -> list[np.ndarray]:
@@ -67,17 +107,40 @@ def build_logical_schedule(
     raise ValueError("num_examples and batch_size must be positive")
   if batch_size > num_examples:
     raise ValueError("batch_size must not exceed number of training examples")
+  return build_fixed_cycle_logical_schedule(
+      num_examples=num_examples,
+      batch_size=batch_size,
+      horizon=strategy.horizon,
+      min_sep=strategy.min_sep,
+      max_participations=strategy.max_participations,
+      seed=seed,
+  )
+
+
+def build_fixed_cycle_logical_schedule(
+    *,
+    num_examples: int,
+    batch_size: int,
+    horizon: int,
+    min_sep: int,
+    max_participations: int | None,
+    seed: int,
+) -> list[np.ndarray]:
+  """Builds and certifies the shared fixed-cycle schedule without a strategy."""
+  if num_examples < 1 or batch_size < 1 or horizon < 1 or min_sep < 1:
+    raise ValueError("schedule dimensions must be positive")
+  if batch_size > num_examples:
+    raise ValueError("batch_size must not exceed number of training examples")
   # Moving through one shuffled cyclic order makes every repeated record at
   # least floor(num_examples / batch_size) steps apart.  Certification below is
   # the authority for the fitted min-separation/max-participation contract.
   permutation = np.random.default_rng(seed).permutation(num_examples)
   schedule = [
       permutation[(step * batch_size + np.arange(batch_size)) % num_examples].astype(np.int32)
-      for step in range(strategy.horizon)
+      for step in range(horizon)
   ]
   certify_participation_schedule(
-      schedule,
-      ParticipationSpec(strategy.horizon, strategy.min_sep, strategy.max_participations),
+      schedule, ParticipationSpec(horizon, min_sep, max_participations)
   )
   return schedule
 
@@ -103,8 +166,8 @@ def evaluate_classifier(
 
 def run_training(
     *,
-    initial_state: NonAmplifiedBandInvState,
-    train_step: Callable[[NonAmplifiedBandInvState, Any], NonAmplifiedBandInvState],
+    initial_state: Any,
+    train_step: Callable[[Any, Any], Any],
     logical_batches: Iterable[Any],
     horizon: int,
     experiment_config: dict[str, Any],
@@ -112,9 +175,9 @@ def run_training(
     checkpoint_path: str | Path | None = None,
     resume_checkpoint: str | Path | None = None,
     eval_every: int = 1,
-    evaluate: Callable[[NonAmplifiedBandInvState], float] | None = None,
-) -> tuple[NonAmplifiedBandInvState, list[dict[str, float | int]]]:
-  """Runs exactly one M6 call for each logical batch, with optional resume.
+    evaluate: Callable[[Any], float] | None = None,
+) -> tuple[Any, list[dict[str, float | int]]]:
+  """Runs exactly one private update for each logical batch, with optional resume.
 
   The iterable is deliberately consumed one batch at a time.  No accumulation,
   no splitting, and no retry/skip path can introduce another DP query.
@@ -130,7 +193,7 @@ def run_training(
       raise ValueError("checkpoint experiment config does not match this run")
     state, start = saved["state"], int(saved["current_step"])
     if start > horizon:
-      raise ValueError("checkpoint current_step exceeds strategy horizon")
+      raise ValueError("checkpoint current_step exceeds training horizon")
   compiled_step = jax.jit(train_step)
   history: list[dict[str, float | int]] = []
   batches = iter(logical_batches)
@@ -150,8 +213,8 @@ def run_training(
       try:
         batch = jax.tree_util.tree_map(jnp.asarray, next(batches))
       except StopIteration as error:
-        raise ValueError("logical_batches must contain exactly strategy.horizon batches") from error
-      state = compiled_step(state, batch)  # The sole M6 invocation for this B_0.
+        raise ValueError("logical_batches must contain exactly horizon batches") from error
+      state = compiled_step(state, batch)  # The sole private update for this batch.
       current_step = logical_step + 1
       if current_step % eval_every == 0 or current_step == horizon:
         record: dict[str, float | int] = {"step": current_step}
@@ -171,7 +234,7 @@ def run_training(
     next(batches)
   except StopIteration:
     return state, history
-  raise ValueError("logical_batches must contain exactly strategy.horizon batches")
+  raise ValueError("logical_batches must contain exactly horizon batches")
 
 
 def train_cifar10(config: Cifar10TrainConfig, *, resume_checkpoint: str | Path | None = None):
@@ -219,11 +282,69 @@ def train_cifar10(config: Cifar10TrainConfig, *, resume_checkpoint: str | Path |
   )
 
 
+def train_cifar10_dpsgd_momentum(
+    config: Cifar10DPSGDMomentumTrainConfig,
+    *,
+    resume_checkpoint: str | Path | None = None,
+):
+  """Fine-tunes CIFAR-10 with the non-amplified IID DP-SGD baseline."""
+  train_images, train_labels = load_cifar10(config.data_dir, train=True)
+  test_images, test_labels = load_cifar10(config.data_dir, train=False)
+  schedule = build_fixed_cycle_logical_schedule(
+      num_examples=len(train_images),
+      batch_size=config.batch_size,
+      horizon=config.horizon,
+      min_sep=config.min_sep,
+      max_participations=config.max_participations,
+      seed=config.seed,
+  )
+  model = ViTTiny()
+  parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
+  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  calibration = calibrate_nonamplified_iid(
+      epsilon=config.epsilon,
+      delta=config.delta,
+      clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size),
+      adjacency=config.adjacency,  # type: ignore[arg-type]
+      max_participations=config.max_participations,
+  )
+  train_step = make_nonamplified_dpsgd_train_step(
+      lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
+      calibration,
+      config.momentum,
+      config.learning_rate,
+      microbatch_size=config.microbatch_size,
+  )
+  initial_state = init_nonamplified_dpsgd_state(params, noise_key)
+  checkpoint_path = Path(config.checkpoint_dir) / "latest.pkl"
+  return run_training(
+      initial_state=initial_state,
+      train_step=train_step,
+      logical_batches=iter_logical_batches(train_images, train_labels, schedule),
+      horizon=config.horizon,
+      experiment_config=asdict(config),
+      artifact_identifiers={
+          "algorithm": "nonamplified_iid_dpsgd_momentum",
+          "pretrained": str(Path(config.pretrained).resolve()),
+      },
+      checkpoint_path=checkpoint_path,
+      resume_checkpoint=resume_checkpoint,
+      eval_every=config.eval_every,
+      evaluate=lambda state: evaluate_classifier(
+          state.params, model, test_images, test_labels, batch_size=config.batch_size
+      ),
+  )
+
+
 __all__ = [
     "Cifar10TrainConfig",
+    "Cifar10DPSGDMomentumTrainConfig",
+    "build_fixed_cycle_logical_schedule",
     "build_logical_schedule",
     "cross_entropy_loss",
     "evaluate_classifier",
     "run_training",
     "train_cifar10",
+    "train_cifar10_dpsgd_momentum",
 ]

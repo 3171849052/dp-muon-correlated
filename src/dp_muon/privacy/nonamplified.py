@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+from numbers import Integral
 from typing import Literal
 
 from opacus.accountants.analysis import gdp
@@ -26,6 +27,7 @@ class PrivacyCalibration:
   mu: float
   noise_multiplier: float
   iid_noise_std: float
+  max_participations: int | None = None
 
 
 def _positive_finite(name: str, value: float) -> float:
@@ -140,4 +142,49 @@ def calibrate_nonamplified_bandinv(
       mu=mu,
       noise_multiplier=noise_multiplier,
       iid_noise_std=noise_multiplier * total_sensitivity,
+  )
+
+
+def calibrate_nonamplified_iid(
+    *,
+    epsilon: float,
+    delta: float,
+    clip_norm: float,
+    normalize_by: float,
+    adjacency: Adjacency,
+    max_participations: int,
+) -> PrivacyCalibration:
+  """Calibrates independent per-step Gaussian noise without amplification.
+
+  A fixed-cycle transcript has L2 sensitivity ``s_q * sqrt(k)`` for a record
+  participating at most ``k`` times.  GDP therefore gives each independent
+  step the standard deviation ``tau = m * s_q * sqrt(k)``.
+  """
+  epsilon, delta = _validate_privacy_parameters(epsilon, delta)
+  if (
+      isinstance(max_participations, bool)
+      or not isinstance(max_participations, Integral)
+      or max_participations < 1
+  ):
+    raise ValueError("max_participations must be a positive integer")
+  max_participations = int(max_participations)
+  query_sensitivity = compute_query_sensitivity(
+      clip_norm, normalize_by, adjacency
+  )
+  matrix_sensitivity = math.sqrt(max_participations)
+  total_sensitivity = query_sensitivity * matrix_sensitivity
+  noise_multiplier = calibrate_gdp_noise_multiplier(epsilon, delta)
+  return PrivacyCalibration(
+      epsilon=epsilon,
+      delta=delta,
+      adjacency=adjacency,
+      clip_norm=float(clip_norm),
+      normalize_by=float(normalize_by),
+      query_sensitivity=query_sensitivity,
+      matrix_sensitivity=matrix_sensitivity,
+      total_sensitivity=total_sensitivity,
+      mu=1.0 / noise_multiplier,
+      noise_multiplier=noise_multiplier,
+      iid_noise_std=noise_multiplier * total_sensitivity,
+      max_participations=max_participations,
   )

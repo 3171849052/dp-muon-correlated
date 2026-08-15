@@ -1,4 +1,4 @@
-"""Checkpointing for the complete M6 state, without changing its semantics."""
+"""Checkpointing for complete non-amplified training state."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any
 import jax
 import numpy as np
 
+from .nonamplified_dpsgd import NonAmplifiedDPSGDState
 from .nonamplified_linear import NonAmplifiedBandInvState
 
 
@@ -19,26 +20,33 @@ def _concrete_step(value: Any, name: str) -> int:
   return int(array)
 
 
-def _validate_steps(state: NonAmplifiedBandInvState, current_step: int) -> None:
-  if not isinstance(state, NonAmplifiedBandInvState):
-    raise TypeError("state must be a NonAmplifiedBandInvState")
+def _validate_steps(
+    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState, current_step: int
+) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
-  nesterov_step = _concrete_step(state.nesterov_state.step, "nesterov_state.step")
-  noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
-  if int(current_step) != nesterov_step or int(current_step) != noise_step:
-    raise ValueError("current_step must equal nesterov_state.step and noise_state.step")
+  if isinstance(state, NonAmplifiedBandInvState):
+    nesterov_step = _concrete_step(state.nesterov_state.step, "nesterov_state.step")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if int(current_step) != nesterov_step or int(current_step) != noise_step:
+      raise ValueError("current_step must equal nesterov_state.step and noise_state.step")
+  elif isinstance(state, NonAmplifiedDPSGDState):
+    momentum_step = _concrete_step(state.momentum_state.step, "momentum_state.step")
+    if int(current_step) != momentum_step:
+      raise ValueError("current_step must equal momentum_state.step")
+  else:
+    raise TypeError("state must be a supported non-amplified training state")
 
 
 def save_checkpoint(
     path: str | Path,
     *,
-    state: NonAmplifiedBandInvState,
+    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState,
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],
 ) -> Path:
-  """Atomically stores model, M6 state, step, and public run metadata."""
+  """Atomically stores model state, step, and public run metadata."""
   _validate_steps(state, current_step)
   destination = Path(path)
   destination.parent.mkdir(parents=True, exist_ok=True)
