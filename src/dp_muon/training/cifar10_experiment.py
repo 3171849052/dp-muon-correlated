@@ -30,6 +30,7 @@ from .run_logging import (
     config_content_hash,
     create_run_directory,
     existing_run_paths,
+    run_paths_from_directory,
     write_run_configuration,
 )
 
@@ -388,12 +389,66 @@ def _resolved_config(
   }
 
 
+def _run_metadata(run_paths: Any) -> dict[str, str]:
+  return {
+      "directory": str(run_paths.directory.resolve()),
+      "metrics": str(run_paths.metrics.resolve()),
+      "checkpoint": str(run_paths.checkpoint.resolve()),
+  }
+
+
+def _create_run(
+    config: Cifar10NonAmplifiedExperimentConfig,
+    source_yaml: str,
+    document: Mapping[str, Any],
+):
+  log_root = Path(config.log_dir)
+  if not log_root.is_absolute():
+    log_root = REPOSITORY_ROOT / log_root
+  run_paths = create_run_directory(
+      log_root,
+      epsilon=config.epsilon,
+      bandwidth=config.bandwidth,
+      learning_rate=config.learning_rate,
+      clip_norm=config.clip_norm,
+      seed=config.seed,
+      config_hash=config_content_hash(document),
+  )
+  # This provisional record lets the shell safely redirect every subsequent
+  # training message before public strategy/data setup is complete.
+  write_run_configuration(
+      run_paths,
+      source_yaml=source_yaml,
+      resolved={"experiment": asdict(config), "run": _run_metadata(run_paths)},
+  )
+  MetricsCSVWriter(run_paths.metrics)
+  return run_paths
+
+
+def prepare_cifar10_nonamplified_run(config_path: str | Path):
+  """Creates and snapshots a run directory without starting training."""
+  config = load_cifar10_nonamplified_config(config_path)
+  source_yaml, document = _source_config_document(config_path)
+  return _create_run(config, source_yaml, document)
+
+
 def run_cifar10_nonamplified(
-    config_path: str | Path, *, resume_checkpoint: str | Path | None = None
+    config_path: str | Path,
+    *,
+    resume_checkpoint: str | Path | None = None,
+    run_dir: str | Path | None = None,
 ):
   """Fits/reuses the public strategy, validates M6 setup, then trains CIFAR-10."""
   config = load_cifar10_nonamplified_config(config_path)
   source_yaml, document = _source_config_document(config_path)
+  if resume_checkpoint is not None and run_dir is not None:
+    raise ValueError("resume_checkpoint and run_dir are mutually exclusive")
+  if resume_checkpoint is not None:
+    run_paths = existing_run_paths(resume_checkpoint)
+  elif run_dir is not None:
+    run_paths = run_paths_from_directory(run_dir)
+  else:
+    run_paths = _create_run(config, source_yaml, document)
   train_images, _ = load_cifar10(config.data_dir, train=True)
   num_examples = len(train_images)
   del train_images
@@ -460,30 +515,12 @@ def run_cifar10_nonamplified(
       adjacency=config.adjacency,
   )
   if resume_checkpoint is None:
-    log_root = Path(config.log_dir)
-    if not log_root.is_absolute():
-      log_root = REPOSITORY_ROOT / log_root
-    run_paths = create_run_directory(
-        log_root,
-        epsilon=config.epsilon,
-        bandwidth=config.bandwidth,
-        learning_rate=config.learning_rate,
-        clip_norm=config.clip_norm,
-        seed=config.seed,
-        config_hash=config_content_hash(document),
-    )
     resolved = _resolved_config(
         config, participation, path, strategy, actual_action, calibration
     )
-    resolved["run"] = {
-        "directory": str(run_paths.directory.resolve()),
-        "metrics": str(run_paths.metrics.resolve()),
-        "checkpoint": str(run_paths.checkpoint.resolve()),
-    }
+    resolved["run"] = _run_metadata(run_paths)
     write_run_configuration(run_paths, source_yaml=source_yaml, resolved=resolved)
     MetricsCSVWriter(run_paths.metrics)
-  else:
-    run_paths = existing_run_paths(resume_checkpoint)
   append_train_log(run_paths.train_log, f"Starting {'resume' if resume_checkpoint else 'run'}: {run_paths.directory}")
   return train_cifar10(
       train_config,
@@ -500,6 +537,7 @@ __all__ = [
     "derive_fixed_cycle_participation",
     "get_or_fit_strategy",
     "load_cifar10_nonamplified_config",
+    "prepare_cifar10_nonamplified_run",
     "resolve_output_log_dir",
     "run_cifar10_nonamplified",
     "strategy_artifact_path",

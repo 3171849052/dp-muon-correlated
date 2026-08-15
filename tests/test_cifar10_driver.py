@@ -86,6 +86,31 @@ def test_driver_evaluates_on_actual_epoch_progress_and_writes_metrics(tmp_path):
   assert second[0:6] == ["1", "2", "1.0", "4.5", "0.25", "0.75"]
 
 
+def test_driver_labels_nondivisible_epoch_boundaries_by_crossed_epoch(tmp_path):
+  """CIFAR-10's 50,000 / 512 boundary is step 98, not epoch label 2."""
+  metrics_path = tmp_path / "metrics.csv"
+  _, history = run_training(
+      initial_state=jnp.array(0, dtype=jnp.int32),
+      train_step=lambda state, _: state + 1,
+      logical_batches=[{} for _ in range(197)],
+      horizon=197,
+      experiment_config={"synthetic": True},
+      artifact_identifiers={"strategy": "test"},
+      num_train_examples=50_000,
+      logical_batch_size=512,
+      eval_every=1,
+      evaluate=lambda _: {"test_loss": 0.25, "test_accuracy": 0.75},
+      privacy_accountant=float,
+      metrics_writer=MetricsCSVWriter(metrics_path),
+  )
+  assert [(record["epoch"], record["step"]) for record in history] == [
+      (1, 98),
+      (2, 196),
+      (3, 197),  # Forced final partial epoch gets a non-conflicting label.
+  ]
+  assert history[0]["effective_epoch"] == pytest.approx(1.00352)
+
+
 def test_resume_does_not_duplicate_metrics_rows(tmp_path):
   strategy, step = _setup()
   batches = [{"x": jnp.array([value], jnp.float32)} for value in (1.0, 2.0, 3.0)]

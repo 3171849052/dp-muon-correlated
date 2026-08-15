@@ -107,6 +107,21 @@ def existing_run_paths(resume_checkpoint: str | Path) -> RunPaths:
   )
 
 
+def run_paths_from_directory(directory: str | Path) -> RunPaths:
+  """Returns an already-created run directory before it has a checkpoint."""
+  root = Path(directory).resolve()
+  if not root.is_dir() or not (root / "config.yaml").is_file():
+    raise ValueError("run directory must have been created by the CIFAR runner")
+  return RunPaths(
+      directory=root,
+      config=root / "config.yaml",
+      resolved_config=root / "resolved_config.yaml",
+      metrics=root / "metrics.csv",
+      train_log=root / "train.log",
+      checkpoint=root / "checkpoints" / "latest.pkl",
+  )
+
+
 def write_run_configuration(
     paths: RunPaths,
     *,
@@ -167,5 +182,6 @@ __all__ = [
     "config_content_hash",
     "create_run_directory",
     "existing_run_paths",
+    "run_paths_from_directory",
     "write_run_configuration",
 ]

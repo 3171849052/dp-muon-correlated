@@ -28,11 +28,10 @@ if [[ ! -f "$CONFIG" ]]; then
 fi
 
 CONFIG=$(realpath "$CONFIG")
-LOG_DIR=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-log-dir)
 GPU=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-gpu)
-mkdir -p "$LOG_DIR"
-SESSION="cifar10_$(basename "$CONFIG" .yaml)_$(printf '%s' "$CONFIG" | sha256sum | cut -c1-10)"
-LOG="$LOG_DIR/${SESSION}.log"
+RUN_DIR=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --prepare-run)
+TRAIN_LOG="$RUN_DIR/train.log"
+SESSION="cifar10_$(basename "$RUN_DIR")"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   echo "tmux session already exists: $SESSION" >&2
@@ -40,12 +39,13 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 fi
 
 printf -v COMMAND \
-  'cd %q && GPU=%q && CUDA_VISIBLE_DEVICES="$GPU" python -u scripts/run_cifar10.py --config %q 2>&1 | tee -a %q' \
-  "$ROOT" "$GPU" "$CONFIG" "$LOG"
+  'cd %q && GPU=%q && CUDA_VISIBLE_DEVICES="$GPU" python -u scripts/run_cifar10.py --config %q --run-dir %q 2>&1 | tee -a %q' \
+  "$ROOT" "$GPU" "$CONFIG" "$RUN_DIR" "$TRAIN_LOG"
 tmux new-session -d -s "$SESSION" "$COMMAND"
 
 echo "tmux session: $SESSION"
 echo "physical GPU: $GPU"
-echo "log: $LOG"
+echo "run directory: $RUN_DIR"
+echo "log: $TRAIN_LOG"
 echo "attach: tmux attach -t $SESSION"
-echo "tail: tail -f $LOG"
+echo "tail: tail -f $TRAIN_LOG"

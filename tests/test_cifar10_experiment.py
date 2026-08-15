@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import jax.numpy as jnp
 import numpy as np
@@ -167,7 +168,46 @@ def test_print_gpu_cli_outputs_gpu_without_starting_training(monkeypatch, capsys
 def test_tmux_launch_command_sets_cuda_visible_devices_from_gpu_config():
   script = Path("run_cifar10.sh").read_text(encoding="utf-8")
   assert "--print-gpu" in script
+  assert "--prepare-run" in script
+  assert "--run-dir" in script
   assert 'CUDA_VISIBLE_DEVICES="$GPU"' in script
+  assert "sha256sum" not in script
+  assert "${SESSION}.log" not in script
+  assert '2>&1 | tee -a %q' in script
+
+
+def test_prepare_run_cli_returns_only_the_python_created_run_directory(monkeypatch, capsys, tmp_path):
+  calls = []
+
+  def fake_prepare(config_path):
+    calls.append(config_path)
+    return SimpleNamespace(directory=tmp_path / "run")
+
+  monkeypatch.setattr(run_cifar10_script, "prepare_cifar10_nonamplified_run", fake_prepare)
+  monkeypatch.setattr(run_cifar10_script, "_is_dpsgd_config", lambda _: False)
+  monkeypatch.setattr(
+      sys, "argv", ["run_cifar10.py", "--config", "experiment.yaml", "--prepare-run"]
+  )
+  run_cifar10_script.main()
+  assert calls == ["experiment.yaml"]
+  assert capsys.readouterr().out == f"{tmp_path / 'run'}\n"
+
+
+def test_run_dir_cli_is_forwarded_to_python_runner(monkeypatch):
+  calls = []
+
+  def fake_run(config_path, *, resume_checkpoint=None, run_dir=None):
+    calls.append((config_path, resume_checkpoint, run_dir))
+
+  monkeypatch.setattr(run_cifar10_script, "run_cifar10_nonamplified", fake_run)
+  monkeypatch.setattr(run_cifar10_script, "_is_dpsgd_config", lambda _: False)
+  monkeypatch.setattr(
+      sys,
+      "argv",
+      ["run_cifar10.py", "--config", "experiment.yaml", "--run-dir", "logs/current"],
+  )
+  run_cifar10_script.main()
+  assert calls == [("experiment.yaml", None, "logs/current")]
 
 
 def test_runner_cli_does_not_print_history_after_training(monkeypatch, capsys):

@@ -231,9 +231,11 @@ def run_training(
   history: list[dict[str, float | int]] = []
   started_at = time.monotonic()
   next_eval_epoch = 0
+  last_recorded_epoch = 0
   if num_train_examples is not None and logical_batch_size is not None:
     completed_at_start = math.floor(start * logical_batch_size / num_train_examples)
     next_eval_epoch = ((completed_at_start // eval_every) + 1) * eval_every
+    last_recorded_epoch = completed_at_start
   batches = iter(logical_batches)
   for _ in range(start):
     try:
@@ -264,6 +266,20 @@ def run_training(
             or current_step == horizon
         )
       if should_evaluate:
+        evaluation_epoch: int | None = None
+        if num_train_examples is not None:
+          # ``next_eval_epoch`` is the integer epoch just crossed.  In
+          # particular, a step at effective epoch 1.00352 records epoch 1,
+          # rather than using ceil() and incorrectly recording epoch 2.
+          if effective_epoch + 1e-12 >= next_eval_epoch:
+            evaluation_epoch = next_eval_epoch
+          else:
+            # The final horizon can be fractional.  Give this forced eval the
+            # next meaningful label without colliding with a prior boundary.
+            evaluation_epoch = max(
+                last_recorded_epoch + 1,
+                math.ceil(effective_epoch - 1e-12),
+            )
         record: dict[str, float | int] = {"step": current_step}
         if evaluate is not None:
           evaluation_started_at = time.monotonic()
@@ -278,7 +294,8 @@ def run_training(
         if num_train_examples is not None:
           assert logical_batch_size is not None
           effective_epoch = current_step * logical_batch_size / num_train_examples
-          epoch = max(1, math.ceil(effective_epoch - 1e-12))
+          assert evaluation_epoch is not None
+          epoch = evaluation_epoch
           metrics_record: dict[str, float | int] = {
               "epoch": epoch,
               "step": current_step,
@@ -295,6 +312,7 @@ def run_training(
           if metrics_writer is not None:
             metrics_writer.append(metrics_record)
           record.update(metrics_record)
+          last_recorded_epoch = epoch
           while effective_epoch + 1e-12 >= next_eval_epoch:
             next_eval_epoch += eval_every
         history.append(record)
