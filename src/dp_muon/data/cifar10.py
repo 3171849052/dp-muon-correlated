@@ -47,7 +47,8 @@ def load_cifar10(data_dir: str | Path, *, train: bool, download: bool = True) ->
   """Returns raw uint8 NHWC images and int32 labels from CIFAR-10."""
   root = _ensure_cifar10(data_dir, download)
   files = [root / f"data_batch_{index}" for index in range(1, 6)] if train else [root / "test_batch"]
-  images, labels = zip((_read_batch(path) for path in files), strict=True)
+  batches = [_read_batch(path) for path in files]
+  images, labels = zip(*batches, strict=True)
   return np.concatenate(images), np.concatenate(labels)
 
 

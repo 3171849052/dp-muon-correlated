@@ -49,6 +49,11 @@ class Cifar10TrainConfig:
       raise ValueError("batch_size must be positive")
     if self.microbatch_size is not None and self.microbatch_size < 1:
       raise ValueError("microbatch_size must be positive when supplied")
+    if (
+        self.microbatch_size is not None
+        and self.batch_size % self.microbatch_size != 0
+    ):
+      raise ValueError("batch_size must be divisible by microbatch_size")
     if self.eval_every < 1:
       raise ValueError("eval_every must be positive")
 

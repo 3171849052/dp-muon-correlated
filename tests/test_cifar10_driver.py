@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 from jax_privacy.matrix_factorization import toeplitz
 
 from dp_muon.bandinvmf import BandInvMFStrategy
@@ -35,3 +36,14 @@ def test_driver_uses_exact_horizon_and_checkpoint_resume(tmp_path):
   resumed, _ = run_training(initial_state=initial, train_step=step, logical_batches=batches, checkpoint_path=checkpoint, resume_checkpoint=checkpoint, **common)
   np.testing.assert_allclose(resumed.params, uninterrupted.params)
   assert int(resumed.nesterov_state.step) == int(resumed.noise_state.step) == strategy.horizon
+
+
+def test_microbatch_size_must_divide_logical_batch_size():
+  from dp_muon.training.cifar10_driver import Cifar10TrainConfig
+
+  with pytest.raises(ValueError, match="divisible"):
+    Cifar10TrainConfig(
+        strategy="strategy.npz", pretrained="vit.npz", data_dir="data", batch_size=5,
+        microbatch_size=2, clip_norm=1.0, epsilon=1.0, delta=1e-5,
+        momentum=0.0, learning_rate=0.1, seed=0, checkpoint_dir="checkpoints", eval_every=1,
+    )

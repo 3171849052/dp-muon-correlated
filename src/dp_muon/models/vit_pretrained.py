@@ -49,6 +49,36 @@ def interpolate_positional_embedding(position: jax.Array, target_grid: int) -> j
   return jnp.concatenate((cls, patches.reshape(1, target_grid * target_grid, position.shape[-1])), axis=1)
 
 
+def _load_qkv_projection(
+    archive: np.lib.npyio.NpzFile, prefix: str, projection: str, config: ViTTinyConfig
+) -> dict[str, jax.Array]:
+  """Converts Flax DenseGeneral Q/K/V tensors to this model's dense layout."""
+  head_dim = config.embed_dim // config.num_heads
+  base = f"{prefix}/MultiHeadDotProductAttention_1/{projection}"
+  return {
+      "kernel": _require(
+          archive, f"{base}/kernel", (config.embed_dim, config.num_heads, head_dim)
+      ).reshape(config.embed_dim, config.embed_dim),
+      "bias": _require(
+          archive, f"{base}/bias", (config.num_heads, head_dim)
+      ).reshape(config.embed_dim),
+  }
+
+
+def _load_out_projection(
+    archive: np.lib.npyio.NpzFile, prefix: str, config: ViTTinyConfig
+) -> dict[str, jax.Array]:
+  """Converts Flax DenseGeneral attention output weights to a dense matrix."""
+  head_dim = config.embed_dim // config.num_heads
+  base = f"{prefix}/MultiHeadDotProductAttention_1/out"
+  return {
+      "kernel": _require(
+          archive, f"{base}/kernel", (config.num_heads, head_dim, config.embed_dim)
+      ).reshape(config.embed_dim, config.embed_dim),
+      "bias": _require(archive, f"{base}/bias", (config.embed_dim,)),
+  }
+
+
 def load_pretrained_vit_tiny(
     path: str | Path,
     *,
@@ -78,8 +108,10 @@ def load_pretrained_vit_tiny(
       blocks.append({
           "ln1": {"scale": _require(archive, f"{prefix}/LayerNorm_0/scale", (192,)), "bias": _require(archive, f"{prefix}/LayerNorm_0/bias", (192,))},
           "attention": {
-              name: {"kernel": _require(archive, f"{prefix}/MultiHeadDotProductAttention_1/{source}/kernel", (192, 192)), "bias": _require(archive, f"{prefix}/MultiHeadDotProductAttention_1/{source}/bias", (192,))}
-              for name, source in (("query", "query"), ("key", "key"), ("value", "value"), ("out", "out"))
+              "query": _load_qkv_projection(archive, prefix, "query", config),
+              "key": _load_qkv_projection(archive, prefix, "key", config),
+              "value": _load_qkv_projection(archive, prefix, "value", config),
+              "out": _load_out_projection(archive, prefix, config),
           },
           "ln2": {"scale": _require(archive, f"{prefix}/LayerNorm_2/scale", (192,)), "bias": _require(archive, f"{prefix}/LayerNorm_2/bias", (192,))},
           "mlp": {
