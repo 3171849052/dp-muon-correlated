@@ -1,0 +1,62 @@
+Downloading CIFAR-10: 0.00B [00:00, ?B/s]Downloading CIFAR-10: 0.00B [00:00, ?B/s]
+Traceback (most recent call last):
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 1348, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1323, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1369, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1318, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1078, in _send_output
+    self.send(msg)
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1016, in send
+    self.connect()
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 1488, in connect
+    super().connect()
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/http/client.py", line 982, in connect
+    self.sock = self._create_connection(
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/socket.py", line 863, in create_connection
+    raise exceptions[0]
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/socket.py", line 848, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/media/data/data/lt/dp-muon-correlated/scripts/run_cifar10.py", line 32, in <module>
+    main()
+  File "/media/data/data/lt/dp-muon-correlated/scripts/run_cifar10.py", line 28, in main
+    run_cifar10_nonamplified(args.config)
+  File "/media/data/data/lt/dp-muon-correlated/src/dp_muon/training/cifar10_experiment.py", line 357, in run_cifar10_nonamplified
+    train_images, _ = load_cifar10(config.data_dir, train=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/data/data/lt/dp-muon-correlated/src/dp_muon/data/cifar10.py", line 57, in load_cifar10
+    root = _ensure_cifar10(data_dir, download)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/data/data/lt/dp-muon-correlated/src/dp_muon/data/cifar10.py", line 41, in _ensure_cifar10
+    urlretrieve(_CIFAR10_URL, archive, reporthook=reporthook)  # nosec B310 -- fixed public CIFAR source
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 241, in urlretrieve
+    with contextlib.closing(urlopen(url, data)) as fp:
+                            ^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 519, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 536, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 1391, in https_open
+    return self.do_open(http.client.HTTPSConnection, req,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/urllib/request.py", line 1351, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>

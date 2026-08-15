@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-  echo "usage: $0 CONFIG" >&2
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# The project uses a ``src`` layout and may be run without an editable install.
+# Keep the source tree importable for both the setup queries below and the
+# command launched inside tmux.
+export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+DEFAULT_CONFIG="$ROOT/config/cifar10_nonamplified.yaml"
+
+if [[ $# -eq 0 ]]; then
+  CONFIG=$DEFAULT_CONFIG
+elif [[ $# -eq 2 && $1 == "--config" ]]; then
+  CONFIG=$2
+elif [[ $# -eq 1 && $1 != "--config" ]]; then
+  # Preserve the original positional form for existing launch commands.
+  CONFIG=$1
+else
+  echo "usage: $0 [--config CONFIG]" >&2
+  echo "       $0 [CONFIG]" >&2
   exit 2
 fi
 
-CONFIG=$1
 if [[ ! -f "$CONFIG" ]]; then
   echo "config file does not exist: $CONFIG" >&2
   exit 1
 fi
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG=$(realpath "$CONFIG")
 LOG_DIR=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-log-dir)
 GPU=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-gpu)
