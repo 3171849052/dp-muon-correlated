@@ -18,7 +18,8 @@ training:
   momentum: 0.9
   learning_rate: 0.5
   clip_norm: 10.0
-  eval_every: 50
+  # Number of actual training epochs between evaluations.
+  eval_every: 1
 
 schedule:
   mode: fixed_cycle

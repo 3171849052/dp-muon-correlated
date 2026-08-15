@@ -8,6 +8,7 @@ from numbers import Integral
 from typing import Literal
 
 from opacus.accountants.analysis import gdp
+from jax_privacy.matrix_factorization import toeplitz
 
 Adjacency = Literal["add_remove", "replace_one"]
 
@@ -188,3 +189,98 @@ def calibrate_nonamplified_iid(
       iid_noise_std=noise_multiplier * total_sensitivity,
       max_participations=max_participations,
   )
+
+
+def epsilon_spent_for_bandinv_prefix(
+    *,
+    prefix_steps: int,
+    noising_coef: object,
+    horizon: int,
+    min_sep: int,
+    max_participations: int | None,
+    calibration: PrivacyCalibration,
+    full_sensitivity_squared: float | None = None,
+) -> float:
+  """Returns the GDP guarantee for a released BandInvMF transcript prefix.
+
+  The training noise scale is deliberately *not* recalibrated for the prefix.
+  Instead, this recomputes the sensitivity of the first ``prefix_steps`` rows
+  of the fixed Toeplitz mechanism and converts its resulting GDP ``mu`` at the
+  same ``delta``.  This is therefore an accounting view of the already-run
+  mechanism, rather than a progress-based interpolation of its target.
+  """
+  if not isinstance(prefix_steps, Integral) or isinstance(prefix_steps, bool):
+    raise ValueError("prefix_steps must be an integer")
+  if not isinstance(horizon, Integral) or horizon < 1:
+    raise ValueError("horizon must be a positive integer")
+  if prefix_steps < 1 or prefix_steps > horizon:
+    raise ValueError("prefix_steps must be in [1, horizon]")
+  if not isinstance(min_sep, Integral) or min_sep < 1:
+    raise ValueError("min_sep must be a positive integer")
+  if max_participations is not None and (
+      not isinstance(max_participations, Integral) or max_participations < 1
+  ):
+    raise ValueError("max_participations must be positive when supplied")
+  if not isinstance(calibration, PrivacyCalibration):
+    raise TypeError("calibration must be a PrivacyCalibration")
+
+  # Keeping the full sensitivity supplied by the fitted strategy makes the
+  # horizon result exactly consistent with the noise calibration, including
+  # float32 strategy artifacts.  Earlier prefixes are independently measured.
+  if prefix_steps == horizon and full_sensitivity_squared is not None:
+    sensitivity_squared = _positive_finite(
+        "full_sensitivity_squared", full_sensitivity_squared
+    )
+  else:
+    sensitivity_squared = _positive_finite(
+        "prefix sensitivity_squared",
+        float(
+            toeplitz.compute_banded_inverse_sensitivity_squared(
+                n=int(prefix_steps),
+                # Coefficients outside this leading principal submatrix cannot
+                # affect a prefix and some JAX Privacy releases require the
+                # band vector not to be longer than ``n``.
+                noising_coef=noising_coef[:prefix_steps],  # type: ignore[index]
+                min_sep=int(min_sep),
+                max_participations=max_participations,
+            )
+        ),
+    )
+  noise_std = _positive_finite("calibration.iid_noise_std", calibration.iid_noise_std)
+  mu = calibration.query_sensitivity * math.sqrt(sensitivity_squared) / noise_std
+  epsilon = float(gdp.eps_from_mu(mu=mu, delta=calibration.delta))
+  if not math.isfinite(epsilon) or epsilon < 0:
+    raise RuntimeError("Opacus GDP conversion returned an invalid epsilon")
+  return epsilon
+
+
+def epsilon_spent_for_iid_prefix(
+    *,
+    prefix_steps: int,
+    horizon: int,
+    min_sep: int,
+    max_participations: int,
+    calibration: PrivacyCalibration,
+) -> float:
+  """Returns the fixed-noise GDP guarantee for an IID fixed-cycle prefix."""
+  if not isinstance(prefix_steps, Integral) or isinstance(prefix_steps, bool):
+    raise ValueError("prefix_steps must be an integer")
+  if not isinstance(horizon, Integral) or horizon < 1:
+    raise ValueError("horizon must be a positive integer")
+  if prefix_steps < 1 or prefix_steps > horizon:
+    raise ValueError("prefix_steps must be in [1, horizon]")
+  if not isinstance(min_sep, Integral) or min_sep < 1:
+    raise ValueError("min_sep must be a positive integer")
+  if not isinstance(max_participations, Integral) or max_participations < 1:
+    raise ValueError("max_participations must be a positive integer")
+  if not isinstance(calibration, PrivacyCalibration):
+    raise TypeError("calibration must be a PrivacyCalibration")
+  prefix_participations = min(
+      int(max_participations), 1 + (int(prefix_steps) - 1) // int(min_sep)
+  )
+  noise_std = _positive_finite("calibration.iid_noise_std", calibration.iid_noise_std)
+  mu = calibration.query_sensitivity * math.sqrt(prefix_participations) / noise_std
+  epsilon = float(gdp.eps_from_mu(mu=mu, delta=calibration.delta))
+  if not math.isfinite(epsilon) or epsilon < 0:
+    raise RuntimeError("Opacus GDP conversion returned an invalid epsilon")
+  return epsilon

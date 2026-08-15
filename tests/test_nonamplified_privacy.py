@@ -5,7 +5,7 @@ import pytest
 from opacus.accountants.analysis import gdp
 
 from dp_muon.bandinvmf import fit_bandinv_strategy
-from dp_muon.privacy import calibrate_nonamplified_bandinv
+from dp_muon.privacy import calibrate_nonamplified_bandinv, epsilon_spent_for_bandinv_prefix
 from scripts.calibrate_nonamplified import load_sensitivity_squared
 
 
@@ -75,6 +75,29 @@ def test_strategy_artifact_integration(tmp_path):
       * result.query_sensitivity
       * result.matrix_sensitivity
   )
+
+
+def test_bandinv_prefix_epsilon_uses_fixed_noise_and_reaches_target():
+  strategy = fit_bandinv_strategy(8, 3, 1, max_optimizer_steps=3)
+  calibration = _calibrate(
+      sensitivity_squared=float(strategy.sensitivity_squared), epsilon=2.0
+  )
+  spent = [
+      epsilon_spent_for_bandinv_prefix(
+          prefix_steps=step,
+          noising_coef=strategy.noising_coef,
+          horizon=strategy.horizon,
+          min_sep=strategy.min_sep,
+          max_participations=strategy.max_participations,
+          calibration=calibration,
+          full_sensitivity_squared=float(strategy.sensitivity_squared),
+      )
+      for step in range(1, strategy.horizon + 1)
+  ]
+  assert spent == sorted(spent)
+  assert spent[-1] == pytest.approx(calibration.epsilon, rel=1e-10)
+  # A GDP conversion of prefix sensitivity is not target-epsilon progress.
+  assert spent[0] != pytest.approx(calibration.epsilon / strategy.horizon)
 
 
 @pytest.mark.parametrize(

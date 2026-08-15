@@ -309,8 +309,9 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   def fake_validate(actual_strategy, calibration, spec, momentum, learning_rate):
     captured["validated"] = (actual_strategy, spec, momentum, learning_rate)
 
-  def fake_train(train_config):
+  def fake_train(train_config, **kwargs):
     captured["train"] = train_config
+    captured["train_kwargs"] = kwargs
     return None, []
 
   monkeypatch.setattr(experiment, "get_or_fit_strategy", fake_get_or_fit)
@@ -322,3 +323,42 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   assert captured["fit_config"].learning_rate == captured["train"].learning_rate == 0.5
   assert captured["validated"][2:] == (0.9, 0.5)
   assert captured["validated"][1].horizon == 976
+  assert captured["train_kwargs"]["checkpoint_path"].name == "latest.pkl"
+  run_dir = captured["train_kwargs"]["checkpoint_path"].parent.parent
+  assert (run_dir / "config.yaml").is_file()
+  assert (run_dir / "resolved_config.yaml").is_file()
+  assert (run_dir / "metrics.csv").is_file()
+  assert (run_dir / "train.log").is_file()
+
+
+def test_same_config_creates_a_new_run_directory_each_time(tmp_path, monkeypatch):
+  config = _config(tmp_path)
+  participation = experiment.derive_fixed_cycle_participation(50_000, 10, 512)
+  strategy = _strategy(config, participation)
+  calls = []
+  monkeypatch.setattr(experiment, "load_cifar10_nonamplified_config", lambda _: config)
+  monkeypatch.setattr(
+      experiment,
+      "load_cifar10",
+      lambda *args, **kwargs: (
+          np.empty((50_000, 32, 32, 3), np.uint8), np.empty(50_000, np.int32)
+      ),
+  )
+  monkeypatch.setattr(
+      experiment,
+      "get_or_fit_strategy",
+      lambda actual_config, actual_participation: (
+          Path(actual_config.strategy_dir) / "strategy.npz", strategy, "reuse"
+      ),
+  )
+  monkeypatch.setattr(experiment, "validate_nonamplified_bandinv_setup", lambda *args: None)
+  monkeypatch.setattr(
+      experiment, "train_cifar10", lambda *args, **kwargs: calls.append(kwargs) or (None, [])
+  )
+  config_path = tmp_path / "experiment.yaml"
+  config_path.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+  experiment.run_cifar10_nonamplified(config_path)
+  experiment.run_cifar10_nonamplified(config_path)
+  run_directories = {call["checkpoint_path"].parent.parent for call in calls}
+  assert len(run_directories) == 2
+  assert all((directory / "config.yaml").is_file() for directory in run_directories)

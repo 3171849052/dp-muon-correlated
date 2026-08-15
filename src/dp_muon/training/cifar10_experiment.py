@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import math
 from numbers import Integral, Real
 from pathlib import Path
@@ -24,6 +24,14 @@ from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 
 from .cifar10_driver import Cifar10TrainConfig, train_cifar10
 from .nonamplified_linear import validate_nonamplified_bandinv_setup
+from .run_logging import (
+    MetricsCSVWriter,
+    append_train_log,
+    config_content_hash,
+    create_run_directory,
+    existing_run_paths,
+    write_run_configuration,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -347,13 +355,45 @@ def _print_resolved_config(
   )
 
 
-def run_cifar10_nonamplified(config_path: str | Path):
+def _source_config_document(config_path: str | Path) -> tuple[str, Mapping[str, Any]]:
+  source = Path(config_path)
+  source_yaml = source.read_text(encoding="utf-8")
+  document = yaml.safe_load(source_yaml)
+  if not isinstance(document, Mapping):
+    raise ValueError("config must be a mapping")
+  return source_yaml, document
+
+
+def _resolved_config(
+    config: Cifar10NonAmplifiedExperimentConfig,
+    participation: FixedCycleParticipation,
+    strategy_path: Path,
+    strategy: BandInvMFStrategy,
+    action: str,
+    calibration: Any,
+) -> dict[str, Any]:
+  return {
+      "experiment": asdict(config),
+      "participation": asdict(participation),
+      "strategy": {
+          "artifact": str(strategy_path.resolve()),
+          "action": action,
+          "horizon": strategy.horizon,
+          "bandwidth": strategy.bandwidth,
+          "min_sep": strategy.min_sep,
+          "max_participations": strategy.max_participations,
+          "sensitivity_squared": float(strategy.sensitivity_squared),
+      },
+      "privacy_calibration": asdict(calibration),
+  }
+
+
+def run_cifar10_nonamplified(
+    config_path: str | Path, *, resume_checkpoint: str | Path | None = None
+):
   """Fits/reuses the public strategy, validates M6 setup, then trains CIFAR-10."""
   config = load_cifar10_nonamplified_config(config_path)
-  log_dir = Path(config.log_dir)
-  (log_dir if log_dir.is_absolute() else REPOSITORY_ROOT / log_dir).mkdir(
-      parents=True, exist_ok=True
-  )
+  source_yaml, document = _source_config_document(config_path)
   train_images, _ = load_cifar10(config.data_dir, train=True)
   num_examples = len(train_images)
   del train_images
@@ -419,7 +459,39 @@ def run_cifar10_nonamplified(config_path: str | Path):
       eval_every=config.eval_every,
       adjacency=config.adjacency,
   )
-  return train_cifar10(train_config)
+  if resume_checkpoint is None:
+    log_root = Path(config.log_dir)
+    if not log_root.is_absolute():
+      log_root = REPOSITORY_ROOT / log_root
+    run_paths = create_run_directory(
+        log_root,
+        epsilon=config.epsilon,
+        bandwidth=config.bandwidth,
+        learning_rate=config.learning_rate,
+        clip_norm=config.clip_norm,
+        seed=config.seed,
+        config_hash=config_content_hash(document),
+    )
+    resolved = _resolved_config(
+        config, participation, path, strategy, actual_action, calibration
+    )
+    resolved["run"] = {
+        "directory": str(run_paths.directory.resolve()),
+        "metrics": str(run_paths.metrics.resolve()),
+        "checkpoint": str(run_paths.checkpoint.resolve()),
+    }
+    write_run_configuration(run_paths, source_yaml=source_yaml, resolved=resolved)
+    MetricsCSVWriter(run_paths.metrics)
+  else:
+    run_paths = existing_run_paths(resume_checkpoint)
+  append_train_log(run_paths.train_log, f"Starting {'resume' if resume_checkpoint else 'run'}: {run_paths.directory}")
+  return train_cifar10(
+      train_config,
+      resume_checkpoint=resume_checkpoint,
+      checkpoint_path=run_paths.checkpoint,
+      metrics_path=run_paths.metrics,
+      train_log_path=run_paths.train_log,
+  )
 
 
 __all__ = [

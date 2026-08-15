@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import math
 from numbers import Integral, Real
 from pathlib import Path
@@ -18,6 +18,14 @@ from .cifar10_driver import (
     train_cifar10_dpsgd_momentum,
 )
 from .cifar10_experiment import FixedCycleParticipation, derive_fixed_cycle_participation
+from .run_logging import (
+    MetricsCSVWriter,
+    append_train_log,
+    config_content_hash,
+    create_run_directory,
+    existing_run_paths,
+    write_run_configuration,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -193,13 +201,15 @@ def _print_resolved_config(
   )
 
 
-def run_cifar10_dpsgd_momentum(config_path: str | Path):
+def run_cifar10_dpsgd_momentum(
+    config_path: str | Path, *, resume_checkpoint: str | Path | None = None
+):
   """Derives the fixed-cycle privacy bound and runs IID DP-SGD-Momentum."""
   config = load_cifar10_dpsgd_momentum_config(config_path)
-  log_dir = Path(config.log_dir)
-  (log_dir if log_dir.is_absolute() else REPOSITORY_ROOT / log_dir).mkdir(
-      parents=True, exist_ok=True
-  )
+  source_yaml = Path(config_path).read_text(encoding="utf-8")
+  document = yaml.safe_load(source_yaml)
+  if not isinstance(document, Mapping):
+    raise ValueError("config must be a mapping")
   train_images, _ = load_cifar10(config.data_dir, train=True)
   num_examples = len(train_images)
   participation = derive_fixed_cycle_participation(
@@ -225,7 +235,50 @@ def run_cifar10_dpsgd_momentum(config_path: str | Path):
       max_participations=participation.max_participations,
       adjacency=config.adjacency,
   )
-  return train_cifar10_dpsgd_momentum(train_config)
+  calibration = calibrate_nonamplified_iid(
+      epsilon=config.epsilon,
+      delta=config.delta,
+      clip_norm=config.clip_norm,
+      normalize_by=float(config.logical_batch_size),
+      adjacency=config.adjacency,
+      max_participations=participation.max_participations,
+  )
+  if resume_checkpoint is None:
+    log_root = Path(config.log_dir)
+    if not log_root.is_absolute():
+      log_root = REPOSITORY_ROOT / log_root
+    run_paths = create_run_directory(
+        log_root,
+        epsilon=config.epsilon,
+        bandwidth="iid",
+        learning_rate=config.learning_rate,
+        clip_norm=config.clip_norm,
+        seed=config.seed,
+        config_hash=config_content_hash(document),
+    )
+    resolved = {
+        "experiment": asdict(config),
+        "participation": asdict(participation),
+        "strategy": {"algorithm": "nonamplified_iid_dpsgd_momentum"},
+        "privacy_calibration": asdict(calibration),
+        "run": {
+            "directory": str(run_paths.directory.resolve()),
+            "metrics": str(run_paths.metrics.resolve()),
+            "checkpoint": str(run_paths.checkpoint.resolve()),
+        },
+    }
+    write_run_configuration(run_paths, source_yaml=source_yaml, resolved=resolved)
+    MetricsCSVWriter(run_paths.metrics)
+  else:
+    run_paths = existing_run_paths(resume_checkpoint)
+  append_train_log(run_paths.train_log, f"Starting {'resume' if resume_checkpoint else 'run'}: {run_paths.directory}")
+  return train_cifar10_dpsgd_momentum(
+      train_config,
+      resume_checkpoint=resume_checkpoint,
+      checkpoint_path=run_paths.checkpoint,
+      metrics_path=run_paths.metrics,
+      train_log_path=run_paths.train_log,
+  )
 
 
 __all__ = [

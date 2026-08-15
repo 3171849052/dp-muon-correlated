@@ -38,6 +38,7 @@ def _is_dpsgd_config(path: str) -> bool:
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--config", required=True)
+  parser.add_argument("--resume-checkpoint")
   output = parser.add_mutually_exclusive_group()
   output.add_argument("--print-log-dir", action="store_true")
   output.add_argument("--print-gpu", action="store_true")
@@ -55,9 +56,19 @@ def main() -> None:
     print(config.gpu)
     return
   if is_dpsgd:
-    run_cifar10_dpsgd_momentum(args.config)
+    if args.resume_checkpoint is None:
+      run_cifar10_dpsgd_momentum(args.config)
+    else:
+      run_cifar10_dpsgd_momentum(
+          args.config, resume_checkpoint=args.resume_checkpoint
+      )
   else:
-    run_cifar10_nonamplified(args.config)
+    if args.resume_checkpoint is None:
+      run_cifar10_nonamplified(args.config)
+    else:
+      run_cifar10_nonamplified(
+          args.config, resume_checkpoint=args.resume_checkpoint
+      )
 
 
 if __name__ == "__main__":

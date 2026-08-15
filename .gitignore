@@ -26,4 +26,3 @@ htmlcov/
 .opencode/server.lock.json
 .opencode
 /checkpoints/
-/logs/

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import math
 from pathlib import Path
-from typing import Any, Callable, Iterable
+import time
+from typing import Any, Callable, Iterable, Mapping
 
 import jax
 import jax.numpy as jnp
@@ -19,9 +21,12 @@ from dp_muon.privacy import (
     calibrate_nonamplified_bandinv,
     calibrate_nonamplified_iid,
     certify_participation_schedule,
+    epsilon_spent_for_bandinv_prefix,
+    epsilon_spent_for_iid_prefix,
 )
 
 from .checkpoint import load_checkpoint, save_checkpoint
+from .run_logging import MetricsCSVWriter, append_train_log
 from .nonamplified_linear import (
     NonAmplifiedBandInvState,
     init_nonamplified_bandinv_state,
@@ -151,17 +156,34 @@ def cross_entropy_loss(params: dict, batch: dict[str, jax.Array], model: ViTTiny
   return -jax.nn.log_softmax(logits)[0, labels[0]]
 
 
-def evaluate_classifier(
+def evaluate_classifier_metrics(
     params: dict, model: ViTTiny, images: np.ndarray, labels: np.ndarray, *, batch_size: int
-) -> float:
+) -> dict[str, float]:
+  """Computes test loss and accuracy together from one forward per batch."""
   correct = 0
+  total_loss = 0.0
   for offset in tqdm(
       range(0, len(images), batch_size), desc="Evaluating", unit="batch"
   ):
     batch = prepare_cifar10_batch(images[offset : offset + batch_size], labels[offset : offset + batch_size])
-    predictions = np.asarray(jnp.argmax(model.apply(params, jnp.asarray(batch["image"])), axis=-1))
+    logits = model.apply(params, jnp.asarray(batch["image"]))
+    batch_labels = jnp.asarray(batch["label"])
+    log_probabilities = jax.nn.log_softmax(logits, axis=-1)
+    total_loss -= float(jnp.sum(jnp.take_along_axis(
+        log_probabilities, batch_labels[:, None], axis=-1
+    )))
+    predictions = np.asarray(jnp.argmax(logits, axis=-1))
     correct += int(np.sum(predictions == batch["label"]))
-  return correct / len(images)
+  return {"test_loss": total_loss / len(images), "test_accuracy": correct / len(images)}
+
+
+def evaluate_classifier(
+    params: dict, model: ViTTiny, images: np.ndarray, labels: np.ndarray, *, batch_size: int
+) -> float:
+  """Compatibility wrapper for callers that only need test accuracy."""
+  return evaluate_classifier_metrics(
+      params, model, images, labels, batch_size=batch_size
+  )["test_accuracy"]
 
 
 def run_training(
@@ -175,7 +197,12 @@ def run_training(
     checkpoint_path: str | Path | None = None,
     resume_checkpoint: str | Path | None = None,
     eval_every: int = 1,
-    evaluate: Callable[[Any], float] | None = None,
+    evaluate: Callable[[Any], Mapping[str, float] | float] | None = None,
+    num_train_examples: int | None = None,
+    logical_batch_size: int | None = None,
+    metrics_writer: MetricsCSVWriter | None = None,
+    privacy_accountant: Callable[[int], float] | None = None,
+    train_log_path: str | Path | None = None,
 ) -> tuple[Any, list[dict[str, float | int]]]:
   """Runs exactly one private update for each logical batch, with optional resume.
 
@@ -184,6 +211,12 @@ def run_training(
   """
   if horizon < 1 or eval_every < 1:
     raise ValueError("horizon and eval_every must be positive")
+  if (num_train_examples is None) != (logical_batch_size is None):
+    raise ValueError("num_train_examples and logical_batch_size must be supplied together")
+  if num_train_examples is not None and (
+      num_train_examples < 1 or logical_batch_size is None or logical_batch_size < 1
+  ):
+    raise ValueError("epoch progress dimensions must be positive")
   state, start = initial_state, 0
   if resume_checkpoint is not None:
     saved = load_checkpoint(resume_checkpoint)
@@ -196,6 +229,11 @@ def run_training(
       raise ValueError("checkpoint current_step exceeds training horizon")
   compiled_step = jax.jit(train_step)
   history: list[dict[str, float | int]] = []
+  started_at = time.monotonic()
+  next_eval_epoch = 0
+  if num_train_examples is not None and logical_batch_size is not None:
+    completed_at_start = math.floor(start * logical_batch_size / num_train_examples)
+    next_eval_epoch = ((completed_at_start // eval_every) + 1) * eval_every
   batches = iter(logical_batches)
   for _ in range(start):
     try:
@@ -216,12 +254,53 @@ def run_training(
         raise ValueError("logical_batches must contain exactly horizon batches") from error
       state = compiled_step(state, batch)  # The sole private update for this batch.
       current_step = logical_step + 1
-      if current_step % eval_every == 0 or current_step == horizon:
+      if num_train_examples is None:
+        should_evaluate = current_step % eval_every == 0 or current_step == horizon
+      else:
+        assert logical_batch_size is not None
+        effective_epoch = current_step * logical_batch_size / num_train_examples
+        should_evaluate = (
+            effective_epoch + 1e-12 >= next_eval_epoch
+            or current_step == horizon
+        )
+      if should_evaluate:
         record: dict[str, float | int] = {"step": current_step}
         if evaluate is not None:
-          record["accuracy"] = float(evaluate(state))
+          evaluation_started_at = time.monotonic()
+          result = evaluate(state)
+          eval_seconds = time.monotonic() - evaluation_started_at
+          if isinstance(result, Mapping):
+            record.update({key: float(value) for key, value in result.items()})
+          else:
+            record["accuracy"] = float(result)
+        else:
+          eval_seconds = 0.0
+        if num_train_examples is not None:
+          assert logical_batch_size is not None
+          effective_epoch = current_step * logical_batch_size / num_train_examples
+          epoch = max(1, math.ceil(effective_epoch - 1e-12))
+          metrics_record: dict[str, float | int] = {
+              "epoch": epoch,
+              "step": current_step,
+              "effective_epoch": effective_epoch,
+              "epsilon_spent": (
+                  float(privacy_accountant(current_step))
+                  if privacy_accountant is not None else float("nan")
+              ),
+              "test_loss": float(record.get("test_loss", float("nan"))),
+              "test_accuracy": float(record.get("test_accuracy", record.get("accuracy", float("nan")))),
+              "elapsed_seconds": time.monotonic() - started_at,
+              "eval_seconds": eval_seconds,
+          }
+          if metrics_writer is not None:
+            metrics_writer.append(metrics_record)
+          record.update(metrics_record)
+          while effective_epoch + 1e-12 >= next_eval_epoch:
+            next_eval_epoch += eval_every
         history.append(record)
         print(record, flush=True)
+        if train_log_path is not None:
+          append_train_log(train_log_path, str(record))
         if checkpoint_path is not None:
           save_checkpoint(
               checkpoint_path,
@@ -237,7 +316,14 @@ def run_training(
   raise ValueError("logical_batches must contain exactly horizon batches")
 
 
-def train_cifar10(config: Cifar10TrainConfig, *, resume_checkpoint: str | Path | None = None):
+def train_cifar10(
+    config: Cifar10TrainConfig,
+    *,
+    resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+    train_log_path: str | Path | None = None,
+):
   """Loads public assets and delegates all private update math to M6."""
   strategy = load_bandinv_strategy(config.strategy)
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
@@ -267,7 +353,7 @@ def train_cifar10(config: Cifar10TrainConfig, *, resume_checkpoint: str | Path |
       microbatch_size=config.microbatch_size,
   )
   initial_state = init_nonamplified_bandinv_state(params, strategy, noise_key)
-  checkpoint_path = Path(config.checkpoint_dir) / "latest.pkl"
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
   return run_training(
       initial_state=initial_state,
       train_step=train_step,
@@ -275,10 +361,25 @@ def train_cifar10(config: Cifar10TrainConfig, *, resume_checkpoint: str | Path |
       horizon=strategy.horizon,
       experiment_config=asdict(config),
       artifact_identifiers={"strategy": str(Path(config.strategy).resolve()), "pretrained": str(config.pretrained)},
-      checkpoint_path=checkpoint_path,
+      checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,
-      evaluate=lambda state: evaluate_classifier(state.params, model, test_images, test_labels, batch_size=config.batch_size),
+      evaluate=lambda state: evaluate_classifier_metrics(
+          state.params, model, test_images, test_labels, batch_size=config.batch_size
+      ),
+      num_train_examples=len(train_images),
+      logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=lambda step: epsilon_spent_for_bandinv_prefix(
+          prefix_steps=step,
+          noising_coef=strategy.noising_coef,
+          horizon=strategy.horizon,
+          min_sep=strategy.min_sep,
+          max_participations=strategy.max_participations,
+          calibration=calibration,
+          full_sensitivity_squared=float(strategy.sensitivity_squared),
+      ),
+      train_log_path=train_log_path,
   )
 
 
@@ -286,6 +387,9 @@ def train_cifar10_dpsgd_momentum(
     config: Cifar10DPSGDMomentumTrainConfig,
     *,
     resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+    train_log_path: str | Path | None = None,
 ):
   """Fine-tunes CIFAR-10 with the non-amplified IID DP-SGD baseline."""
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
@@ -317,7 +421,7 @@ def train_cifar10_dpsgd_momentum(
       microbatch_size=config.microbatch_size,
   )
   initial_state = init_nonamplified_dpsgd_state(params, noise_key)
-  checkpoint_path = Path(config.checkpoint_dir) / "latest.pkl"
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
   return run_training(
       initial_state=initial_state,
       train_step=train_step,
@@ -328,12 +432,23 @@ def train_cifar10_dpsgd_momentum(
           "algorithm": "nonamplified_iid_dpsgd_momentum",
           "pretrained": str(Path(config.pretrained).resolve()),
       },
-      checkpoint_path=checkpoint_path,
+      checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,
-      evaluate=lambda state: evaluate_classifier(
+      evaluate=lambda state: evaluate_classifier_metrics(
           state.params, model, test_images, test_labels, batch_size=config.batch_size
       ),
+      num_train_examples=len(train_images),
+      logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=lambda step: epsilon_spent_for_iid_prefix(
+          prefix_steps=step,
+          horizon=config.horizon,
+          min_sep=config.min_sep,
+          max_participations=config.max_participations,
+          calibration=calibration,
+      ),
+      train_log_path=train_log_path,
   )
 
 
@@ -344,6 +459,7 @@ __all__ = [
     "build_logical_schedule",
     "cross_entropy_loss",
     "evaluate_classifier",
+    "evaluate_classifier_metrics",
     "run_training",
     "train_cifar10",
     "train_cifar10_dpsgd_momentum",
