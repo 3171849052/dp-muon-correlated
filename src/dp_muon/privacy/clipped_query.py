@@ -31,6 +31,7 @@ def make_clipped_gradient_query(
     normalize_by: float,
     batch_argnums: int | tuple[int, ...] = 1,
     keep_batch_dim: bool = True,
+    microbatch_size: int | None = None,
 ) -> clipping.BoundedSensitivityCallable:
   """Builds ``sum_i clip_L(grad_i) / B0`` using JAX Privacy.
 
@@ -55,6 +56,7 @@ def make_clipped_gradient_query(
       keep_batch_dim=keep_batch_dim,
       return_values=False,
       return_grad_norms=False,
+      microbatch_size=microbatch_size,
   )
 
 

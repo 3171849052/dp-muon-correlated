@@ -4,3 +4,4 @@
 .opencode/server.lock.json
 artifacts/strategies/*.npz
 *.egg-info/
+.opencode

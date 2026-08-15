@@ -261,6 +261,7 @@ def make_nonamplified_bandinv_train_step(
     participation_spec: ParticipationSpec,
     momentum: float,
     learning_rate: float,
+    microbatch_size: int | None = None,
 ) -> Callable[[NonAmplifiedBandInvState, Any], NonAmplifiedBandInvState]:
   """Builds a JIT-compatible private step for ``loss_fn(params, batch)``."""
   if not callable(loss_fn):
@@ -274,6 +275,7 @@ def make_nonamplified_bandinv_train_step(
       normalize_by=calibration.normalize_by,
       batch_argnums=1,
       keep_batch_dim=True,
+      microbatch_size=microbatch_size,
   )
 
   def train_step(
