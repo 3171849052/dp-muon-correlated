@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 import numpy as np
+from tqdm.auto import tqdm
 
 
 # Google's public JAX ViT checkpoints are trained with pixels in [-1, 1].
@@ -29,7 +30,15 @@ def _ensure_cifar10(data_dir: str | Path, download: bool) -> Path:
   directory = Path(data_dir)
   directory.mkdir(parents=True, exist_ok=True)
   archive = directory / "cifar-10-python.tar.gz"
-  urlretrieve(_CIFAR10_URL, archive)  # nosec B310 -- fixed public CIFAR source
+  with tqdm(
+      desc="Downloading CIFAR-10", unit="B", unit_scale=True, unit_divisor=1024
+  ) as progress:
+    def reporthook(block_count: int, block_size: int, total_size: int) -> None:
+      if total_size > 0:
+        progress.total = total_size
+      progress.update(block_count * block_size - progress.n)
+
+    urlretrieve(_CIFAR10_URL, archive, reporthook=reporthook)  # nosec B310 -- fixed public CIFAR source
   with tarfile.open(archive, "r:gz") as source:
     source.extractall(directory, filter="data")
   return root
@@ -47,7 +56,11 @@ def load_cifar10(data_dir: str | Path, *, train: bool, download: bool = True) ->
   """Returns raw uint8 NHWC images and int32 labels from CIFAR-10."""
   root = _ensure_cifar10(data_dir, download)
   files = [root / f"data_batch_{index}" for index in range(1, 6)] if train else [root / "test_batch"]
-  batches = [_read_batch(path) for path in files]
+  split = "training" if train else "test"
+  batches = [
+      _read_batch(path)
+      for path in tqdm(files, desc=f"Loading CIFAR-10 {split}", unit="file")
+  ]
   images, labels = zip(*batches, strict=True)
   return np.concatenate(images), np.concatenate(labels)
 

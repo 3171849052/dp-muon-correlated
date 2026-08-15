@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy import ndimage
+from tqdm.auto import tqdm
 
 from .vit_tiny import ViTTinyConfig, init_vit_tiny
 
@@ -19,7 +20,20 @@ def _archive(path: str | Path):
   source = str(path)
   if urlparse(source).scheme in {"http", "https"}:
     with urlopen(source) as response:  # nosec B310 -- explicit public checkpoint input
-      return np.load(BytesIO(response.read()), allow_pickle=False)
+      content_length = response.headers.get("Content-Length")
+      total = int(content_length) if content_length is not None else None
+      chunks = []
+      with tqdm(
+          total=total,
+          desc="Downloading pretrained ViT",
+          unit="B",
+          unit_scale=True,
+          unit_divisor=1024,
+      ) as progress:
+        while chunk := response.read(1024 * 1024):
+          chunks.append(chunk)
+          progress.update(len(chunk))
+      return np.load(BytesIO(b"".join(chunks)), allow_pickle=False)
   return np.load(Path(path), allow_pickle=False)
 
 

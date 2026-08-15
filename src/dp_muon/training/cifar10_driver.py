@@ -9,6 +9,7 @@ from typing import Any, Callable, Iterable
 import jax
 import jax.numpy as jnp
 import numpy as np
+from tqdm.auto import tqdm
 
 from dp_muon.bandinvmf import BandInvMFStrategy, load_bandinv_strategy
 from dp_muon.data import iter_logical_batches, load_cifar10, prepare_cifar10_batch
@@ -91,7 +92,9 @@ def evaluate_classifier(
     params: dict, model: ViTTiny, images: np.ndarray, labels: np.ndarray, *, batch_size: int
 ) -> float:
   correct = 0
-  for offset in range(0, len(images), batch_size):
+  for offset in tqdm(
+      range(0, len(images), batch_size), desc="Evaluating", unit="batch"
+  ):
     batch = prepare_cifar10_batch(images[offset : offset + batch_size], labels[offset : offset + batch_size])
     predictions = np.asarray(jnp.argmax(model.apply(params, jnp.asarray(batch["image"])), axis=-1))
     correct += int(np.sum(predictions == batch["label"]))
@@ -136,27 +139,34 @@ def run_training(
       next(batches)
     except StopIteration as error:
       raise ValueError("logical_batches ends before checkpoint current_step") from error
-  for logical_step in range(start, horizon):
-    try:
-      batch = jax.tree_util.tree_map(jnp.asarray, next(batches))
-    except StopIteration as error:
-      raise ValueError("logical_batches must contain exactly strategy.horizon batches") from error
-    state = compiled_step(state, batch)  # The sole M6 invocation for this B_0.
-    current_step = logical_step + 1
-    if current_step % eval_every == 0 or current_step == horizon:
-      record: dict[str, float | int] = {"step": current_step}
-      if evaluate is not None:
-        record["accuracy"] = float(evaluate(state))
-      history.append(record)
-      print(record, flush=True)
-      if checkpoint_path is not None:
-        save_checkpoint(
-            checkpoint_path,
-            state=state,
-            current_step=current_step,
-            experiment_config=experiment_config,
-            artifact_identifiers=artifact_identifiers,
-        )
+  with tqdm(
+      range(start, horizon),
+      total=horizon,
+      initial=start,
+      desc="Training",
+      unit="logical batch",
+  ) as progress:
+    for logical_step in progress:
+      try:
+        batch = jax.tree_util.tree_map(jnp.asarray, next(batches))
+      except StopIteration as error:
+        raise ValueError("logical_batches must contain exactly strategy.horizon batches") from error
+      state = compiled_step(state, batch)  # The sole M6 invocation for this B_0.
+      current_step = logical_step + 1
+      if current_step % eval_every == 0 or current_step == horizon:
+        record: dict[str, float | int] = {"step": current_step}
+        if evaluate is not None:
+          record["accuracy"] = float(evaluate(state))
+        history.append(record)
+        print(record, flush=True)
+        if checkpoint_path is not None:
+          save_checkpoint(
+              checkpoint_path,
+              state=state,
+              current_step=current_step,
+              experiment_config=experiment_config,
+              artifact_identifiers=artifact_identifiers,
+          )
   try:
     next(batches)
   except StopIteration:

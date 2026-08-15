@@ -43,6 +43,7 @@ class FixedCycleParticipation:
 class Cifar10NonAmplifiedExperimentConfig:
   name: str
   seed: int
+  gpu: int
   data_dir: str
   pretrained: str
   epochs: int
@@ -139,11 +140,12 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   if not isinstance(document, Mapping):
     raise ValueError("config must be a mapping")
   expected_sections = {
-      "experiment", "data", "model", "training", "schedule", "privacy", "strategy", "output"
+      "experiment", "runtime", "data", "model", "training", "schedule", "privacy", "strategy", "output"
   }
   if set(document) != expected_sections:
     raise ValueError(f"config sections must be exactly {sorted(expected_sections)}")
   experiment = _section(document, "experiment", {"name", "seed"})
+  runtime = _section(document, "runtime", {"gpu"})
   data = _section(document, "data", {"data_dir"})
   model = _section(document, "model", {"pretrained"})
   training = _section(
@@ -176,6 +178,7 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   config = Cifar10NonAmplifiedExperimentConfig(
       name=_string(experiment["name"], "experiment.name"),
       seed=_nonnegative_int(experiment["seed"], "experiment.seed"),
+      gpu=_nonnegative_int(runtime["gpu"], "runtime.gpu"),
       data_dir=_string(data["data_dir"], "data.data_dir"),
       pretrained=_string(model["pretrained"], "model.pretrained"),
       epochs=_positive_int(training["epochs"], "training.epochs"),
@@ -322,6 +325,8 @@ def _print_resolved_config(
   print(
       "\n".join((
           f"Dataset size: {num_examples}",
+          "Runtime:",
+          f"  physical GPU: {config.gpu}",
           f"epochs: {config.epochs}",
           f"logical_batch_size: {config.logical_batch_size}",
           f"microbatch_size: {config.microbatch_size}",

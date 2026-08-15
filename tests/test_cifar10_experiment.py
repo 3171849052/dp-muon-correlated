@@ -88,6 +88,18 @@ def test_parses_default_yaml_without_manual_participation_values():
   assert config.momentum == 0.9
   assert config.learning_rate == 0.5
   assert config.adjacency == "add_remove"
+  assert config.gpu == 0
+
+
+@pytest.mark.parametrize("gpu", ("-1", "true", "0.5"))
+def test_yaml_runner_rejects_invalid_physical_gpu_ids(tmp_path, gpu):
+  config_path = tmp_path / "invalid-gpu.yaml"
+  config_path.write_text(
+      CONFIG.read_text(encoding="utf-8").replace("gpu: 0", f"gpu: {gpu}"),
+      encoding="utf-8",
+  )
+  with pytest.raises(ValueError, match="runtime.gpu must be a non-negative integer"):
+    experiment.load_cifar10_nonamplified_config(config_path)
 
 
 def test_yaml_runner_rejects_replace_one_adjacency(tmp_path):
@@ -138,6 +150,24 @@ def test_print_log_dir_cli_preserves_absolute_path(tmp_path, monkeypatch, capsys
   )
   run_cifar10_script.main()
   assert capsys.readouterr().out.strip() == str(absolute_log_dir)
+
+
+def test_print_gpu_cli_outputs_gpu_without_starting_training(monkeypatch, capsys):
+  def fail_training(config_path):
+    raise AssertionError("--print-gpu must not start training")
+
+  monkeypatch.setattr(run_cifar10_script, "run_cifar10_nonamplified", fail_training)
+  monkeypatch.setattr(
+      sys, "argv", ["run_cifar10.py", "--config", str(CONFIG), "--print-gpu"]
+  )
+  run_cifar10_script.main()
+  assert capsys.readouterr().out == "0\n"
+
+
+def test_tmux_launch_command_sets_cuda_visible_devices_from_gpu_config():
+  script = Path("run_cifar10.sh").read_text(encoding="utf-8")
+  assert "--print-gpu" in script
+  assert 'CUDA_VISIBLE_DEVICES="$GPU"' in script
 
 
 def test_runner_cli_does_not_print_history_after_training(monkeypatch, capsys):

@@ -2,6 +2,9 @@ experiment:
   name: cifar10_nonamplified_vit_tiny
   seed: 0
 
+runtime:
+  gpu: 0
+
 data:
   data_dir: data
 
