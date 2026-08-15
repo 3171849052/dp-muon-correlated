@@ -10,6 +10,7 @@ import jax
 import numpy as np
 
 from .nonamplified_dpsgd import NonAmplifiedDPSGDState
+from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_linear import NonAmplifiedBandInvState
 
 
@@ -21,7 +22,7 @@ def _concrete_step(value: Any, name: str) -> int:
 
 
 def _validate_steps(
-    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState, current_step: int
+    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState | NonAmplifiedDPMuonState, current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -34,6 +35,10 @@ def _validate_steps(
     momentum_step = _concrete_step(state.momentum_state.step, "momentum_state.step")
     if int(current_step) != momentum_step:
       raise ValueError("current_step must equal momentum_state.step")
+  elif isinstance(state, NonAmplifiedDPMuonState):
+    optimizer_step = _concrete_step(state.step, "step")
+    if int(current_step) != optimizer_step:
+      raise ValueError("current_step must equal state.step")
   else:
     raise TypeError("state must be a supported non-amplified training state")
 
@@ -41,7 +46,7 @@ def _validate_steps(
 def save_checkpoint(
     path: str | Path,
     *,
-    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState,
+    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState | NonAmplifiedDPMuonState,
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],

@@ -15,7 +15,11 @@ from dp_muon.optim import (
     init_sgd_momentum_state,
     sgd_momentum_step,
 )
-from dp_muon.privacy import PrivacyCalibration, make_clipped_gradient_query
+from dp_muon.privacy import (
+    PrivacyCalibration,
+    make_clipped_gradient_query,
+    sample_iid_gaussian_noise,
+)
 
 
 PyTree = Any
@@ -58,19 +62,8 @@ def _validate_state(state: NonAmplifiedDPSGDState) -> None:
     raise TypeError("state.momentum_state must be an SGDMomentumState")
 
 
-def _sample_iid_gaussian_noise(
-    key: jax.Array, template: PyTree, noise_std: float | jax.Array
-) -> tuple[PyTree, jax.Array]:
-  """Samples one independent Gaussian tensor for every floating PyTree leaf."""
-  leaves, treedef = jax.tree_util.tree_flatten(template)
-  key, sample_key = jax.random.split(key)
-  leaf_keys = jax.random.split(sample_key, len(leaves))
-  noise_leaves = [
-      jax.random.normal(leaf_key, jnp.asarray(leaf).shape, jnp.asarray(leaf).dtype)
-      * jnp.asarray(noise_std, dtype=jnp.asarray(leaf).dtype)
-      for leaf_key, leaf in zip(leaf_keys, leaves, strict=True)
-  ]
-  return jax.tree_util.tree_unflatten(treedef, noise_leaves), key
+# Backwards-compatible test seam; the implementation now lives in privacy.
+_sample_iid_gaussian_noise = sample_iid_gaussian_noise
 
 
 def init_nonamplified_dpsgd_state(

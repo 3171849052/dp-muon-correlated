@@ -1,6 +1,7 @@
 """Privacy-calibration helpers for the non-amplified baseline."""
 
 from .clipped_query import make_clipped_gradient_query
+from .iid_noise import sample_iid_gaussian_noise
 from .participation import (
     ParticipationCertificate,
     ParticipationSpec,
@@ -34,6 +35,7 @@ __all__ = [
     "certify_participation_schedule",
     "make_fixed_cycle_selection",
     "make_clipped_gradient_query",
+    "sample_iid_gaussian_noise",
     "participation_spec_from_strategy",
     "theoretical_max_participations",
     "validate_fixed_cycle_dataset",

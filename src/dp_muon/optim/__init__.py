@@ -9,6 +9,14 @@ from .muon_nesterov import (
     init_muon_nesterov_state,
     muon_nesterov_step,
 )
+from .muon import classic_nesterov_momentum, muon_transform
+from .parameter_groups import (
+    ADAMW,
+    MUON,
+    count_muon_parameters,
+    is_muon_parameter_path,
+    vit_muon_parameter_labels,
+)
 from .sgd_momentum import (
     SGDMomentumState,
     init_sgd_momentum_state,
@@ -21,6 +29,13 @@ __all__ = [
     "fixed_lr_nesterov_trajectory_workload_coef",
     "init_muon_nesterov_state",
     "muon_nesterov_step",
+    "classic_nesterov_momentum",
+    "muon_transform",
+    "ADAMW",
+    "MUON",
+    "count_muon_parameters",
+    "is_muon_parameter_path",
+    "vit_muon_parameter_labels",
     "nesterov_kernel_coef",
     "init_sgd_momentum_state",
     "sgd_momentum_step",
