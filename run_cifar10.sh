@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # command launched inside tmux.
 # cifar10_nonamplified cifar10_dpsgd_momentum
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-DEFAULT_CONFIG="$ROOT/config/cifar10_nonamplified.yaml"
+DEFAULT_CONFIG="$ROOT/config/cifar10_dpsgd_momentum.yaml"
 
 if [[ $# -eq 0 ]]; then
   CONFIG=$DEFAULT_CONFIG
