@@ -7,12 +7,12 @@ import argparse
 import importlib.metadata
 from pathlib import Path
 
-import numpy as np
-
 ROOT = Path(__file__).resolve().parents[1]
 
-from dp_muon.bandinvmf import fit_bandinv_strategy
+from dp_muon.bandinvmf import fit_bandinv_strategy, load_bandinv_strategy
 from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
+from dp_muon.training.file_locking import atomic_replace, atomic_temporary_path, file_lock
+from dp_muon.bandinvmf import save_bandinv_strategy
 
 
 def default_artifact_path(
@@ -60,6 +60,29 @@ def jax_privacy_version() -> str:
     return "version unavailable"
 
 
+def publish_strategy_artifact(
+    output: Path,
+    strategy,
+    *,
+    reduction: str,
+    workload_type: str,
+    momentum: float | None,
+    learning_rate: float | None,
+    max_optimizer_steps: int,
+) -> Path:
+  """Publishes a manually fitted strategy through the shared lock protocol."""
+  with file_lock(output):
+    with atomic_temporary_path(output) as temporary:
+      save_bandinv_strategy(
+          temporary, strategy, reduction=reduction, workload_type=workload_type,
+          momentum=momentum, learning_rate=learning_rate,
+          max_optimizer_steps=max_optimizer_steps,
+      )
+      load_bandinv_strategy(temporary)
+      atomic_replace(temporary, output)
+  return output
+
+
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--horizon", type=int, required=True)
@@ -104,32 +127,10 @@ def main() -> None:
       momentum=args.momentum,
       learning_rate=args.learning_rate,
   )
-  output.parent.mkdir(parents=True, exist_ok=True)
-  np.savez(
-      output,
-      horizon=np.asarray(result.horizon),
-      bandwidth=np.asarray(result.bandwidth),
-      min_sep=np.asarray(result.min_sep),
-      max_participations=np.asarray(-1 if result.max_participations is None else result.max_participations),
-      workload_coef=np.asarray(result.workload_coef),
-      noising_coef=np.asarray(result.noising_coef),
-      strategy_coef=np.asarray(result.strategy_coef),
-      sensitivity_squared=np.asarray(result.sensitivity_squared),
-      objective=np.asarray(result.objective),
-      reduction=np.asarray(args.reduction),
-      workload_type=np.asarray(args.workload),
-      momentum_convention=np.asarray(
-          "ema_then_nesterov" if args.workload == "nesterov-trajectory" else "not_applicable"
-      ),
-      momentum=np.asarray(np.nan if args.momentum is None else args.momentum),
-      learning_rate=np.asarray(np.nan if args.learning_rate is None else args.learning_rate),
-      trajectory_convention=np.asarray(
-          "post_update_displacement_from_initial"
-          if args.workload == "nesterov-trajectory"
-          else "not_applicable"
-      ),
-      max_optimizer_steps=np.asarray(args.max_optimizer_steps),
-      jax_privacy_version=np.asarray(jax_privacy_version()),
+  publish_strategy_artifact(
+      output, result, reduction=args.reduction, workload_type=args.workload,
+      momentum=args.momentum, learning_rate=args.learning_rate,
+      max_optimizer_steps=args.max_optimizer_steps,
   )
   print(f"saved strategy artifact: {output}")
 

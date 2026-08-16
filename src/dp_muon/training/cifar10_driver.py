@@ -13,7 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 from tqdm.auto import tqdm
 
-from dp_muon.bandinvmf import BandInvMFStrategy, load_bandinv_strategy
+from dp_muon.bandinvmf import BandInvMFStrategy
 from dp_muon.data import iter_logical_batches, load_cifar10, prepare_cifar10_batch
 from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
 from dp_muon.privacy import (
@@ -27,6 +27,7 @@ from dp_muon.privacy import (
 
 from .checkpoint import load_checkpoint, save_checkpoint, validate_resume_identity
 from .file_locking import file_fingerprint
+from .bandinvmf_strategy_manager import load_strategy_snapshot
 from .run_logging import MetricsCSVWriter
 from .nonamplified_linear import (
     NonAmplifiedBandInvState,
@@ -433,7 +434,8 @@ def train_cifar10(
     metrics_path: str | Path | None = None,
 ):
   """Loads public assets and delegates all private update math to M6."""
-  strategy = load_bandinv_strategy(config.strategy)
+  strategy_snapshot = load_strategy_snapshot(config.strategy)
+  strategy = strategy_snapshot.strategy
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   test_images, test_labels = load_cifar10(config.data_dir, train=False)
   schedule = build_logical_schedule(
@@ -470,8 +472,8 @@ def train_cifar10(
       experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": "bandinv",
-          "strategy_path": str(Path(config.strategy).resolve()),
-          "strategy_sha256": file_fingerprint(config.strategy),
+          "strategy_path": str(strategy_snapshot.path),
+          "strategy_sha256": strategy_snapshot.sha256,
           "pretrained_path": str(Path(config.pretrained).resolve()),
           "pretrained_sha256": file_fingerprint(config.pretrained),
       },
@@ -628,7 +630,8 @@ def train_cifar10_bandinv_dpmuon(
     metrics_path: str | Path | None = None,
 ):
   """Fine-tunes CIFAR-10 with one full-tree BandInvMF private gradient."""
-  strategy = load_bandinv_strategy(config.strategy)
+  strategy_snapshot = load_strategy_snapshot(config.strategy)
+  strategy = strategy_snapshot.strategy
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   test_images, test_labels = load_cifar10(config.data_dir, train=False)
   schedule = build_logical_schedule(
@@ -668,8 +671,8 @@ def train_cifar10_bandinv_dpmuon(
       horizon=strategy.horizon, experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": BANDINV_DPMUON_ALGORITHM,
-          "strategy_path": str(Path(config.strategy).resolve()),
-          "strategy_sha256": file_fingerprint(config.strategy),
+          "strategy_path": str(strategy_snapshot.path),
+          "strategy_sha256": strategy_snapshot.sha256,
           "pretrained_path": str(Path(config.pretrained).resolve()),
           "pretrained_sha256": file_fingerprint(config.pretrained),
       },

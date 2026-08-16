@@ -17,7 +17,12 @@ from dp_muon.bandinvmf import (
 )
 from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
 
-from .file_locking import atomic_replace, atomic_temporary_path, file_lock
+from .file_locking import (
+    atomic_replace,
+    atomic_temporary_path,
+    file_fingerprint,
+    file_lock,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -37,6 +42,15 @@ class BandInvMFFitRequest:
   max_optimizer_steps: int
   strategy_dir: str | Path
   force_refit: bool
+
+
+@dataclass(frozen=True)
+class LoadedStrategySnapshot:
+  """A strategy and SHA-256 read while its artifact lock was held."""
+
+  path: Path
+  strategy: BandInvMFStrategy
+  sha256: str
 
 
 def strategy_artifact_path(
@@ -90,18 +104,39 @@ def _metadata_is_compatible(path: Path, request: BandInvMFFitRequest) -> bool:
   )
 
 
-def _load_compatible_strategy(
+def _load_compatible_snapshot_unlocked(
     path: Path, request: BandInvMFFitRequest
-) -> BandInvMFStrategy | None:
+) -> LoadedStrategySnapshot | None:
   try:
     strategy = load_bandinv_strategy(path)
     if _strategy_is_compatible(strategy, request) and _metadata_is_compatible(
         path, request
     ):
-      return strategy
+      return LoadedStrategySnapshot(path, strategy, file_fingerprint(path))
   except ValueError:
     pass
   return None
+
+
+def load_strategy_snapshot(path: str | Path) -> LoadedStrategySnapshot:
+  """Loads and fingerprints one immutable strategy version under its lock."""
+  resolved = Path(path).resolve()
+  with file_lock(resolved):
+    try:
+      strategy = load_bandinv_strategy(resolved)
+      load_bandinv_strategy_metadata(resolved)
+      return LoadedStrategySnapshot(
+          resolved, strategy, file_fingerprint(resolved)
+      )
+    except ValueError as error:
+      raise ValueError(f"could not load strategy snapshot {resolved}") from error
+
+
+def _artifact_fingerprint(path: Path) -> str | None:
+  try:
+    return file_fingerprint(path)
+  except ValueError:
+    return None
 
 
 def require_compatible_strategy(
@@ -114,10 +149,11 @@ def require_compatible_strategy(
       momentum=request.momentum, learning_rate=request.learning_rate,
       reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
   )
-  strategy = _load_compatible_strategy(path, request)
-  if strategy is None:
+  with file_lock(path):
+    snapshot = _load_compatible_snapshot_unlocked(path, request)
+  if snapshot is None:
     raise ValueError("required compatible BandInvMF strategy artifact is missing or invalid")
-  return path, strategy
+  return path, snapshot.strategy
 
 
 def get_or_fit_strategy(
@@ -139,18 +175,20 @@ def get_or_fit_strategy(
       reduction=request.reduction,
       max_optimizer_steps=request.max_optimizer_steps,
   )
+  initial_fingerprint = _artifact_fingerprint(path)
   if not request.force_refit:
-    existing = _load_compatible_strategy(path, request)
+    existing = _load_compatible_snapshot_unlocked(path, request)
     if existing is not None:
-      return path, existing, "reuse"
-  # The second check after lock acquisition ensures only one process fits a
-  # cache miss. force_refit is intentionally evaluated before acquiring the
-  # lock, so a caller explicitly requesting a new public artifact still fits.
+      return path, existing.strategy, "reuse"
   with file_lock(path):
-    if not request.force_refit:
-      existing = _load_compatible_strategy(path, request)
-      if existing is not None:
-        return path, existing, "reuse"
+    existing = _load_compatible_snapshot_unlocked(path, request)
+    # For a forced refit, a compatible publication which happened while this
+    # caller waited satisfies its request for a newer version. A lone caller
+    # observes the same fingerprint and therefore still truly refits.
+    if existing is not None and (
+        not request.force_refit or existing.sha256 != initial_fingerprint
+    ):
+      return path, existing.strategy, "reuse"
     workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
         request.horizon, request.momentum, request.learning_rate
     )
@@ -174,7 +212,7 @@ def get_or_fit_strategy(
           learning_rate=request.learning_rate,
           max_optimizer_steps=request.max_optimizer_steps,
       )
-      if _load_compatible_strategy(temporary, request) is None:
+      if _load_compatible_snapshot_unlocked(temporary, request) is None:
         raise ValueError("fitted BandInvMF artifact failed validation")
       atomic_replace(temporary, path)
     return path, fitted, "fit"
@@ -182,8 +220,10 @@ def get_or_fit_strategy(
 
 __all__ = [
     "BandInvMFFitRequest",
+    "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
+    "load_strategy_snapshot",
     "require_compatible_strategy",
     "strategy_artifact_path",
 ]

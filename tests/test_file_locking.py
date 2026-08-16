@@ -17,7 +17,10 @@ from dp_muon.training import bandinvmf_strategy_manager as strategies
 from dp_muon.training import cifar10_bandinv_dpmuon_experiment as naive
 from dp_muon.training import cifar10_experiment as bandinv
 from dp_muon.training.file_locking import file_fingerprint
+from dp_muon.training.file_locking import file_lock
 from dp_muon.training.run_logging import MetricsCSVWriter, RunPaths, write_run_configuration
+from dp_muon.training import cifar10_driver
+from scripts import fit_bandinvmf
 
 
 def test_checkpoint_concurrent_atomic_publication_is_always_readable(tmp_path, monkeypatch):
@@ -96,7 +99,7 @@ def _request(tmp_path, **changes):
   return strategies.BandInvMFFitRequest(**values)
 
 
-def _strategy(request):
+def _strategy(request, *, objective: float = 1.0):
   return BandInvMFStrategy(
       horizon=request.horizon, bandwidth=request.bandwidth, min_sep=request.min_sep,
       max_participations=request.max_participations,
@@ -104,7 +107,7 @@ def _strategy(request):
           request.horizon, request.momentum, request.learning_rate
       ),
       noising_coef=jnp.ones((request.bandwidth,)), strategy_coef=jnp.ones((request.horizon,)),
-      sensitivity_squared=jnp.asarray(1.0), objective=jnp.asarray(1.0),
+      sensitivity_squared=jnp.asarray(1.0), objective=jnp.asarray(objective),
   )
 
 
@@ -132,6 +135,67 @@ def test_strategy_cache_lock_allows_one_fit_then_reuse(tmp_path):
   assert sorted(results) == ["fit", "reuse"]
 
 
+def test_concurrent_force_refit_fits_once_then_reuses_new_publication(tmp_path):
+  request = _request(tmp_path, force_refit=True)
+  strategies.get_or_fit_strategy(request, fit_strategy=lambda *args, **kwargs: _strategy(request))
+  calls, results = [], []
+  barrier = threading.Barrier(2)
+
+  def fit(*args, **kwargs):
+    calls.append(1)
+    time.sleep(0.1)
+    return _strategy(request, objective=2.0)
+
+  def worker():
+    barrier.wait()
+    results.append(strategies.get_or_fit_strategy(request, fit_strategy=fit)[2])
+
+  workers = [threading.Thread(target=worker) for _ in range(2)]
+  for worker in workers:
+    worker.start()
+  for worker in workers:
+    worker.join()
+  assert len(calls) == 1
+  assert sorted(results) == ["fit", "reuse"]
+
+
+def test_single_force_refit_still_fits_existing_compatible_artifact(tmp_path):
+  request = _request(tmp_path)
+  strategies.get_or_fit_strategy(request, fit_strategy=lambda *args, **kwargs: _strategy(request))
+  forced = _request(tmp_path, force_refit=True)
+  calls = []
+  _, _, action = strategies.get_or_fit_strategy(
+      forced,
+      fit_strategy=lambda *args, **kwargs: calls.append(1) or _strategy(forced, objective=2.0),
+  )
+  assert action == "fit"
+  assert calls == [1]
+
+
+def test_force_refit_does_not_reuse_incompatible_publication(tmp_path):
+  request = _request(tmp_path, force_refit=True)
+  path = strategies.strategy_artifact_path(
+      request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
+      max_participations=request.max_participations, bandwidth=request.bandwidth,
+      momentum=request.momentum, learning_rate=request.learning_rate,
+      reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+  )
+  incompatible = _strategy(_request(tmp_path, bandwidth=1))
+  from dp_muon.bandinvmf import save_bandinv_strategy
+  save_bandinv_strategy(
+      path, incompatible, reduction="mean", workload_type="nesterov-trajectory",
+      momentum=request.momentum, learning_rate=request.learning_rate,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  calls = []
+  _, _, action = strategies.get_or_fit_strategy(
+      request,
+      fit_strategy=lambda *args, **kwargs: calls.append(1) or _strategy(request),
+  )
+  assert action == "fit"
+  assert calls == [1]
+
+
 def test_strategy_fit_exception_does_not_publish_artifact(tmp_path):
   request = _request(tmp_path)
   with pytest.raises(RuntimeError, match="fit failed"):
@@ -157,6 +221,68 @@ def test_resume_strategy_requirement_fails_without_refitting(tmp_path):
 def test_bandinvmf_algorithms_use_the_same_shared_manager():
   assert bandinv._get_or_fit_shared_strategy is strategies.get_or_fit_strategy
   assert naive._get_or_fit_shared_strategy is strategies.get_or_fit_strategy
+  assert cifar10_driver.load_strategy_snapshot is strategies.load_strategy_snapshot
+
+
+def test_strategy_snapshot_keeps_loaded_object_and_sha_in_one_locked_version(tmp_path, monkeypatch):
+  request = _request(tmp_path)
+  path, _, _ = strategies.get_or_fit_strategy(
+      request, fit_strategy=lambda *args, **kwargs: _strategy(request, objective=1.0)
+  )
+  expected_sha = file_fingerprint(path)
+  replacement_started = threading.Event()
+  replacement_done = threading.Event()
+
+  def replace_after_lock_release():
+    replacement_started.wait()
+    with file_lock(path):
+      from dp_muon.bandinvmf import save_bandinv_strategy
+      save_bandinv_strategy(
+          path, _strategy(request, objective=2.0), reduction=request.reduction,
+          workload_type="nesterov-trajectory", momentum=request.momentum,
+          learning_rate=request.learning_rate, max_optimizer_steps=request.max_optimizer_steps,
+      )
+    replacement_done.set()
+
+  worker = threading.Thread(target=replace_after_lock_release)
+  worker.start()
+  original_fingerprint = strategies.file_fingerprint
+
+  def fingerprint_while_replacement_waits(actual_path):
+    replacement_started.set()
+    time.sleep(0.05)
+    assert not replacement_done.is_set()
+    return original_fingerprint(actual_path)
+
+  monkeypatch.setattr(strategies, "file_fingerprint", fingerprint_while_replacement_waits)
+  snapshot = strategies.load_strategy_snapshot(path)
+  worker.join()
+  assert snapshot.sha256 == expected_sha
+  assert float(snapshot.strategy.objective) == 1.0
+  assert file_fingerprint(path) != snapshot.sha256
+
+
+def test_manual_fit_publication_is_loadable_and_failure_does_not_publish(tmp_path, monkeypatch):
+  request = _request(tmp_path)
+  output = tmp_path / "manual.npz"
+  fit_bandinvmf.publish_strategy_artifact(
+      output, _strategy(request), reduction="mean", workload_type="nesterov-trajectory",
+      momentum=request.momentum, learning_rate=request.learning_rate,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  assert strategies.load_strategy_snapshot(output).path == output.resolve()
+  failed_output = tmp_path / "failed.npz"
+  monkeypatch.setattr(
+      fit_bandinvmf, "save_bandinv_strategy",
+      lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("write failed")),
+  )
+  with pytest.raises(RuntimeError, match="write failed"):
+    fit_bandinvmf.publish_strategy_artifact(
+        failed_output, _strategy(request), reduction="mean", workload_type="nesterov-trajectory",
+        momentum=request.momentum, learning_rate=request.learning_rate,
+        max_optimizer_steps=request.max_optimizer_steps,
+    )
+  assert not failed_output.exists()
 
 
 @pytest.mark.parametrize("algorithm", ["bandinv", "dpsgd", "dpmuon", "dp-muon-correlated-naive"])
