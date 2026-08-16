@@ -6,10 +6,13 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import hashlib
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+
+from .file_locking import atomic_write_text, file_lock
 
 
 METRICS_FIELDS = (
@@ -129,11 +132,13 @@ def write_run_configuration(
     resolved: Mapping[str, Any],
 ) -> None:
   """Stores the immutable source snapshot and the derived public settings."""
-  paths.config.write_text(source_yaml, encoding="utf-8")
-  paths.resolved_config.write_text(
-      yaml.safe_dump(dict(resolved), sort_keys=True), encoding="utf-8"
-  )
-  paths.train_log.touch(exist_ok=True)
+  # One run-level lock keeps the two snapshots mutually coherent to readers.
+  with file_lock(paths.directory / ".snapshots"):
+    atomic_write_text(paths.config, source_yaml)
+    atomic_write_text(
+        paths.resolved_config, yaml.safe_dump(dict(resolved), sort_keys=True)
+    )
+    paths.train_log.touch(exist_ok=True)
 
 
 class MetricsCSVWriter:
@@ -143,29 +148,37 @@ class MetricsCSVWriter:
     self.path = Path(path)
     self.path.parent.mkdir(parents=True, exist_ok=True)
     self._seen_steps: set[int] = set()
-    if self.path.exists() and self.path.stat().st_size:
-      with self.path.open(newline="", encoding="utf-8") as source:
-        reader = csv.DictReader(source)
-        if tuple(reader.fieldnames or ()) != METRICS_FIELDS:
-          raise ValueError("metrics.csv has unexpected fields")
-        for row in reader:
-          self._seen_steps.add(int(row["step"]))
-    else:
+    with file_lock(self.path):
+      self._initialize_locked()
+
+  def _initialize_locked(self) -> set[int]:
+    if not self.path.exists() or not self.path.stat().st_size:
       with self.path.open("w", newline="", encoding="utf-8") as target:
         csv.DictWriter(target, fieldnames=METRICS_FIELDS).writeheader()
         target.flush()
+        os.fsync(target.fileno())
+      return set()
+    with self.path.open(newline="", encoding="utf-8") as source:
+      reader = csv.DictReader(source)
+      if tuple(reader.fieldnames or ()) != METRICS_FIELDS:
+        raise ValueError("metrics.csv has unexpected fields")
+      return {int(row["step"]) for row in reader}
 
   def append(self, record: Mapping[str, float | int]) -> bool:
     if set(record) != set(METRICS_FIELDS):
       raise ValueError("metrics record must contain exactly the CSV fields")
     step = int(record["step"])
-    if step in self._seen_steps:
-      return False
-    with self.path.open("a", newline="", encoding="utf-8") as target:
-      csv.DictWriter(target, fieldnames=METRICS_FIELDS).writerow(record)
-      target.flush()
-    self._seen_steps.add(step)
-    return True
+    with file_lock(self.path):
+      seen_steps = self._initialize_locked()
+      if step in seen_steps:
+        self._seen_steps = seen_steps
+        return False
+      with self.path.open("a", newline="", encoding="utf-8") as target:
+        csv.DictWriter(target, fieldnames=METRICS_FIELDS).writerow(record)
+        target.flush()
+        os.fsync(target.fileno())
+      self._seen_steps = seen_steps | {step}
+      return True
 
 
 __all__ = [

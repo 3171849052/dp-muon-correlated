@@ -17,6 +17,8 @@ from dp_muon.bandinvmf import (
 )
 from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
 
+from .file_locking import atomic_replace, atomic_temporary_path, file_lock
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
@@ -88,6 +90,36 @@ def _metadata_is_compatible(path: Path, request: BandInvMFFitRequest) -> bool:
   )
 
 
+def _load_compatible_strategy(
+    path: Path, request: BandInvMFFitRequest
+) -> BandInvMFStrategy | None:
+  try:
+    strategy = load_bandinv_strategy(path)
+    if _strategy_is_compatible(strategy, request) and _metadata_is_compatible(
+        path, request
+    ):
+      return strategy
+  except ValueError:
+    pass
+  return None
+
+
+def require_compatible_strategy(
+    request: BandInvMFFitRequest,
+) -> tuple[Path, BandInvMFStrategy]:
+  """Loads the requested cache or fails; used for strict checkpoint resume."""
+  path = strategy_artifact_path(
+      request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
+      max_participations=request.max_participations, bandwidth=request.bandwidth,
+      momentum=request.momentum, learning_rate=request.learning_rate,
+      reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+  )
+  strategy = _load_compatible_strategy(path, request)
+  if strategy is None:
+    raise ValueError("required compatible BandInvMF strategy artifact is missing or invalid")
+  return path, strategy
+
+
 def get_or_fit_strategy(
     request: BandInvMFFitRequest,
     *,
@@ -107,42 +139,51 @@ def get_or_fit_strategy(
       reduction=request.reduction,
       max_optimizer_steps=request.max_optimizer_steps,
   )
-  if path.is_file() and not request.force_refit:
-    try:
-      existing = load_bandinv_strategy(path)
-      if _strategy_is_compatible(existing, request) and _metadata_is_compatible(
-          path, request
-      ):
+  if not request.force_refit:
+    existing = _load_compatible_strategy(path, request)
+    if existing is not None:
+      return path, existing, "reuse"
+  # The second check after lock acquisition ensures only one process fits a
+  # cache miss. force_refit is intentionally evaluated before acquiring the
+  # lock, so a caller explicitly requesting a new public artifact still fits.
+  with file_lock(path):
+    if not request.force_refit:
+      existing = _load_compatible_strategy(path, request)
+      if existing is not None:
         return path, existing, "reuse"
-    except ValueError:
-      pass
-  workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
-      request.horizon, request.momentum, request.learning_rate
-  )
-  fitted = fit_strategy(
-      request.horizon,
-      request.bandwidth,
-      request.min_sep,
-      max_participations=request.max_participations,
-      workload_coef=workload_coef,
-      max_optimizer_steps=request.max_optimizer_steps,
-      reduction=request.reduction,
-  )
-  save_bandinv_strategy(
-      path,
-      fitted,
-      reduction=request.reduction,
-      workload_type="nesterov-trajectory",
-      momentum=request.momentum,
-      learning_rate=request.learning_rate,
-      max_optimizer_steps=request.max_optimizer_steps,
-  )
-  return path, fitted, "fit"
+    workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
+        request.horizon, request.momentum, request.learning_rate
+    )
+    fitted = fit_strategy(
+        request.horizon,
+        request.bandwidth,
+        request.min_sep,
+        max_participations=request.max_participations,
+        workload_coef=workload_coef,
+        max_optimizer_steps=request.max_optimizer_steps,
+        reduction=request.reduction,
+    )
+    # Validate the completed temporary artifact before it becomes visible.
+    with atomic_temporary_path(path) as temporary:
+      save_bandinv_strategy(
+          temporary,
+          fitted,
+          reduction=request.reduction,
+          workload_type="nesterov-trajectory",
+          momentum=request.momentum,
+          learning_rate=request.learning_rate,
+          max_optimizer_steps=request.max_optimizer_steps,
+      )
+      if _load_compatible_strategy(temporary, request) is None:
+        raise ValueError("fitted BandInvMF artifact failed validation")
+      atomic_replace(temporary, path)
+    return path, fitted, "fit"
 
 
 __all__ = [
     "BandInvMFFitRequest",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
+    "require_compatible_strategy",
     "strategy_artifact_path",
 ]

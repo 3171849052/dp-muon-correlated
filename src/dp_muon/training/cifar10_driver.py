@@ -25,7 +25,8 @@ from dp_muon.privacy import (
     epsilon_spent_for_iid_prefix,
 )
 
-from .checkpoint import load_checkpoint, save_checkpoint
+from .checkpoint import load_checkpoint, save_checkpoint, validate_resume_identity
+from .file_locking import file_fingerprint
 from .run_logging import MetricsCSVWriter
 from .nonamplified_linear import (
     NonAmplifiedBandInvState,
@@ -312,10 +313,10 @@ def run_training(
   state, start = initial_state, 0
   if resume_checkpoint is not None:
     saved = load_checkpoint(resume_checkpoint)
-    if saved["artifact_identifiers"] != dict(artifact_identifiers):
-      raise ValueError("checkpoint artifact identifiers do not match this run")
-    if saved["experiment_config"] != dict(experiment_config):
-      raise ValueError("checkpoint experiment config does not match this run")
+    validate_resume_identity(
+        saved, experiment_config=experiment_config,
+        artifact_identifiers=artifact_identifiers,
+    )
     state, start = saved["state"], int(saved["current_step"])
     if start > horizon:
       raise ValueError("checkpoint current_step exceeds training horizon")
@@ -467,7 +468,13 @@ def train_cifar10(
       logical_batches=iter_logical_batches(train_images, train_labels, schedule),
       horizon=strategy.horizon,
       experiment_config=asdict(config),
-      artifact_identifiers={"strategy": str(Path(config.strategy).resolve()), "pretrained": str(config.pretrained)},
+      artifact_identifiers={
+          "algorithm": "bandinv",
+          "strategy_path": str(Path(config.strategy).resolve()),
+          "strategy_sha256": file_fingerprint(config.strategy),
+          "pretrained_path": str(Path(config.pretrained).resolve()),
+          "pretrained_sha256": file_fingerprint(config.pretrained),
+      },
       checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,
@@ -535,7 +542,8 @@ def train_cifar10_dpsgd_momentum(
       experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": "nonamplified_iid_dpsgd_momentum",
-          "pretrained": str(Path(config.pretrained).resolve()),
+          "pretrained_path": str(Path(config.pretrained).resolve()),
+          "pretrained_sha256": file_fingerprint(config.pretrained),
       },
       checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
@@ -595,7 +603,11 @@ def train_cifar10_dpmuon(
       initial_state=initial_state, train_step=train_step,
       logical_batches=iter_logical_batches(train_images, train_labels, schedule),
       horizon=config.horizon, experiment_config=asdict(config),
-      artifact_identifiers={"algorithm": "nonamplified_iid_dpmuon", "pretrained": str(Path(config.pretrained).resolve())},
+      artifact_identifiers={
+          "algorithm": "nonamplified_iid_dpmuon",
+          "pretrained_path": str(Path(config.pretrained).resolve()),
+          "pretrained_sha256": file_fingerprint(config.pretrained),
+      },
       checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,
       evaluate=lambda state: evaluate_classifier_metrics(state.params, model, test_images, test_labels, batch_size=config.batch_size),
@@ -656,8 +668,10 @@ def train_cifar10_bandinv_dpmuon(
       horizon=strategy.horizon, experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": BANDINV_DPMUON_ALGORITHM,
-          "strategy": str(Path(config.strategy).resolve()),
-          "pretrained": str(Path(config.pretrained).resolve()),
+          "strategy_path": str(Path(config.strategy).resolve()),
+          "strategy_sha256": file_fingerprint(config.strategy),
+          "pretrained_path": str(Path(config.pretrained).resolve()),
+          "pretrained_sha256": file_fingerprint(config.pretrained),
       },
       checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,

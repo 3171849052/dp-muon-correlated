@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import pickle
+import os
 from typing import Any
 
 import jax
@@ -13,6 +14,7 @@ from .nonamplified_dpsgd import NonAmplifiedDPSGDState
 from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
 from .nonamplified_linear import NonAmplifiedBandInvState
+from .file_locking import atomic_replace, atomic_temporary_path, file_lock
 
 
 def _concrete_step(value: Any, name: str) -> int:
@@ -70,10 +72,13 @@ def save_checkpoint(
       "experiment_config": dict(experiment_config),
       "artifact_identifiers": dict(artifact_identifiers),
   }
-  temporary = destination.with_name(destination.name + ".tmp")
-  with temporary.open("wb") as target:
-    pickle.dump(payload, target, protocol=pickle.HIGHEST_PROTOCOL)
-  temporary.replace(destination)
+  with file_lock(destination):
+    with atomic_temporary_path(destination) as temporary:
+      with temporary.open("wb") as target:
+        pickle.dump(payload, target, protocol=pickle.HIGHEST_PROTOCOL)
+        target.flush()
+        os.fsync(target.fileno())
+      atomic_replace(temporary, destination)
   return destination
 
 
@@ -95,4 +100,17 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
   return payload
 
 
-__all__ = ["load_checkpoint", "save_checkpoint"]
+def validate_resume_identity(
+    saved: dict[str, Any],
+    *,
+    experiment_config: dict[str, Any],
+    artifact_identifiers: dict[str, str],
+) -> None:
+  """Rejects resume when any public trajectory identity has changed."""
+  if saved["artifact_identifiers"] != dict(artifact_identifiers):
+    raise ValueError("checkpoint artifact identifiers do not match this run")
+  if saved["experiment_config"] != dict(experiment_config):
+    raise ValueError("checkpoint experiment config does not match this run")
+
+
+__all__ = ["load_checkpoint", "save_checkpoint", "validate_resume_identity"]

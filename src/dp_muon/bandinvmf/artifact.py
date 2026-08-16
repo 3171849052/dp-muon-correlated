@@ -166,25 +166,28 @@ def save_bandinv_strategy(
   """Writes a strategy and its cache-compatibility metadata."""
   output = Path(path)
   output.parent.mkdir(parents=True, exist_ok=True)
-  np.savez(
-      output,
-      horizon=np.asarray(strategy.horizon),
-      bandwidth=np.asarray(strategy.bandwidth),
-      min_sep=np.asarray(strategy.min_sep),
-      max_participations=np.asarray(
-          -1 if strategy.max_participations is None else strategy.max_participations
-      ),
-      workload_coef=np.asarray(strategy.workload_coef),
-      noising_coef=np.asarray(strategy.noising_coef),
-      strategy_coef=np.asarray(strategy.strategy_coef),
-      sensitivity_squared=np.asarray(strategy.sensitivity_squared),
-      objective=np.asarray(strategy.objective),
-      reduction=np.asarray(reduction),
-      workload_type=np.asarray(workload_type),
-      momentum=np.asarray(np.nan if momentum is None else momentum),
-      learning_rate=np.asarray(np.nan if learning_rate is None else learning_rate),
-      max_optimizer_steps=np.asarray(max_optimizer_steps),
-  )
+  # Passing a file object avoids numpy's automatic ".npz" suffix addition,
+  # which is needed when the shared manager writes a temporary filename.
+  with output.open("wb") as target:
+    np.savez(
+        target,
+        horizon=np.asarray(strategy.horizon),
+        bandwidth=np.asarray(strategy.bandwidth),
+        min_sep=np.asarray(strategy.min_sep),
+        max_participations=np.asarray(
+            -1 if strategy.max_participations is None else strategy.max_participations
+        ),
+        workload_coef=np.asarray(strategy.workload_coef),
+        noising_coef=np.asarray(strategy.noising_coef),
+        strategy_coef=np.asarray(strategy.strategy_coef),
+        sensitivity_squared=np.asarray(strategy.sensitivity_squared),
+        objective=np.asarray(strategy.objective),
+        reduction=np.asarray(reduction),
+        workload_type=np.asarray(workload_type),
+        momentum=np.asarray(np.nan if momentum is None else momentum),
+        learning_rate=np.asarray(np.nan if learning_rate is None else learning_rate),
+        max_optimizer_steps=np.asarray(max_optimizer_steps),
+    )
 
 
 __all__ = [

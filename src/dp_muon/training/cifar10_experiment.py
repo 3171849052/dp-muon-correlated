@@ -20,6 +20,7 @@ from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 from .bandinvmf_strategy_manager import (
     BandInvMFFitRequest,
     get_or_fit_strategy as _get_or_fit_shared_strategy,
+    require_compatible_strategy as _require_compatible_shared_strategy,
     strategy_artifact_path as _shared_strategy_artifact_path,
 )
 from .cifar10_driver import Cifar10TrainConfig, train_cifar10
@@ -278,6 +279,23 @@ def get_or_fit_strategy(
   )
 
 
+def require_compatible_strategy(
+    config: Cifar10NonAmplifiedExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[Path, BandInvMFStrategy]:
+  """Loads the prior public artifact for resume without ever refitting it."""
+  return _require_compatible_shared_strategy(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=False,
+      )
+  )
+
+
 def _print_resolved_config(
     config: Cifar10NonAmplifiedExperimentConfig,
     num_examples: int,
@@ -409,7 +427,11 @@ def run_cifar10_nonamplified(
   participation = derive_fixed_cycle_participation(
       num_examples, config.epochs, config.logical_batch_size
   )
-  path, strategy, actual_action = get_or_fit_strategy(config, participation)
+  if resume_checkpoint is not None:
+    path, strategy = require_compatible_strategy(config, participation)
+    actual_action = "reuse"
+  else:
+    path, strategy, actual_action = get_or_fit_strategy(config, participation)
   _print_resolved_config(config, num_examples, participation, path, actual_action)
   if actual_action == "reuse":
     print(f"Reusing existing BandInvMF strategy: {path}")
@@ -469,6 +491,7 @@ __all__ = [
     "get_or_fit_strategy",
     "load_cifar10_nonamplified_config",
     "prepare_cifar10_nonamplified_run",
+    "require_compatible_strategy",
     "resolve_output_log_dir",
     "run_cifar10_nonamplified",
     "strategy_artifact_path",

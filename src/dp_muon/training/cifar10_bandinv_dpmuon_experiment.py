@@ -17,6 +17,7 @@ from dp_muon.privacy import calibrate_nonamplified_bandinv
 from .bandinvmf_strategy_manager import (
     BandInvMFFitRequest,
     get_or_fit_strategy as _get_or_fit_shared_strategy,
+    require_compatible_strategy as _require_compatible_shared_strategy,
     strategy_artifact_path as _shared_strategy_artifact_path,
 )
 from .cifar10_driver import (
@@ -252,6 +253,23 @@ def get_or_fit_strategy(
   )
 
 
+def require_compatible_strategy(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[Path, BandInvMFStrategy]:
+  """Loads the existing resume artifact and never replaces it."""
+  return _require_compatible_shared_strategy(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.muon_learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=False,
+      )
+  )
+
+
 def resolve_output_log_dir(config_path: str | Path) -> Path:
   """Resolves the YAML log root relative to the repository."""
   directory = Path(load_cifar10_bandinv_dpmuon_config(config_path).log_dir)
@@ -389,7 +407,11 @@ def run_cifar10_bandinv_dpmuon(
       len(train_images), config.epochs, config.batch_size
   )
   del train_images
-  strategy_path, strategy, action = get_or_fit_strategy(config, participation)
+  if resume_checkpoint is not None:
+    strategy_path, strategy = require_compatible_strategy(config, participation)
+    action = "reuse"
+  else:
+    strategy_path, strategy, action = get_or_fit_strategy(config, participation)
   calibration = calibrate_nonamplified_bandinv(
       epsilon=config.epsilon,
       delta=config.delta,
@@ -418,6 +440,7 @@ __all__ = [
     "get_or_fit_strategy",
     "load_cifar10_bandinv_dpmuon_config",
     "prepare_cifar10_bandinv_dpmuon_run",
+    "require_compatible_strategy",
     "resolve_output_log_dir",
     "run_cifar10_bandinv_dpmuon",
     "strategy_artifact_path",
