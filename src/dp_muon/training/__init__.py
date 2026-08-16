@@ -4,7 +4,13 @@ from .nonamplified_linear import (
     NonAmplifiedBandInvState,
     init_nonamplified_bandinv_state,
     make_nonamplified_bandinv_train_step,
+    validate_nonamplified_bandinv_privacy_setup,
     validate_nonamplified_bandinv_setup,
+)
+from .nonamplified_bandinv_dpmuon import (
+    NonAmplifiedBandInvDPMuonState,
+    init_nonamplified_bandinv_dpmuon_state,
+    make_nonamplified_bandinv_dpmuon_train_step,
 )
 from .checkpoint import load_checkpoint, save_checkpoint
 from .nonamplified_dpsgd import (
@@ -21,15 +27,19 @@ from .nonamplified_dpmuon import (
 
 __all__ = [
     "NonAmplifiedBandInvState",
+    "NonAmplifiedBandInvDPMuonState",
     "NonAmplifiedDPSGDState",
     "NonAmplifiedDPMuonState",
     "init_nonamplified_bandinv_state",
+    "init_nonamplified_bandinv_dpmuon_state",
     "make_nonamplified_bandinv_train_step",
+    "make_nonamplified_bandinv_dpmuon_train_step",
     "make_nonamplified_dpsgd_train_step",
     "init_nonamplified_dpsgd_state",
     "init_nonamplified_dpmuon_state",
     "make_nonamplified_dpmuon_optimizer",
     "make_nonamplified_dpmuon_train_step",
+    "validate_nonamplified_bandinv_privacy_setup",
     "validate_nonamplified_bandinv_setup",
     "load_checkpoint",
     "save_checkpoint",

@@ -41,6 +41,13 @@ from .nonamplified_dpmuon import (
     init_nonamplified_dpmuon_state,
     make_nonamplified_dpmuon_train_step,
 )
+from .nonamplified_bandinv_dpmuon import (
+    init_nonamplified_bandinv_dpmuon_state,
+    make_nonamplified_bandinv_dpmuon_train_step,
+)
+
+
+BANDINV_DPMUON_ALGORITHM = "dp-muon-correlated-naive"
 
 
 @dataclass(frozen=True)
@@ -143,6 +150,45 @@ class Cifar10DPMuonTrainConfig:
       raise ValueError("batch_size, horizon, and min_sep must be positive")
     if self.max_participations < 1:
       raise ValueError("max_participations must be positive")
+    if self.microbatch_size is not None and (
+        self.microbatch_size < 1 or self.batch_size % self.microbatch_size
+    ):
+      raise ValueError("microbatch_size must be positive and divide batch_size")
+    if self.eval_every < 1:
+      raise ValueError("eval_every must be positive")
+
+
+@dataclass(frozen=True)
+class Cifar10BandInvDPMuonTrainConfig:
+  """CIFAR-10 config for one BandInvMF-private Muon/AdamW update stream."""
+
+  strategy: str
+  pretrained: str
+  data_dir: str
+  batch_size: int
+  microbatch_size: int | None
+  clip_norm: float
+  epsilon: float
+  delta: float
+  muon_learning_rate: float
+  muon_weight_decay: float
+  momentum: float
+  ns_steps: int
+  consistent_rms: float
+  adamw_learning_rate: float
+  adamw_beta1: float
+  adamw_beta2: float
+  adamw_eps: float
+  adamw_weight_decay: float
+  seed: int
+  checkpoint_dir: str
+  eval_every: int
+  adjacency: str = "add_remove"
+  use_bf16_ns: bool = True
+
+  def __post_init__(self) -> None:
+    if self.batch_size < 1:
+      raise ValueError("batch_size must be positive")
     if self.microbatch_size is not None and (
         self.microbatch_size < 1 or self.batch_size % self.microbatch_size
     ):
@@ -562,10 +608,79 @@ def train_cifar10_dpmuon(
   )
 
 
+def train_cifar10_bandinv_dpmuon(
+    config: Cifar10BandInvDPMuonTrainConfig,
+    *,
+    resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+):
+  """Fine-tunes CIFAR-10 with one full-tree BandInvMF private gradient."""
+  strategy = load_bandinv_strategy(config.strategy)
+  train_images, train_labels = load_cifar10(config.data_dir, train=True)
+  test_images, test_labels = load_cifar10(config.data_dir, train=False)
+  schedule = build_logical_schedule(
+      num_examples=len(train_images), batch_size=config.batch_size,
+      strategy=strategy, seed=config.seed,
+  )
+  model = ViTTiny()
+  parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
+  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  participation = ParticipationSpec(
+      strategy.horizon, strategy.min_sep, strategy.max_participations
+  )
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=config.epsilon, delta=config.delta, clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size), adjacency=config.adjacency,  # type: ignore[arg-type]
+      sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+  train_step, optimizer = make_nonamplified_bandinv_dpmuon_train_step(
+      lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
+      strategy, calibration, participation,
+      muon_learning_rate=config.muon_learning_rate,
+      muon_weight_decay=config.muon_weight_decay,
+      momentum=config.momentum, ns_steps=config.ns_steps,
+      consistent_rms=config.consistent_rms,
+      adamw_learning_rate=config.adamw_learning_rate,
+      adamw_beta1=config.adamw_beta1, adamw_beta2=config.adamw_beta2,
+      adamw_eps=config.adamw_eps, adamw_weight_decay=config.adamw_weight_decay,
+      microbatch_size=config.microbatch_size, use_bf16_ns=config.use_bf16_ns,
+  )
+  initial_state = init_nonamplified_bandinv_dpmuon_state(
+      params, strategy, noise_key, optimizer
+  )
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
+  return run_training(
+      initial_state=initial_state, train_step=train_step,
+      logical_batches=iter_logical_batches(train_images, train_labels, schedule),
+      horizon=strategy.horizon, experiment_config=asdict(config),
+      artifact_identifiers={
+          "algorithm": BANDINV_DPMUON_ALGORITHM,
+          "strategy": str(Path(config.strategy).resolve()),
+          "pretrained": str(Path(config.pretrained).resolve()),
+      },
+      checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
+      eval_every=config.eval_every,
+      evaluate=lambda state: evaluate_classifier_metrics(
+          state.params, model, test_images, test_labels, batch_size=config.batch_size
+      ),
+      num_train_examples=len(train_images), logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=lambda step: epsilon_spent_for_bandinv_prefix(
+          prefix_steps=step, noising_coef=strategy.noising_coef,
+          horizon=strategy.horizon, min_sep=strategy.min_sep,
+          max_participations=strategy.max_participations, calibration=calibration,
+          full_sensitivity_squared=float(strategy.sensitivity_squared),
+      ),
+  )
+
+
 __all__ = [
+    "BANDINV_DPMUON_ALGORITHM",
     "Cifar10TrainConfig",
     "Cifar10DPSGDMomentumTrainConfig",
     "Cifar10DPMuonTrainConfig",
+    "Cifar10BandInvDPMuonTrainConfig",
     "build_fixed_cycle_logical_schedule",
     "build_logical_schedule",
     "cross_entropy_loss",
@@ -575,4 +690,5 @@ __all__ = [
     "train_cifar10",
     "train_cifar10_dpsgd_momentum",
     "train_cifar10_dpmuon",
+    "train_cifar10_bandinv_dpmuon",
 ]

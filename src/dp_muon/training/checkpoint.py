@@ -11,6 +11,7 @@ import numpy as np
 
 from .nonamplified_dpsgd import NonAmplifiedDPSGDState
 from .nonamplified_dpmuon import NonAmplifiedDPMuonState
+from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
 from .nonamplified_linear import NonAmplifiedBandInvState
 
 
@@ -22,7 +23,8 @@ def _concrete_step(value: Any, name: str) -> int:
 
 
 def _validate_steps(
-    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState | NonAmplifiedDPMuonState, current_step: int
+    state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
+            NonAmplifiedDPSGDState | NonAmplifiedDPMuonState), current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -31,6 +33,11 @@ def _validate_steps(
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
     if int(current_step) != nesterov_step or int(current_step) != noise_step:
       raise ValueError("current_step must equal nesterov_state.step and noise_state.step")
+  elif isinstance(state, NonAmplifiedBandInvDPMuonState):
+    optimizer_step = _concrete_step(state.step, "step")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if int(current_step) != optimizer_step or int(current_step) != noise_step:
+      raise ValueError("current_step must equal state.step and noise_state.step")
   elif isinstance(state, NonAmplifiedDPSGDState):
     momentum_step = _concrete_step(state.momentum_state.step, "momentum_state.step")
     if int(current_step) != momentum_step:
@@ -46,7 +53,8 @@ def _validate_steps(
 def save_checkpoint(
     path: str | Path,
     *,
-    state: NonAmplifiedBandInvState | NonAmplifiedDPSGDState | NonAmplifiedDPMuonState,
+    state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
+            NonAmplifiedDPSGDState | NonAmplifiedDPMuonState),
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],
@@ -78,6 +86,9 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
   required = {"state", "current_step", "experiment_config", "artifact_identifiers"}
   if not required.issubset(payload):
     raise ValueError("checkpoint is missing required fields")
+  # ``jax.device_get`` makes ndarray leaves pickleable.  Restore them to JAX
+  # arrays before a resumed streaming noise update uses indexed ``.at``.
+  payload["state"] = jax.tree_util.tree_map(jax.device_put, payload["state"])
   _validate_steps(payload["state"], payload["current_step"])
   if not isinstance(payload["experiment_config"], dict) or not isinstance(payload["artifact_identifiers"], dict):
     raise ValueError("checkpoint public metadata must be dictionaries")

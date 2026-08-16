@@ -147,17 +147,17 @@ def _validate_state(state: NonAmplifiedBandInvState) -> None:
     raise ValueError("nesterov_state.step must equal noise_state.step")
 
 
-def validate_nonamplified_bandinv_setup(
+def validate_nonamplified_bandinv_privacy_setup(
     strategy: BandInvMFStrategy,
     calibration: PrivacyCalibration,
     participation_spec: ParticipationSpec,
-    momentum: float,
-    learning_rate: float,
 ) -> None:
-  """Fails fast unless runtime training settings match fitted DP artefacts.
+  """Validates the BandInvMF privacy mechanism independently of a workload.
 
-  The validation deliberately reuses the M1 workload/sensitivity helpers and
-  M4 participation validator instead of duplicating their mathematics.
+  This is deliberately independent of the optimizer which consumes the
+  private gradient.  It checks the fitted noising matrix, its sensitivity,
+  calibration, and the participation contract, but makes no claim about a
+  fitted workload coefficient.
   """
   if not isinstance(strategy, BandInvMFStrategy):
     raise TypeError("strategy must be a BandInvMFStrategy")
@@ -167,22 +167,6 @@ def validate_nonamplified_bandinv_setup(
     raise TypeError("participation_spec must be a ParticipationSpec")
 
   _require_strategy_bandwidth(strategy)
-  expected_workload = np.asarray(
-      fixed_lr_nesterov_trajectory_workload_coef(
-          strategy.horizon, momentum, learning_rate
-      )
-  )
-  fitted_workload = _concrete_finite_vector(
-      strategy.workload_coef, "strategy.workload_coef"
-  )
-  if fitted_workload.shape != expected_workload.shape or not np.allclose(
-      fitted_workload, expected_workload, rtol=_RTOL, atol=_ATOL
-  ):
-    raise ValueError(
-        "strategy.workload_coef must equal the fixed-LR Nesterov trajectory "
-        "workload for runtime momentum and learning_rate"
-    )
-
   strategy_sensitivity_squared = _concrete_finite_scalar(
       strategy.sensitivity_squared, "strategy.sensitivity_squared"
   )
@@ -235,6 +219,39 @@ def validate_nonamplified_bandinv_setup(
       )
 
   validate_participation_spec_against_strategy(participation_spec, strategy)
+
+
+def validate_nonamplified_bandinv_setup(
+    strategy: BandInvMFStrategy,
+    calibration: PrivacyCalibration,
+    participation_spec: ParticipationSpec,
+    momentum: float,
+    learning_rate: float,
+) -> None:
+  """Adds the linear baseline's fixed-LR Nesterov workload validation.
+
+  The generic privacy validation remains reusable by optimizers such as the
+  standard Muon/AdamW partition, whose trajectories are not this linear
+  workload.
+  """
+  validate_nonamplified_bandinv_privacy_setup(
+      strategy, calibration, participation_spec
+  )
+  expected_workload = np.asarray(
+      fixed_lr_nesterov_trajectory_workload_coef(
+          strategy.horizon, momentum, learning_rate
+      )
+  )
+  fitted_workload = _concrete_finite_vector(
+      strategy.workload_coef, "strategy.workload_coef"
+  )
+  if fitted_workload.shape != expected_workload.shape or not np.allclose(
+      fitted_workload, expected_workload, rtol=_RTOL, atol=_ATOL
+  ):
+    raise ValueError(
+        "strategy.workload_coef must equal the fixed-LR Nesterov trajectory "
+        "workload for runtime momentum and learning_rate"
+    )
 
 
 def init_nonamplified_bandinv_state(
@@ -333,5 +350,6 @@ __all__ = [
     "NonAmplifiedBandInvState",
     "init_nonamplified_bandinv_state",
     "make_nonamplified_bandinv_train_step",
+    "validate_nonamplified_bandinv_privacy_setup",
     "validate_nonamplified_bandinv_setup",
 ]
