@@ -1,39 +1,45 @@
 algorithm: dp-muon-correlated-naive
 
 experiment:
-  name: cifar10_bandinv_dpmuon_naive_vit_tiny
+  name: +_vit_tiny
   seed: 0
 runtime:
-  gpu: 0
+  gpu: 3
 data:
   data_dir: data
 model:
   pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz
-# A pre-fitted full-transcript BandInvMF artifact.  This example only wires
-# launch configuration; fitting or training is intentionally not started here.
-strategy: artifacts/strategies/cifar10_bandinv_dpmuon_naive.npz
 training:
+  epochs: 5
   logical_batch_size: 512
   microbatch_size: 16
-  clip_norm: 10.0
+  clip_norm: 1.0
   eval_every: 1
+schedule:
+  mode: fixed_cycle
+strategy:
+  bandwidth: 4
+  reduction: mean
+  max_optimizer_steps: 1000
+  force_refit: false
 muon:
-  learning_rate: 0.02
+  learning_rate: 0.0001
   weight_decay: 0.01
   momentum: 0.95
   ns_steps: 5
   consistent_rms: 0.2
   use_bf16_ns: true
 adamw:
-  learning_rate: 0.001
+  learning_rate: 0.0005
   beta1: 0.9
   beta2: 0.999
   eps: 1.0e-8
   weight_decay: 0.01
 privacy:
-  epsilon: 9.0
+  epsilon: 3.0
   delta: 1.0e-5
   adjacency: add_remove
 output:
+  strategy_dir: artifacts/strategies
   checkpoint_dir: checkpoints
   log_dir: logs

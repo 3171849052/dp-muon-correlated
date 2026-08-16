@@ -84,19 +84,19 @@ def test_derive_fixed_cycle_rejects_invalid_inputs(epochs, batch_size):
 
 def test_parses_default_yaml_without_manual_participation_values():
   config = experiment.load_cifar10_nonamplified_config(CONFIG)
-  assert config.epochs == 10
+  assert config.epochs == 5
   assert config.logical_batch_size == 512
   assert config.momentum == 0.95
   assert config.learning_rate == 0.5
   assert config.adjacency == "add_remove"
-  assert config.gpu == 0
+  assert config.gpu == 3
 
 
 @pytest.mark.parametrize("gpu", ("-1", "true", "0.5"))
 def test_yaml_runner_rejects_invalid_physical_gpu_ids(tmp_path, gpu):
   config_path = tmp_path / "invalid-gpu.yaml"
   config_path.write_text(
-      CONFIG.read_text(encoding="utf-8").replace("gpu: 0", f"gpu: {gpu}"),
+      CONFIG.read_text(encoding="utf-8").replace("gpu: 3", f"gpu: {gpu}"),
       encoding="utf-8",
   )
   with pytest.raises(ValueError, match="runtime.gpu must be a non-negative integer"):
@@ -162,7 +162,7 @@ def test_print_gpu_cli_outputs_gpu_without_starting_training(monkeypatch, capsys
       sys, "argv", ["run_cifar10.py", "--config", str(CONFIG), "--print-gpu"]
   )
   run_cifar10_script.main()
-  assert capsys.readouterr().out == "0\n"
+  assert capsys.readouterr().out == "3\n"
 
 
 def test_tmux_launch_command_sets_cuda_visible_devices_from_gpu_config():
@@ -328,7 +328,7 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   config_path.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
   captured = {}
   config = _config(tmp_path)
-  participation = experiment.derive_fixed_cycle_participation(50_000, 10, 512)
+  participation = experiment.derive_fixed_cycle_participation(50_000, 5, 512)
   strategy = _strategy(config, participation)
 
   monkeypatch.setattr(
@@ -363,7 +363,7 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   assert captured["fit_config"].momentum == captured["train"].momentum == 0.95
   assert captured["fit_config"].learning_rate == captured["train"].learning_rate == 0.5
   assert captured["validated"][2:] == (0.95, 0.5)
-  assert captured["validated"][1].horizon == 976
+  assert captured["validated"][1].horizon == 488
   assert captured["train_kwargs"]["checkpoint_path"].name == "latest.pkl"
   run_dir = captured["train_kwargs"]["checkpoint_path"].parent.parent
   assert (run_dir / "config.yaml").is_file()

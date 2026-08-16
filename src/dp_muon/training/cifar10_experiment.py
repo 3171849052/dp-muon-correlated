@@ -8,20 +8,20 @@ from numbers import Integral, Real
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
-import numpy as np
 import yaml
 
 from dp_muon.bandinvmf import (
     BandInvMFStrategy,
     fit_bandinv_strategy,
-    load_bandinv_strategy,
-    load_bandinv_strategy_metadata,
-    save_bandinv_strategy,
 )
 from dp_muon.data import load_cifar10
-from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
 from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 
+from .bandinvmf_strategy_manager import (
+    BandInvMFFitRequest,
+    get_or_fit_strategy as _get_or_fit_shared_strategy,
+    strategy_artifact_path as _shared_strategy_artifact_path,
+)
 from .cifar10_driver import Cifar10TrainConfig, train_cifar10
 from .nonamplified_linear import validate_nonamplified_bandinv_setup
 from .run_logging import (
@@ -239,43 +239,16 @@ def strategy_artifact_path(
     max_optimizer_steps: int,
 ) -> Path:
   """Returns a deterministic filename covering every strategy-defining value."""
-  return Path(strategy_dir) / (
-      f"nesterov-trajectory_n{participation.horizon}_p{bandwidth}"
-      f"_b{participation.min_sep}_k{participation.max_participations}"
-      f"_m{momentum}_lr{learning_rate}_r{reduction}_opt{max_optimizer_steps}.npz"
-  )
-
-
-def _strategy_is_compatible(
-    strategy: BandInvMFStrategy,
-    *,
-    config: Cifar10NonAmplifiedExperimentConfig,
-    participation: FixedCycleParticipation,
-) -> bool:
-  expected_workload = np.asarray(
-      fixed_lr_nesterov_trajectory_workload_coef(
-          participation.horizon, config.momentum, config.learning_rate
-      )
-  )
-  return (
-      strategy.horizon == participation.horizon
-      and strategy.bandwidth == config.bandwidth
-      and strategy.min_sep == participation.min_sep
-      and strategy.max_participations == participation.max_participations
-      and np.array_equal(np.asarray(strategy.workload_coef), expected_workload)
-  )
-
-
-def _metadata_is_compatible(
-    path: Path, config: Cifar10NonAmplifiedExperimentConfig
-) -> bool:
-  metadata = load_bandinv_strategy_metadata(path)
-  return (
-      metadata.workload_type == "nesterov-trajectory"
-      and metadata.momentum == config.momentum
-      and metadata.learning_rate == config.learning_rate
-      and metadata.reduction == config.reduction
-      and metadata.max_optimizer_steps == config.max_optimizer_steps
+  return _shared_strategy_artifact_path(
+      strategy_dir,
+      horizon=participation.horizon,
+      min_sep=participation.min_sep,
+      max_participations=participation.max_participations,
+      bandwidth=bandwidth,
+      momentum=momentum,
+      learning_rate=learning_rate,
+      reduction=reduction,
+      max_optimizer_steps=max_optimizer_steps,
   )
 
 
@@ -283,49 +256,26 @@ def get_or_fit_strategy(
     config: Cifar10NonAmplifiedExperimentConfig,
     participation: FixedCycleParticipation,
 ) -> tuple[Path, BandInvMFStrategy, Literal["reuse", "fit"]]:
-  """Returns an exactly compatible artifact or refits the deterministic path."""
-  if config.bandwidth > participation.horizon:
-    raise ValueError("strategy.bandwidth must not exceed derived horizon")
-  path = strategy_artifact_path(
-      config.strategy_dir,
-      participation=participation,
-      bandwidth=config.bandwidth,
-      momentum=config.momentum,
-      learning_rate=config.learning_rate,
-      reduction=config.reduction,
-      max_optimizer_steps=config.max_optimizer_steps,
+  """Returns an exactly compatible artifact or refits the deterministic path.
+
+  This wrapper preserves the original experiment-facing API while delegating
+  cache semantics to the shared manager used by correlated DP-Muon as well.
+  """
+  return _get_or_fit_shared_strategy(
+      BandInvMFFitRequest(
+          horizon=participation.horizon,
+          min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth,
+          momentum=config.momentum,
+          learning_rate=config.learning_rate,
+          reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir,
+          force_refit=config.force_refit,
+      ),
+      fit_strategy=fit_bandinv_strategy,
   )
-  if path.is_file() and not config.force_refit:
-    try:
-      existing = load_bandinv_strategy(path)
-      if _strategy_is_compatible(
-          existing, config=config, participation=participation
-      ) and _metadata_is_compatible(path, config):
-        return path, existing, "reuse"
-    except ValueError:
-      pass
-  workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
-      participation.horizon, config.momentum, config.learning_rate
-  )
-  fitted = fit_bandinv_strategy(
-      participation.horizon,
-      config.bandwidth,
-      participation.min_sep,
-      max_participations=participation.max_participations,
-      workload_coef=workload_coef,
-      max_optimizer_steps=config.max_optimizer_steps,
-      reduction=config.reduction,
-  )
-  save_bandinv_strategy(
-      path,
-      fitted,
-      reduction=config.reduction,
-      workload_type="nesterov-trajectory",
-      momentum=config.momentum,
-      learning_rate=config.learning_rate,
-      max_optimizer_steps=config.max_optimizer_steps,
-  )
-  return path, fitted, "fit"
 
 
 def _print_resolved_config(
@@ -459,29 +409,8 @@ def run_cifar10_nonamplified(
   participation = derive_fixed_cycle_participation(
       num_examples, config.epochs, config.logical_batch_size
   )
-  strategy_path = strategy_artifact_path(
-      config.strategy_dir,
-      participation=participation,
-      bandwidth=config.bandwidth,
-      momentum=config.momentum,
-      learning_rate=config.learning_rate,
-      reduction=config.reduction,
-      max_optimizer_steps=config.max_optimizer_steps,
-  )
-  # Determine whether a compatible cache exists before printing the audited action.
-  action = "fit"
-  if strategy_path.is_file() and not config.force_refit:
-    try:
-      candidate = load_bandinv_strategy(strategy_path)
-      if (
-          _strategy_is_compatible(candidate, config=config, participation=participation)
-          and _metadata_is_compatible(strategy_path, config)
-      ):
-        action = "reuse"
-    except ValueError:
-      pass
-  _print_resolved_config(config, num_examples, participation, strategy_path, action)
   path, strategy, actual_action = get_or_fit_strategy(config, participation)
+  _print_resolved_config(config, num_examples, participation, path, actual_action)
   if actual_action == "reuse":
     print(f"Reusing existing BandInvMF strategy: {path}")
   calibration = calibrate_nonamplified_bandinv(

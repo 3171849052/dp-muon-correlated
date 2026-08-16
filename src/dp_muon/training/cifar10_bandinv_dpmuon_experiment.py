@@ -10,11 +10,21 @@ from typing import Any, Literal, Mapping
 
 import yaml
 
+from dp_muon.bandinvmf import BandInvMFStrategy, fit_bandinv_strategy
+from dp_muon.data import load_cifar10
+from dp_muon.privacy import calibrate_nonamplified_bandinv
+
+from .bandinvmf_strategy_manager import (
+    BandInvMFFitRequest,
+    get_or_fit_strategy as _get_or_fit_shared_strategy,
+    strategy_artifact_path as _shared_strategy_artifact_path,
+)
 from .cifar10_driver import (
     BANDINV_DPMUON_ALGORITHM,
     Cifar10BandInvDPMuonTrainConfig,
     train_cifar10_bandinv_dpmuon,
 )
+from .cifar10_experiment import FixedCycleParticipation, derive_fixed_cycle_participation
 from .run_logging import (
     MetricsCSVWriter,
     config_content_hash,
@@ -34,9 +44,9 @@ class Cifar10BandInvDPMuonExperimentConfig:
 
   algorithm: Literal["dp-muon-correlated-naive"]
   name: str
-  strategy: str
   pretrained: str
   data_dir: str
+  epochs: int
   batch_size: int
   microbatch_size: int
   clip_norm: float
@@ -58,6 +68,12 @@ class Cifar10BandInvDPMuonExperimentConfig:
   adjacency: Literal["add_remove", "replace_one"]
   use_bf16_ns: bool
   gpu: int
+  schedule_mode: Literal["fixed_cycle"]
+  bandwidth: int
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+  force_refit: bool
+  strategy_dir: str
   log_dir: str
 
 
@@ -107,7 +123,7 @@ def load_cifar10_bandinv_dpmuon_config(
   except (OSError, yaml.YAMLError) as error:
     raise ValueError(f"could not read config {source}") from error
   expected_sections = {
-      "algorithm", "experiment", "runtime", "data", "model", "strategy",
+      "algorithm", "experiment", "runtime", "data", "model", "schedule", "strategy",
       "training", "muon", "adamw", "privacy", "output",
   }
   if not isinstance(document, Mapping) or set(document) != expected_sections:
@@ -118,7 +134,12 @@ def load_cifar10_bandinv_dpmuon_config(
   model = _section(document, "model", {"pretrained"})
   training = _section(
       document, "training",
-      {"logical_batch_size", "microbatch_size", "clip_norm", "eval_every"},
+      {"epochs", "logical_batch_size", "microbatch_size", "clip_norm", "eval_every"},
+  )
+  schedule = _section(document, "schedule", {"mode"})
+  strategy = _section(
+      document, "strategy",
+      {"bandwidth", "reduction", "max_optimizer_steps", "force_refit"},
   )
   muon = _section(
       document, "muon",
@@ -126,7 +147,7 @@ def load_cifar10_bandinv_dpmuon_config(
   )
   adamw = _section(document, "adamw", {"learning_rate", "beta1", "beta2", "eps", "weight_decay"})
   privacy = _section(document, "privacy", {"epsilon", "delta", "adjacency"})
-  output = _section(document, "output", {"checkpoint_dir", "log_dir"})
+  output = _section(document, "output", {"strategy_dir", "checkpoint_dir", "log_dir"})
   algorithm = _string(document["algorithm"], "algorithm")
   if algorithm != BANDINV_DPMUON_ALGORITHM:
     raise ValueError(
@@ -135,14 +156,22 @@ def load_cifar10_bandinv_dpmuon_config(
   adjacency = _string(privacy["adjacency"], "privacy.adjacency")
   if adjacency not in {"add_remove", "replace_one"}:
     raise ValueError("privacy.adjacency is invalid")
+  mode = _string(schedule["mode"], "schedule.mode")
+  if mode != "fixed_cycle":
+    raise ValueError("schedule.mode must be 'fixed_cycle'")
+  reduction = _string(strategy["reduction"], "strategy.reduction")
+  if reduction not in {"mean", "max", "last"}:
+    raise ValueError("strategy.reduction must be one of: mean, max, last")
   if not isinstance(muon["use_bf16_ns"], bool):
     raise ValueError("muon.use_bf16_ns must be boolean")
+  if not isinstance(strategy["force_refit"], bool):
+    raise ValueError("strategy.force_refit must be a boolean")
   config = Cifar10BandInvDPMuonExperimentConfig(
       algorithm=algorithm,  # type: ignore[arg-type]
       name=_string(experiment["name"], "experiment.name"),
-      strategy=_string(document["strategy"], "strategy"),
       pretrained=_string(model["pretrained"], "model.pretrained"),
       data_dir=_string(data["data_dir"], "data.data_dir"),
+      epochs=_integer(training["epochs"], "training.epochs"),
       batch_size=_integer(training["logical_batch_size"], "training.logical_batch_size"),
       microbatch_size=_integer(training["microbatch_size"], "training.microbatch_size"),
       clip_norm=_number(training["clip_norm"], "training.clip_norm", positive=True),
@@ -164,6 +193,12 @@ def load_cifar10_bandinv_dpmuon_config(
       adjacency=adjacency,  # type: ignore[arg-type]
       use_bf16_ns=muon["use_bf16_ns"],
       gpu=_integer(runtime["gpu"], "runtime.gpu", positive=False),
+      schedule_mode=mode,  # type: ignore[arg-type]
+      bandwidth=_integer(strategy["bandwidth"], "strategy.bandwidth"),
+      reduction=reduction,  # type: ignore[arg-type]
+      max_optimizer_steps=_integer(strategy["max_optimizer_steps"], "strategy.max_optimizer_steps"),
+      force_refit=strategy["force_refit"],
+      strategy_dir=_string(output["strategy_dir"], "output.strategy_dir"),
       log_dir=_string(output["log_dir"], "output.log_dir"),
   )
   if (
@@ -175,6 +210,46 @@ def load_cifar10_bandinv_dpmuon_config(
   ):
     raise ValueError("invalid batch division, privacy, or momentum setting")
   return config
+
+
+def strategy_artifact_path(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> Path:
+  """Returns the repository-root-resolved deterministic strategy path."""
+  return _shared_strategy_artifact_path(
+      config.strategy_dir,
+      horizon=participation.horizon,
+      min_sep=participation.min_sep,
+      max_participations=participation.max_participations,
+      bandwidth=config.bandwidth,
+      momentum=config.momentum,
+      learning_rate=config.muon_learning_rate,
+      reduction=config.reduction,
+      max_optimizer_steps=config.max_optimizer_steps,
+  )
+
+
+def get_or_fit_strategy(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[Path, BandInvMFStrategy, Literal["reuse", "fit"]]:
+  """Fits/reuses the correlated DP-Muon strategy using its Muon trajectory."""
+  return _get_or_fit_shared_strategy(
+      BandInvMFFitRequest(
+          horizon=participation.horizon,
+          min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth,
+          momentum=config.momentum,
+          learning_rate=config.muon_learning_rate,
+          reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir,
+          force_refit=config.force_refit,
+      ),
+      fit_strategy=fit_bandinv_strategy,
+  )
 
 
 def resolve_output_log_dir(config_path: str | Path) -> Path:
@@ -213,7 +288,6 @@ def _create_run(
       source_yaml=source_yaml,
       resolved={
           "experiment": asdict(config),
-          "strategy": {"path": config.strategy},
           "run": _run_metadata(paths),
       },
   )
@@ -233,9 +307,10 @@ def prepare_cifar10_bandinv_dpmuon_run(config_path: str | Path):
 
 def _train_config(
     config: Cifar10BandInvDPMuonExperimentConfig,
+    strategy_path: str | Path,
 ) -> Cifar10BandInvDPMuonTrainConfig:
   return Cifar10BandInvDPMuonTrainConfig(
-      strategy=config.strategy,
+      strategy=str(strategy_path),
       pretrained=config.pretrained,
       data_dir=config.data_dir,
       batch_size=config.batch_size,
@@ -261,6 +336,35 @@ def _train_config(
   )
 
 
+def _resolved_config(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+    strategy_path: Path,
+    strategy: BandInvMFStrategy,
+    action: Literal["reuse", "fit"],
+    calibration: Any,
+) -> dict[str, Any]:
+  return {
+      "experiment": asdict(config),
+      "participation": asdict(participation),
+      "strategy": {
+          "artifact": str(strategy_path.resolve()),
+          "action": action,
+          "workload_type": "nesterov-trajectory",
+          "horizon": strategy.horizon,
+          "bandwidth": strategy.bandwidth,
+          "min_sep": strategy.min_sep,
+          "max_participations": strategy.max_participations,
+          "momentum": config.momentum,
+          "learning_rate": config.muon_learning_rate,
+          "reduction": config.reduction,
+          "max_optimizer_steps": config.max_optimizer_steps,
+          "sensitivity_squared": float(strategy.sensitivity_squared),
+      },
+      "privacy_calibration": asdict(calibration),
+  }
+
+
 def run_cifar10_bandinv_dpmuon(
     config_path: str | Path,
     *,
@@ -280,8 +384,29 @@ def run_cifar10_bandinv_dpmuon(
       else run_paths_from_directory(run_dir) if run_dir is not None
       else _create_run(config, document, source_yaml)
   )
+  train_images, _ = load_cifar10(config.data_dir, train=True)
+  participation = derive_fixed_cycle_participation(
+      len(train_images), config.epochs, config.batch_size
+  )
+  del train_images
+  strategy_path, strategy, action = get_or_fit_strategy(config, participation)
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=config.epsilon,
+      delta=config.delta,
+      clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size),
+      adjacency=config.adjacency,
+      sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+  if resume_checkpoint is None:
+    resolved = _resolved_config(
+        config, participation, strategy_path, strategy, action, calibration
+    )
+    resolved["run"] = _run_metadata(paths)
+    write_run_configuration(paths, source_yaml=source_yaml, resolved=resolved)
+    MetricsCSVWriter(paths.metrics)
   return train_cifar10_bandinv_dpmuon(
-      _train_config(config),
+      _train_config(config, strategy_path),
       resume_checkpoint=resume_checkpoint,
       checkpoint_path=paths.checkpoint,
       metrics_path=paths.metrics,
@@ -290,8 +415,10 @@ def run_cifar10_bandinv_dpmuon(
 
 __all__ = [
     "Cifar10BandInvDPMuonExperimentConfig",
+    "get_or_fit_strategy",
     "load_cifar10_bandinv_dpmuon_config",
     "prepare_cifar10_bandinv_dpmuon_run",
     "resolve_output_log_dir",
     "run_cifar10_bandinv_dpmuon",
+    "strategy_artifact_path",
 ]

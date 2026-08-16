@@ -23,7 +23,7 @@ muon:
   consistent_rms: 0.2
   use_bf16_ns: true
 adamw:
-  learning_rate: 0.0001
+  learning_rate: 0.0005
   beta1: 0.9
   beta2: 0.999
   eps: 1.0e-8
