@@ -15,7 +15,7 @@ from tqdm.auto import tqdm
 
 from dp_muon.bandinvmf import BandInvMFStrategy
 from dp_muon.data import iter_logical_batches, load_cifar10, prepare_cifar10_batch
-from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
+from dp_muon.models import ViTTiny
 from dp_muon.privacy import (
     ParticipationSpec,
     calibrate_nonamplified_bandinv,
@@ -26,8 +26,8 @@ from dp_muon.privacy import (
 )
 
 from .checkpoint import load_checkpoint, save_checkpoint, validate_resume_identity
-from .file_locking import file_fingerprint
-from .bandinvmf_strategy_manager import load_strategy_snapshot
+from .bandinvmf_strategy_manager import LoadedStrategySnapshot, load_strategy_snapshot
+from .pretrained_snapshot import load_pretrained_snapshot
 from .run_logging import MetricsCSVWriter
 from .nonamplified_linear import (
     NonAmplifiedBandInvState,
@@ -429,12 +429,13 @@ def run_training(
 def train_cifar10(
     config: Cifar10TrainConfig,
     *,
+    strategy_snapshot: LoadedStrategySnapshot | None = None,
     resume_checkpoint: str | Path | None = None,
     checkpoint_path: str | Path | None = None,
     metrics_path: str | Path | None = None,
 ):
   """Loads public assets and delegates all private update math to M6."""
-  strategy_snapshot = load_strategy_snapshot(config.strategy)
+  strategy_snapshot = strategy_snapshot or load_strategy_snapshot(config.strategy)
   strategy = strategy_snapshot.strategy
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   test_images, test_labels = load_cifar10(config.data_dir, train=False)
@@ -443,7 +444,8 @@ def train_cifar10(
   )
   model = ViTTiny()
   parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
-  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  pretrained_snapshot = load_pretrained_snapshot(config.pretrained, key=parameter_key)
+  params = pretrained_snapshot.params
   participation = ParticipationSpec(strategy.horizon, strategy.min_sep, strategy.max_participations)
   calibration = calibrate_nonamplified_bandinv(
       epsilon=config.epsilon,
@@ -474,8 +476,8 @@ def train_cifar10(
           "algorithm": "bandinv",
           "strategy_path": str(strategy_snapshot.path),
           "strategy_sha256": strategy_snapshot.sha256,
-          "pretrained_path": str(Path(config.pretrained).resolve()),
-          "pretrained_sha256": file_fingerprint(config.pretrained),
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
       },
       checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
@@ -518,7 +520,8 @@ def train_cifar10_dpsgd_momentum(
   )
   model = ViTTiny()
   parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
-  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  pretrained_snapshot = load_pretrained_snapshot(config.pretrained, key=parameter_key)
+  params = pretrained_snapshot.params
   calibration = calibrate_nonamplified_iid(
       epsilon=config.epsilon,
       delta=config.delta,
@@ -544,8 +547,8 @@ def train_cifar10_dpsgd_momentum(
       experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": "nonamplified_iid_dpsgd_momentum",
-          "pretrained_path": str(Path(config.pretrained).resolve()),
-          "pretrained_sha256": file_fingerprint(config.pretrained),
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
       },
       checkpoint_path=actual_checkpoint_path,
       resume_checkpoint=resume_checkpoint,
@@ -583,7 +586,8 @@ def train_cifar10_dpmuon(
   )
   model = ViTTiny()
   parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
-  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  pretrained_snapshot = load_pretrained_snapshot(config.pretrained, key=parameter_key)
+  params = pretrained_snapshot.params
   calibration = calibrate_nonamplified_iid(
       epsilon=config.epsilon, delta=config.delta, clip_norm=config.clip_norm,
       normalize_by=float(config.batch_size), adjacency=config.adjacency,  # type: ignore[arg-type]
@@ -607,8 +611,8 @@ def train_cifar10_dpmuon(
       horizon=config.horizon, experiment_config=asdict(config),
       artifact_identifiers={
           "algorithm": "nonamplified_iid_dpmuon",
-          "pretrained_path": str(Path(config.pretrained).resolve()),
-          "pretrained_sha256": file_fingerprint(config.pretrained),
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
       },
       checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,
@@ -625,12 +629,13 @@ def train_cifar10_dpmuon(
 def train_cifar10_bandinv_dpmuon(
     config: Cifar10BandInvDPMuonTrainConfig,
     *,
+    strategy_snapshot: LoadedStrategySnapshot | None = None,
     resume_checkpoint: str | Path | None = None,
     checkpoint_path: str | Path | None = None,
     metrics_path: str | Path | None = None,
 ):
   """Fine-tunes CIFAR-10 with one full-tree BandInvMF private gradient."""
-  strategy_snapshot = load_strategy_snapshot(config.strategy)
+  strategy_snapshot = strategy_snapshot or load_strategy_snapshot(config.strategy)
   strategy = strategy_snapshot.strategy
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   test_images, test_labels = load_cifar10(config.data_dir, train=False)
@@ -640,7 +645,8 @@ def train_cifar10_bandinv_dpmuon(
   )
   model = ViTTiny()
   parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
-  params = load_pretrained_vit_tiny(config.pretrained, key=parameter_key)
+  pretrained_snapshot = load_pretrained_snapshot(config.pretrained, key=parameter_key)
+  params = pretrained_snapshot.params
   participation = ParticipationSpec(
       strategy.horizon, strategy.min_sep, strategy.max_participations
   )
@@ -673,8 +679,8 @@ def train_cifar10_bandinv_dpmuon(
           "algorithm": BANDINV_DPMUON_ALGORITHM,
           "strategy_path": str(strategy_snapshot.path),
           "strategy_sha256": strategy_snapshot.sha256,
-          "pretrained_path": str(Path(config.pretrained).resolve()),
-          "pretrained_sha256": file_fingerprint(config.pretrained),
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
       },
       checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
       eval_every=config.eval_every,

@@ -345,7 +345,10 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   def fake_get_or_fit(actual_config, actual_participation):
     captured["fit_config"] = actual_config
     captured["fit_participation"] = actual_participation
-    return Path(actual_config.strategy_dir) / "strategy.npz", strategy, "reuse"
+    from dp_muon.training.bandinvmf_strategy_manager import LoadedStrategySnapshot
+    return LoadedStrategySnapshot(
+        Path(actual_config.strategy_dir) / "strategy.npz", strategy, "test-sha"
+    ), "reuse"
 
   def fake_validate(actual_strategy, calibration, spec, momentum, learning_rate):
     captured["validated"] = (actual_strategy, spec, momentum, learning_rate)
@@ -355,7 +358,7 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
     captured["train_kwargs"] = kwargs
     return None, []
 
-  monkeypatch.setattr(experiment, "get_or_fit_strategy", fake_get_or_fit)
+  monkeypatch.setattr(experiment, "get_or_fit_strategy_snapshot", fake_get_or_fit)
   monkeypatch.setattr(experiment, "validate_nonamplified_bandinv_setup", fake_validate)
   monkeypatch.setattr(experiment, "train_cifar10", fake_train)
   experiment.run_cifar10_nonamplified(config_path)

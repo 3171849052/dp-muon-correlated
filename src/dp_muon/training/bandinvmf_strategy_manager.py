@@ -139,9 +139,9 @@ def _artifact_fingerprint(path: Path) -> str | None:
     return None
 
 
-def require_compatible_strategy(
+def require_compatible_strategy_snapshot(
     request: BandInvMFFitRequest,
-) -> tuple[Path, BandInvMFStrategy]:
+) -> LoadedStrategySnapshot:
   """Loads the requested cache or fails; used for strict checkpoint resume."""
   path = strategy_artifact_path(
       request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
@@ -153,15 +153,23 @@ def require_compatible_strategy(
     snapshot = _load_compatible_snapshot_unlocked(path, request)
   if snapshot is None:
     raise ValueError("required compatible BandInvMF strategy artifact is missing or invalid")
-  return path, snapshot.strategy
+  return snapshot
 
 
-def get_or_fit_strategy(
+def require_compatible_strategy(
+    request: BandInvMFFitRequest,
+) -> tuple[Path, BandInvMFStrategy]:
+  """Compatibility adapter returning the historical path/strategy tuple."""
+  snapshot = require_compatible_strategy_snapshot(request)
+  return snapshot.path, snapshot.strategy
+
+
+def get_or_fit_strategy_snapshot(
     request: BandInvMFFitRequest,
     *,
     fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
-) -> tuple[Path, BandInvMFStrategy, Literal["reuse", "fit"]]:
-  """Returns a compatible cache entry or fits and saves a replacement."""
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  """Returns the exact published snapshot or fits it under the artifact lock."""
   if request.bandwidth > request.horizon:
     raise ValueError("strategy.bandwidth must not exceed derived horizon")
   path = strategy_artifact_path(
@@ -177,9 +185,8 @@ def get_or_fit_strategy(
   )
   initial_fingerprint = _artifact_fingerprint(path)
   if not request.force_refit:
+    # Fast miss/hit observation; the locked check below supplies the snapshot.
     existing = _load_compatible_snapshot_unlocked(path, request)
-    if existing is not None:
-      return path, existing.strategy, "reuse"
   with file_lock(path):
     existing = _load_compatible_snapshot_unlocked(path, request)
     # For a forced refit, a compatible publication which happened while this
@@ -188,7 +195,7 @@ def get_or_fit_strategy(
     if existing is not None and (
         not request.force_refit or existing.sha256 != initial_fingerprint
     ):
-      return path, existing.strategy, "reuse"
+      return existing, "reuse"
     workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
         request.horizon, request.momentum, request.learning_rate
     )
@@ -215,7 +222,22 @@ def get_or_fit_strategy(
       if _load_compatible_snapshot_unlocked(temporary, request) is None:
         raise ValueError("fitted BandInvMF artifact failed validation")
       atomic_replace(temporary, path)
-    return path, fitted, "fit"
+    snapshot = _load_compatible_snapshot_unlocked(path, request)
+    if snapshot is None:
+      raise ValueError("published BandInvMF artifact failed validation")
+    return snapshot, "fit"
+
+
+def get_or_fit_strategy(
+    request: BandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> tuple[Path, BandInvMFStrategy, Literal["reuse", "fit"]]:
+  """Compatibility adapter returning the historical path/strategy tuple."""
+  snapshot, action = get_or_fit_strategy_snapshot(
+      request, fit_strategy=fit_strategy
+  )
+  return snapshot.path, snapshot.strategy, action
 
 
 __all__ = [
@@ -223,7 +245,9 @@ __all__ = [
     "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
+    "get_or_fit_strategy_snapshot",
     "load_strategy_snapshot",
     "require_compatible_strategy",
+    "require_compatible_strategy_snapshot",
     "strategy_artifact_path",
 ]

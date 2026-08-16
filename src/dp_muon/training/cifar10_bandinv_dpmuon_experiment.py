@@ -16,8 +16,11 @@ from dp_muon.privacy import calibrate_nonamplified_bandinv
 
 from .bandinvmf_strategy_manager import (
     BandInvMFFitRequest,
+    LoadedStrategySnapshot,
     get_or_fit_strategy as _get_or_fit_shared_strategy,
+    get_or_fit_strategy_snapshot as _get_or_fit_shared_snapshot,
     require_compatible_strategy as _require_compatible_shared_strategy,
+    require_compatible_strategy_snapshot as _require_compatible_shared_snapshot,
     strategy_artifact_path as _shared_strategy_artifact_path,
 )
 from .cifar10_driver import (
@@ -270,6 +273,38 @@ def require_compatible_strategy(
   )
 
 
+def get_or_fit_strategy_snapshot(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  return _get_or_fit_shared_snapshot(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.muon_learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=config.force_refit,
+      ), fit_strategy=fit_bandinv_strategy,
+  )
+
+
+def require_compatible_strategy_snapshot(
+    config: Cifar10BandInvDPMuonExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> LoadedStrategySnapshot:
+  return _require_compatible_shared_snapshot(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.muon_learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=False,
+      )
+  )
+
+
 def resolve_output_log_dir(config_path: str | Path) -> Path:
   """Resolves the YAML log root relative to the repository."""
   directory = Path(load_cifar10_bandinv_dpmuon_config(config_path).log_dir)
@@ -359,6 +394,7 @@ def _resolved_config(
     participation: FixedCycleParticipation,
     strategy_path: Path,
     strategy: BandInvMFStrategy,
+    strategy_sha256: str,
     action: Literal["reuse", "fit"],
     calibration: Any,
 ) -> dict[str, Any]:
@@ -367,6 +403,7 @@ def _resolved_config(
       "participation": asdict(participation),
       "strategy": {
           "artifact": str(strategy_path.resolve()),
+          "sha256": strategy_sha256,
           "action": action,
           "workload_type": "nesterov-trajectory",
           "horizon": strategy.horizon,
@@ -408,10 +445,11 @@ def run_cifar10_bandinv_dpmuon(
   )
   del train_images
   if resume_checkpoint is not None:
-    strategy_path, strategy = require_compatible_strategy(config, participation)
+    snapshot = require_compatible_strategy_snapshot(config, participation)
     action = "reuse"
   else:
-    strategy_path, strategy, action = get_or_fit_strategy(config, participation)
+    snapshot, action = get_or_fit_strategy_snapshot(config, participation)
+  strategy_path, strategy = snapshot.path, snapshot.strategy
   calibration = calibrate_nonamplified_bandinv(
       epsilon=config.epsilon,
       delta=config.delta,
@@ -422,13 +460,14 @@ def run_cifar10_bandinv_dpmuon(
   )
   if resume_checkpoint is None:
     resolved = _resolved_config(
-        config, participation, strategy_path, strategy, action, calibration
+        config, participation, strategy_path, strategy, snapshot.sha256, action, calibration
     )
     resolved["run"] = _run_metadata(paths)
     write_run_configuration(paths, source_yaml=source_yaml, resolved=resolved)
     MetricsCSVWriter(paths.metrics)
   return train_cifar10_bandinv_dpmuon(
       _train_config(config, strategy_path),
+      strategy_snapshot=snapshot,
       resume_checkpoint=resume_checkpoint,
       checkpoint_path=paths.checkpoint,
       metrics_path=paths.metrics,

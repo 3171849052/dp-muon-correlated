@@ -20,6 +20,7 @@ from dp_muon.training.file_locking import file_fingerprint
 from dp_muon.training.file_locking import file_lock
 from dp_muon.training.run_logging import MetricsCSVWriter, RunPaths, write_run_configuration
 from dp_muon.training import cifar10_driver
+from dp_muon.training import pretrained_snapshot
 from scripts import fit_bandinvmf
 
 
@@ -222,6 +223,9 @@ def test_bandinvmf_algorithms_use_the_same_shared_manager():
   assert bandinv._get_or_fit_shared_strategy is strategies.get_or_fit_strategy
   assert naive._get_or_fit_shared_strategy is strategies.get_or_fit_strategy
   assert cifar10_driver.load_strategy_snapshot is strategies.load_strategy_snapshot
+  import inspect
+  assert "strategy_snapshot=snapshot" in inspect.getsource(bandinv)
+  assert "strategy_snapshot=snapshot" in inspect.getsource(naive)
 
 
 def test_strategy_snapshot_keeps_loaded_object_and_sha_in_one_locked_version(tmp_path, monkeypatch):
@@ -260,6 +264,50 @@ def test_strategy_snapshot_keeps_loaded_object_and_sha_in_one_locked_version(tmp
   assert snapshot.sha256 == expected_sha
   assert float(snapshot.strategy.objective) == 1.0
   assert file_fingerprint(path) != snapshot.sha256
+
+
+def test_pretrained_snapshot_keeps_params_and_sha_in_one_locked_version(tmp_path, monkeypatch):
+  path = tmp_path / "pretrained.npz"
+  path.write_bytes(b"version-a")
+  expected_sha = file_fingerprint(path)
+  replacement_started = threading.Event()
+  replacement_done = threading.Event()
+
+  monkeypatch.setattr(
+      pretrained_snapshot, "load_pretrained_vit_tiny",
+      lambda actual_path, *, key: {"version": Path(actual_path).read_bytes()},
+  )
+
+  def replace_after_lock_release():
+    replacement_started.wait()
+    with file_lock(path):
+      path.write_bytes(b"version-b")
+    replacement_done.set()
+
+  worker = threading.Thread(target=replace_after_lock_release)
+  worker.start()
+  original_fingerprint = pretrained_snapshot.file_fingerprint
+
+  def fingerprint_while_replacement_waits(actual_path):
+    replacement_started.set()
+    time.sleep(0.05)
+    assert not replacement_done.is_set()
+    return original_fingerprint(actual_path)
+
+  monkeypatch.setattr(
+      pretrained_snapshot, "file_fingerprint", fingerprint_while_replacement_waits
+  )
+  snapshot = pretrained_snapshot.load_pretrained_snapshot(path, key=object())
+  worker.join()
+  assert snapshot.params["version"] == b"version-a"
+  assert snapshot.sha256 == expected_sha
+  assert file_fingerprint(path) != snapshot.sha256
+
+
+def test_all_trainers_share_pretrained_snapshot_helper():
+  import inspect
+  source = inspect.getsource(cifar10_driver)
+  assert source.count("load_pretrained_snapshot(config.pretrained") == 4
 
 
 def test_manual_fit_publication_is_loadable_and_failure_does_not_publish(tmp_path, monkeypatch):

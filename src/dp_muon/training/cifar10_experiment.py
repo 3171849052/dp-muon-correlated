@@ -19,8 +19,11 @@ from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 
 from .bandinvmf_strategy_manager import (
     BandInvMFFitRequest,
+    LoadedStrategySnapshot,
     get_or_fit_strategy as _get_or_fit_shared_strategy,
+    get_or_fit_strategy_snapshot as _get_or_fit_shared_snapshot,
     require_compatible_strategy as _require_compatible_shared_strategy,
+    require_compatible_strategy_snapshot as _require_compatible_shared_snapshot,
     strategy_artifact_path as _shared_strategy_artifact_path,
 )
 from .cifar10_driver import Cifar10TrainConfig, train_cifar10
@@ -296,6 +299,38 @@ def require_compatible_strategy(
   )
 
 
+def get_or_fit_strategy_snapshot(
+    config: Cifar10NonAmplifiedExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  return _get_or_fit_shared_snapshot(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=config.force_refit,
+      ), fit_strategy=fit_bandinv_strategy,
+  )
+
+
+def require_compatible_strategy_snapshot(
+    config: Cifar10NonAmplifiedExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> LoadedStrategySnapshot:
+  return _require_compatible_shared_snapshot(
+      BandInvMFFitRequest(
+          horizon=participation.horizon, min_sep=participation.min_sep,
+          max_participations=participation.max_participations,
+          bandwidth=config.bandwidth, momentum=config.momentum,
+          learning_rate=config.learning_rate, reduction=config.reduction,
+          max_optimizer_steps=config.max_optimizer_steps,
+          strategy_dir=config.strategy_dir, force_refit=False,
+      )
+  )
+
+
 def _print_resolved_config(
     config: Cifar10NonAmplifiedExperimentConfig,
     num_examples: int,
@@ -342,6 +377,7 @@ def _resolved_config(
     participation: FixedCycleParticipation,
     strategy_path: Path,
     strategy: BandInvMFStrategy,
+    strategy_sha256: str,
     action: str,
     calibration: Any,
 ) -> dict[str, Any]:
@@ -350,6 +386,7 @@ def _resolved_config(
       "participation": asdict(participation),
       "strategy": {
           "artifact": str(strategy_path.resolve()),
+          "sha256": strategy_sha256,
           "action": action,
           "horizon": strategy.horizon,
           "bandwidth": strategy.bandwidth,
@@ -428,10 +465,11 @@ def run_cifar10_nonamplified(
       num_examples, config.epochs, config.logical_batch_size
   )
   if resume_checkpoint is not None:
-    path, strategy = require_compatible_strategy(config, participation)
+    snapshot = require_compatible_strategy_snapshot(config, participation)
     actual_action = "reuse"
   else:
-    path, strategy, actual_action = get_or_fit_strategy(config, participation)
+    snapshot, actual_action = get_or_fit_strategy_snapshot(config, participation)
+  path, strategy = snapshot.path, snapshot.strategy
   _print_resolved_config(config, num_examples, participation, path, actual_action)
   if actual_action == "reuse":
     print(f"Reusing existing BandInvMF strategy: {path}")
@@ -471,13 +509,14 @@ def run_cifar10_nonamplified(
   )
   if resume_checkpoint is None:
     resolved = _resolved_config(
-        config, participation, path, strategy, actual_action, calibration
+        config, participation, path, strategy, snapshot.sha256, actual_action, calibration
     )
     resolved["run"] = _run_metadata(run_paths)
     write_run_configuration(run_paths, source_yaml=source_yaml, resolved=resolved)
     MetricsCSVWriter(run_paths.metrics)
   return train_cifar10(
       train_config,
+      strategy_snapshot=snapshot,
       resume_checkpoint=resume_checkpoint,
       checkpoint_path=run_paths.checkpoint,
       metrics_path=run_paths.metrics,

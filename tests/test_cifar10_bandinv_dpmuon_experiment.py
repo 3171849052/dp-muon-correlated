@@ -11,6 +11,7 @@ import yaml
 
 from dp_muon.bandinvmf import BandInvMFStrategy, save_bandinv_strategy
 from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
+from dp_muon.training.bandinvmf_strategy_manager import LoadedStrategySnapshot
 from dp_muon.training.cifar10_driver import (
     BANDINV_DPMUON_ALGORITHM,
     Cifar10BandInvDPMuonTrainConfig,
@@ -192,9 +193,9 @@ def test_run_fits_strategy_writes_resolved_config_and_passes_final_path(tmp_path
   )
   monkeypatch.setattr(
       experiment,
-      "get_or_fit_strategy",
+      "get_or_fit_strategy_snapshot",
       lambda actual_config, actual_participation: (
-          strategy_path, _strategy(config, participation), "fit"
+          LoadedStrategySnapshot(strategy_path, _strategy(config, participation), "test-sha"), "fit"
       ),
   )
 
