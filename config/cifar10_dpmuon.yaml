@@ -16,14 +16,14 @@ training:
   clip_norm: 1.0
   eval_every: 1
 muon:
-  learning_rate: 0.02
+  learning_rate: 0.0001
   weight_decay: 0.01
   momentum: 0.95
   ns_steps: 5
   consistent_rms: 0.2
   use_bf16_ns: true
 adamw:
-  learning_rate: 0.001
+  learning_rate: 0.0001
   beta1: 0.9
   beta2: 0.999
   eps: 1.0e-8

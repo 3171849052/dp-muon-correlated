@@ -5,9 +5,9 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # The project uses a ``src`` layout and may be run without an editable install.
 # Keep the source tree importable for both the setup queries below and the
 # command launched inside tmux.
-# cifar10_nonamplified cifar10_dpsgd_momentum
+# cifar10_nonamplified cifar10_dpsgd_momentum cifar10_dpmuon
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-DEFAULT_CONFIG="$ROOT/config/cifar10_dpsgd_momentum.yaml"
+DEFAULT_CONFIG="$ROOT/config/cifar10_dpmuon.yaml"
 
 if [[ $# -eq 0 ]]; then
   CONFIG=$DEFAULT_CONFIG
@@ -52,4 +52,4 @@ echo "run directory: $RUN_DIR"
 echo "log: $TRAIN_LOG"
 echo "attach: tmux attach -t $SESSION"
 echo "tail: tail -f $TRAIN_LOG"
-echo "stop: tmux kill-session -t $SESSION"
+echo "kill: tmux kill-session -t $SESSION"

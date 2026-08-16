@@ -58,8 +58,13 @@ def collect_trajectory(
   sampled.  ``U_t`` is independently observed with the repository's exact
   classic Nesterov recurrence immediately before the Muon Q transform.
   """
-  if steps < 1 or start_step < 0:
-    raise ValueError("steps must be positive and start_step must be non-negative")
+  if steps < 1:
+    raise ValueError("steps must be positive")
+  if start_step != 0:
+    raise ValueError(
+        "Exp1 currently requires start_step == 0; mid/late trajectory replay "
+        "needs history-aware momentum/noise burn-in"
+    )
   config = load_cifar10_dpmuon_config(config_path)
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   required_horizon = start_step + steps

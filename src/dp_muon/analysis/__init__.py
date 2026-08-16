@@ -2,14 +2,16 @@
 
 from .cancellation import (
     CausalNoiseOperator,
+    calibrate_global_noise_scalar,
     cancellation_statistics,
     make_causal_noise_operator,
-    rescale_noise_to_median_ratio,
+    relative_noise_ratios,
 )
 
 __all__ = [
     "CausalNoiseOperator",
+    "calibrate_global_noise_scalar",
     "cancellation_statistics",
     "make_causal_noise_operator",
-    "rescale_noise_to_median_ratio",
+    "relative_noise_ratios",
 ]

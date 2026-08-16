@@ -46,29 +46,33 @@ def make_causal_noise_operator(
   return CausalNoiseOperator(correlated=correlated, nesterov=nesterov, total=nesterov @ correlated)
 
 
-def rescale_noise_to_median_ratio(
-    clean: np.ndarray, noise: np.ndarray, target_median_r: float
-) -> tuple[np.ndarray, np.ndarray]:
-  """Globally rescales every sampled noise transcript to its target median r.
-
-  One scalar is used per complete trajectory; no individual time step is
-  rescaled, so the temporal covariance direction remains untouched.
-  """
+def relative_noise_ratios(clean: np.ndarray, noise: np.ndarray) -> np.ndarray:
+  """Returns ``||E_i,t||_F / ||U_t||_F`` for a batch of noise transcripts."""
   clean = np.asarray(clean, dtype=np.float64)
   noise = np.asarray(noise, dtype=np.float64)
   if clean.ndim != 3 or noise.ndim != 4 or noise.shape[1:] != clean.shape:
     raise ValueError("clean must be (T,m,n) and noise must be (S,T,m,n)")
-  if target_median_r <= 0 or not np.isfinite(target_median_r):
-    raise ValueError("target_median_r must be finite and positive")
   clean_norm = np.linalg.norm(clean, axis=(1, 2))
   if np.any(clean_norm == 0):
     raise ValueError("cannot define relative noise for a zero-norm clean update")
-  ratios = np.linalg.norm(noise, axis=(2, 3)) / clean_norm[None, :]
-  medians = np.median(ratios, axis=1)
-  if np.any(medians == 0) or not np.all(np.isfinite(medians)):
-    raise ValueError("sampled noise has an invalid median relative norm")
-  scalars = target_median_r / medians
-  return noise * scalars[:, None, None, None], scalars
+  return np.linalg.norm(noise, axis=(2, 3)) / clean_norm[None, :]
+
+
+def calibrate_global_noise_scalar(
+    clean: np.ndarray, raw_noise: np.ndarray, target_median_r: float
+) -> tuple[float, float]:
+  """Calibrates one fixed scalar from the overall raw-Monte-Carlo median.
+
+  The result is a deterministic calibration for a given raw sample set.  It
+  must be applied unchanged to every transcript at this target, preserving the
+  Gaussian BandInvMF distribution up to one global, non-random scale.
+  """
+  if target_median_r <= 0 or not np.isfinite(target_median_r):
+    raise ValueError("target_median_r must be finite and positive")
+  reference = float(np.median(relative_noise_ratios(clean, raw_noise)))
+  if reference == 0 or not np.isfinite(reference):
+    raise ValueError("raw noise has an invalid overall median relative norm")
+  return float(target_median_r / reference), reference
 
 
 def cancellation_statistics(
@@ -99,5 +103,6 @@ __all__ = [
     "CausalNoiseOperator",
     "cancellation_statistics",
     "make_causal_noise_operator",
-    "rescale_noise_to_median_ratio",
+    "calibrate_global_noise_scalar",
+    "relative_noise_ratios",
 ]

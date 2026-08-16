@@ -48,12 +48,24 @@ python exp1/collect_trajectory.py \
 ```
 
 The archive includes `u`, `learning_rates`, `parameter_name`, `start_step`,
-`momentum`, `ns_steps`, and `consistent_rms` (plus the BF16 setting).  Select
-or fit a BandInvMF strategy whose horizon is the same `T` as the trajectory:
+`momentum`, `ns_steps`, and `consistent_rms` (plus the BF16 setting).  Current
+Exp1 supports only a continuous frozen window from training step 0
+(`start_step == 0`).  A mid/late trajectory needs a future history-aware
+momentum/noise burn-in replay.
+
+Fit a BandInvMF strategy for Muon's *linear temporal* workload
+\(A=\eta P H_\beta^{\rm Nes}\), not the ordinary `prefix` workload.  Its
+momentum and learning rate must match the trajectory metadata exactly:
 
 ```bash
-python scripts/fit_bandinvmf.py --horizon 64 --bandwidth 4 --min-sep 1 \
-  --output artifacts/strategies/bandinvmf_t64.npz
+python scripts/fit_bandinvmf.py \
+  --horizon 64 \
+  --bandwidth 4 \
+  --min-sep 1 \
+  --workload nesterov-trajectory \
+  --momentum 0.95 \
+  --learning-rate <same_muon_lr_as_trajectory> \
+  --output artifacts/strategies/bandinvmf_t64_muon_linear.npz
 ```
 
 Then set its path in `exp1/config.yaml`.
@@ -64,10 +76,12 @@ Then set its path in `exp1/config.yaml`.
 python exp1/run.py --config exp1/config.yaml
 ```
 
-The default replay uses 1,000 seeded samples and target per-trajectory median
-relative norms 0.01, 0.1, and 1.0.  Each sampled transcript receives one global
-scalar so `median_t(||E_t||_F / ||U_t||_F)` equals its target; it is never
-rescaled one step at a time.  Outputs are `results.csv`,
+The default replay uses 1,000 seeded samples and target relative norms 0.01,
+0.1, and 1.0.  It first calculates one deterministic reference median over
+all raw Monte Carlo \(\|E^{raw}_{i,t}\|_F/\|U_t\|_F\), then uses one fixed
+global scalar per target for every sample and every step.  It never rescales
+individual samples or steps.  `summary.json` records that scalar and the
+resulting overall Monte Carlo median for sanity checking.  Outputs are `results.csv`,
 `prefix_results.csv`, and `summary.json` in `output_dir`.
 
 Read results in this order: first verify `linear` has `R < 1`; then compare

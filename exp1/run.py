@@ -18,8 +18,13 @@ import jax.numpy as jnp
 import numpy as np
 import yaml
 
-from dp_muon.analysis import make_causal_noise_operator, rescale_noise_to_median_ratio
-from dp_muon.bandinvmf import load_bandinv_strategy
+from dp_muon.analysis import make_causal_noise_operator, relative_noise_ratios
+from dp_muon.bandinvmf import (
+    BandInvMFArtifactMetadata,
+    BandInvMFStrategy,
+    load_bandinv_strategy,
+    load_bandinv_strategy_metadata,
+)
 from dp_muon.optim import MUON_Q_STAGES, muon_q_stages
 
 
@@ -65,7 +70,53 @@ def load_trajectory(path: str | Path) -> dict[str, Any]:
     }
   if not 0 <= result["momentum"] < 1 or result["ns_steps"] < 1 or result["consistent_rms"] <= 0:
     raise ValueError("trajectory Muon metadata is invalid")
+  if result["start_step"] != 0:
+    raise ValueError(
+        "Exp1 currently requires trajectory start_step == 0; mid/late replay "
+        "needs history-aware momentum/noise burn-in"
+    )
   return result
+
+
+def _trajectory_learning_rate(trajectory: dict[str, Any]) -> float:
+  learning_rates = np.asarray(trajectory["learning_rates"], dtype=np.float64)
+  learning_rate = float(learning_rates[0])
+  if not np.allclose(learning_rates, learning_rate, rtol=1e-7, atol=1e-12):
+    raise ValueError(
+        "Exp1's nesterov-trajectory strategy validation currently requires "
+        "a constant frozen trajectory learning rate"
+    )
+  return learning_rate
+
+
+def validate_exp1_strategy(
+    strategy: BandInvMFStrategy,
+    metadata: BandInvMFArtifactMetadata,
+    trajectory: dict[str, Any],
+) -> None:
+  """Rejects strategies that do not optimize ``A=eta P H_beta^Nes``."""
+  if strategy.horizon != trajectory["u"].shape[0]:
+    raise ValueError("BandInvMF strategy horizon must equal frozen trajectory length")
+  if metadata.workload_type != "nesterov-trajectory":
+    raise ValueError(
+        "Exp1 requires strategy workload_type='nesterov-trajectory', not "
+        f"{metadata.workload_type!r}"
+    )
+  if metadata.momentum is None:
+    raise ValueError("Exp1 strategy metadata is missing momentum")
+  if not np.isclose(metadata.momentum, trajectory["momentum"], rtol=1e-7, atol=1e-12):
+    raise ValueError(
+        "Exp1 strategy momentum does not match trajectory momentum "
+        f"({metadata.momentum} != {trajectory['momentum']})"
+    )
+  trajectory_learning_rate = _trajectory_learning_rate(trajectory)
+  if metadata.learning_rate is None:
+    raise ValueError("Exp1 strategy metadata is missing learning_rate")
+  if not np.isclose(metadata.learning_rate, trajectory_learning_rate, rtol=1e-7, atol=1e-12):
+    raise ValueError(
+        "Exp1 strategy learning_rate does not match frozen trajectory "
+        f"learning rate ({metadata.learning_rate} != {trajectory_learning_rate})"
+    )
 
 
 def _q_clean(u: np.ndarray, trajectory: dict[str, Any]) -> dict[str, np.ndarray]:
@@ -126,26 +177,45 @@ def run_replay(
     raise ValueError("samples and sample_batch_size must be positive")
   if not target_median_r or any(value <= 0 for value in target_median_r):
     raise ValueError("target_median_r must contain positive values")
+  if trajectory["start_step"] != 0:
+    raise ValueError(
+        "Exp1 currently requires trajectory start_step == 0; mid/late replay "
+        "needs history-aware momentum/noise burn-in"
+    )
   u, learning_rates = trajectory["u"], trajectory["learning_rates"]
   horizon = u.shape[0]
   operator = make_causal_noise_operator(noising_coef, horizon, trajectory["momentum"])
   clean_q = _q_clean(u, trajectory)
+  # The pilot uses exactly the same raw Gaussian draws as the formal replay,
+  # but retains only O(samples*T) relative norms rather than full matrices.
+  calibration_rng = np.random.default_rng(seed)
+  calibration_ratios: list[np.ndarray] = []
+  for offset in range(0, samples, sample_batch_size):
+    batch = min(sample_batch_size, samples - offset)
+    latent = calibration_rng.standard_normal((batch, *u.shape), dtype=np.float32)
+    raw_noise = np.einsum("ts,bsij->btij", operator.total, latent, optimize=True).astype(np.float32)
+    calibration_ratios.append(relative_noise_ratios(u, raw_noise).reshape(-1))
+  reference_median_r = float(np.median(np.concatenate(calibration_ratios)))
+  if reference_median_r == 0 or not np.isfinite(reference_median_r):
+    raise ValueError("raw noise has an invalid overall median relative norm")
+  global_scalars = {target: float(target / reference_median_r) for target in target_median_r}
+
   rng = np.random.default_rng(seed)
   totals = {
       target: {stage: [np.zeros(horizon), np.zeros(horizon)] for stage in MUON_Q_STAGES}
       for target in target_median_r
   }
-  scalar_values: dict[float, list[float]] = {target: [] for target in target_median_r}
+  actual_ratios: dict[float, list[np.ndarray]] = {target: [] for target in target_median_r}
   for offset in range(0, samples, sample_batch_size):
     batch = min(sample_batch_size, samples - offset)
     latent = rng.standard_normal((batch, *u.shape), dtype=np.float32)
     raw_noise = np.einsum("ts,bsij->btij", operator.total, latent, optimize=True).astype(np.float32)
     for target in target_median_r:
-      noise, scalars = rescale_noise_to_median_ratio(u, raw_noise, target)
-      # Q in production is float32/BF16.  This cast also means the linear
-      # baseline and nonlinear stages receive the identical replay E tensor.
-      noise = noise.astype(np.float32)
-      scalar_values[target].extend(float(value) for value in scalars)
+      # One deterministic scalar is shared by every formal Monte-Carlo sample
+      # at this target.  No sample-dependent or step-dependent rescaling is
+      # permitted because either would change the Gaussian transcript law.
+      noise = (global_scalars[target] * raw_noise).astype(np.float32)
+      actual_ratios[target].append(relative_noise_ratios(u, noise).reshape(-1))
       deltas = _q_deltas(u, noise, clean_q, trajectory)
       for stage, delta in deltas.items():
         j_sum, d_sum = _accumulate_prefix(delta, learning_rates)
@@ -168,7 +238,11 @@ def run_replay(
   for target in target_median_r:
     previous: float | None = None
     target_summary: dict[str, Any] = {
-        "mean_global_scalar": float(np.mean(scalar_values[target])), "stages": {}
+        "global_scalar": global_scalars[target],
+        "actual_median_relative_noise_ratio": float(
+            np.median(np.concatenate(actual_ratios[target]))
+        ),
+        "stages": {},
     }
     for stage in MUON_Q_STAGES:
       j = totals[target][stage][0] / samples
@@ -204,9 +278,16 @@ def main() -> None:
   if not isinstance(document, dict):
     raise ValueError("experiment config must be a mapping")
   trajectory = load_trajectory(_resolve(document["trajectory"]))
-  strategy = load_bandinv_strategy(_resolve(document["strategy"]))
-  if strategy.horizon != trajectory["u"].shape[0]:
-    raise ValueError("BandInvMF strategy horizon must equal frozen trajectory length")
+  strategy_path = _resolve(document["strategy"])
+  strategy = load_bandinv_strategy(strategy_path)
+  try:
+    metadata = load_bandinv_strategy_metadata(strategy_path)
+  except ValueError as error:
+    raise ValueError(
+        "Exp1 requires BandInvMF artifact metadata for nesterov-trajectory, "
+        f"momentum, and learning_rate validation: {error}"
+    ) from error
+  validate_exp1_strategy(strategy, metadata, trajectory)
   rows, prefixes, summary = run_replay(
       trajectory,
       noising_coef=np.asarray(strategy.noising_coef),
