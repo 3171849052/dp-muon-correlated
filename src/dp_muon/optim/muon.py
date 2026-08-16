@@ -61,6 +61,43 @@ def _scale_by_consistent_rms(
   return optax.GradientTransformation(init_fn, update_fn)
 
 
+def muon_post_nesterov_transform(
+    *,
+    ns_steps: int = 5,
+    consistent_rms: float = 0.2,
+    use_bf16_ns: bool = True,
+) -> optax.GradientTransformation:
+  """Returns Muon's matrix-only post-Nesterov ``Q`` transformation.
+
+  This is deliberately the exact tail used by :func:`muon_transform`: it has
+  no temporal momentum, weight decay, or learning-rate scaling.  Keeping it
+  public gives analyses a single authoritative implementation of BF16,
+  Frobenius Newton--Schulz, and consistent-RMS scaling.
+  """
+  if ns_steps < 1:
+    raise ValueError("ns_steps must be positive")
+  if consistent_rms <= 0:
+    raise ValueError("consistent_rms must be positive")
+  ns_path: list[optax.GradientTransformation] = []
+  if use_bf16_ns:
+    ns_path.append(_cast_tree(jnp.bfloat16))
+  ns_path.append(optax.contrib.scale_by_muon(
+      beta=0.0,
+      nesterov=False,
+      adaptive=False,
+      ns_steps=ns_steps,
+      preconditioning="frobenius",
+      mu_dtype=jnp.bfloat16 if use_bf16_ns else None,
+      weight_dimension_numbers=lambda tree: jax.tree_util.tree_map(
+          lambda _: optax.contrib.MuonDimensionNumbers(), tree
+      ),
+  ))
+  if use_bf16_ns:
+    ns_path.append(_cast_tree(jnp.float32))
+  ns_path.append(_scale_by_consistent_rms(consistent_rms))
+  return optax.chain(*ns_path)
+
+
 def muon_transform(
     *,
     learning_rate: float,
@@ -84,32 +121,20 @@ def muon_transform(
     raise ValueError("ns_steps must be positive")
   if consistent_rms <= 0:
     raise ValueError("consistent_rms must be positive")
-  # On the supported JAX GPU stack BF16 arithmetic is available.  Casting
-  # around NS keeps model/master updates in their original dtype while using
-  # the requested low-precision NS path.  CPU-only setups can opt out.
-  ns_path: list[optax.GradientTransformation] = []
-  if use_bf16_ns:
-    ns_path.append(_cast_tree(jnp.bfloat16))
-  ns_path.append(optax.contrib.scale_by_muon(
-      beta=0.0,
-      nesterov=False,
-      adaptive=False,
-      ns_steps=ns_steps,
-      preconditioning="frobenius",
-      mu_dtype=jnp.bfloat16 if use_bf16_ns else None,
-      weight_dimension_numbers=lambda tree: jax.tree_util.tree_map(
-          lambda _: optax.contrib.MuonDimensionNumbers(), tree
-      ),
-  ))
-  if use_bf16_ns:
-    ns_path.append(_cast_tree(jnp.float32))
   return optax.chain(
       classic_nesterov_momentum(momentum),
-      *ns_path,
-      _scale_by_consistent_rms(consistent_rms),
+      muon_post_nesterov_transform(
+          ns_steps=ns_steps,
+          consistent_rms=consistent_rms,
+          use_bf16_ns=use_bf16_ns,
+      ),
       optax.add_decayed_weights(weight_decay),
       optax.scale(-learning_rate),
   )
 
 
-__all__ = ["classic_nesterov_momentum", "muon_transform"]
+__all__ = [
+    "classic_nesterov_momentum",
+    "muon_post_nesterov_transform",
+    "muon_transform",
+]

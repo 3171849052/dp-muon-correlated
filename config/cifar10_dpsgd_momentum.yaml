@@ -18,7 +18,7 @@ training:
   logical_batch_size: 512
   microbatch_size: 16
   momentum: 0.95
-  learning_rate: 0.5
+  learning_rate: 0.001
   clip_norm: 1.0
   # Number of actual training epochs between evaluations.
   eval_every: 1

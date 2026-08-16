@@ -9,7 +9,8 @@ from .muon_nesterov import (
     init_muon_nesterov_state,
     muon_nesterov_step,
 )
-from .muon import classic_nesterov_momentum, muon_transform
+from .muon import classic_nesterov_momentum, muon_post_nesterov_transform, muon_transform
+from .muon_q import STAGES as MUON_Q_STAGES, muon_q, muon_q_stages
 from .parameter_groups import (
     ADAMW,
     MUON,
@@ -30,7 +31,11 @@ __all__ = [
     "init_muon_nesterov_state",
     "muon_nesterov_step",
     "classic_nesterov_momentum",
+    "muon_post_nesterov_transform",
     "muon_transform",
+    "MUON_Q_STAGES",
+    "muon_q",
+    "muon_q_stages",
     "ADAMW",
     "MUON",
     "count_muon_parameters",

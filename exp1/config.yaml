@@ -1,0 +1,10 @@
+# First create exp1/trajectory.npz with collect_trajectory.py, then fit or
+# select a T=64 BandInvMF artifact and put its path below.
+trajectory: exp1/trajectory.npz
+strategy: artifacts/strategies/bandinvmf_t64.npz
+output_dir: exp1/results
+
+samples: 1000
+seed: 0
+sample_batch_size: 4
+target_median_r: [0.01, 0.1, 1.0]
