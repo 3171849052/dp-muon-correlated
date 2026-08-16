@@ -33,6 +33,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 @dataclass(frozen=True)
 class Cifar10DPSGDMomentumExperimentConfig:
+  algorithm: Literal["dpsgd"]
   name: str
   seed: int
   gpu: int
@@ -108,7 +109,7 @@ def load_cifar10_dpsgd_momentum_config(
   if not isinstance(document, Mapping):
     raise ValueError("config must be a mapping")
   expected_sections = {
-      "experiment", "runtime", "data", "model", "training", "schedule", "privacy", "output"
+      "algorithm", "experiment", "runtime", "data", "model", "training", "schedule", "privacy", "output"
   }
   if set(document) != expected_sections:
     raise ValueError(f"config sections must be exactly {sorted(expected_sections)}")
@@ -124,6 +125,9 @@ def load_cifar10_dpsgd_momentum_config(
   schedule = _section(document, "schedule", {"mode"})
   privacy = _section(document, "privacy", {"epsilon", "delta", "adjacency"})
   output = _section(document, "output", {"checkpoint_dir", "log_dir"})
+  algorithm = _string(document["algorithm"], "algorithm")
+  if algorithm != "dpsgd":
+    raise ValueError("DP-SGD config requires algorithm: dpsgd")
   mode = _string(schedule["mode"], "schedule.mode")
   if mode != "fixed_cycle":
     raise ValueError("schedule.mode must be 'fixed_cycle'")
@@ -134,6 +138,7 @@ def load_cifar10_dpsgd_momentum_config(
   if not 0.0 <= momentum < 1.0:
     raise ValueError("training.momentum must be in [0, 1)")
   config = Cifar10DPSGDMomentumExperimentConfig(
+      algorithm=algorithm,  # type: ignore[arg-type]
       name=_string(experiment["name"], "experiment.name"),
       seed=_nonnegative_int(experiment["seed"], "experiment.seed"),
       gpu=_nonnegative_int(runtime["gpu"], "runtime.gpu"),

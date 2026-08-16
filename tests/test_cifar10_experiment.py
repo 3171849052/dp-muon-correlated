@@ -86,7 +86,7 @@ def test_parses_default_yaml_without_manual_participation_values():
   config = experiment.load_cifar10_nonamplified_config(CONFIG)
   assert config.epochs == 10
   assert config.logical_batch_size == 512
-  assert config.momentum == 0.9
+  assert config.momentum == 0.95
   assert config.learning_rate == 0.5
   assert config.adjacency == "add_remove"
   assert config.gpu == 0
@@ -184,7 +184,7 @@ def test_prepare_run_cli_returns_only_the_python_created_run_directory(monkeypat
     return SimpleNamespace(directory=tmp_path / "run")
 
   monkeypatch.setattr(run_cifar10_script, "prepare_cifar10_nonamplified_run", fake_prepare)
-  monkeypatch.setattr(run_cifar10_script, "_is_dpsgd_config", lambda _: False)
+  monkeypatch.setattr(run_cifar10_script, "_config_algorithm", lambda _: "bandinv")
   monkeypatch.setattr(
       sys, "argv", ["run_cifar10.py", "--config", "experiment.yaml", "--prepare-run"]
   )
@@ -200,7 +200,7 @@ def test_run_dir_cli_is_forwarded_to_python_runner(monkeypatch):
     calls.append((config_path, resume_checkpoint, run_dir))
 
   monkeypatch.setattr(run_cifar10_script, "run_cifar10_nonamplified", fake_run)
-  monkeypatch.setattr(run_cifar10_script, "_is_dpsgd_config", lambda _: False)
+  monkeypatch.setattr(run_cifar10_script, "_config_algorithm", lambda _: "bandinv")
   monkeypatch.setattr(
       sys,
       "argv",
@@ -218,6 +218,7 @@ def test_runner_cli_does_not_print_history_after_training(monkeypatch, capsys):
     return None, [{"step": 50, "accuracy": 0.8}]
 
   monkeypatch.setattr(run_cifar10_script, "run_cifar10_nonamplified", fake_run)
+  monkeypatch.setattr(run_cifar10_script, "_config_algorithm", lambda _: "bandinv")
   monkeypatch.setattr(sys, "argv", ["run_cifar10.py", "--config", "experiment.yaml"])
   run_cifar10_script.main()
   assert calls == ["experiment.yaml"]
@@ -359,9 +360,9 @@ def test_runner_uses_same_momentum_learning_rate_for_fit_and_training(tmp_path, 
   monkeypatch.setattr(experiment, "train_cifar10", fake_train)
   experiment.run_cifar10_nonamplified(config_path)
 
-  assert captured["fit_config"].momentum == captured["train"].momentum == 0.9
+  assert captured["fit_config"].momentum == captured["train"].momentum == 0.95
   assert captured["fit_config"].learning_rate == captured["train"].learning_rate == 0.5
-  assert captured["validated"][2:] == (0.9, 0.5)
+  assert captured["validated"][2:] == (0.95, 0.5)
   assert captured["validated"][1].horizon == 976
   assert captured["train_kwargs"]["checkpoint_path"].name == "latest.pkl"
   run_dir = captured["train_kwargs"]["checkpoint_path"].parent.parent

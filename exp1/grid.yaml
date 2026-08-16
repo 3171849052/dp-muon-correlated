@@ -1,0 +1,33 @@
+experiment: exp1
+seed: 0
+
+clip_norms:
+  - 1.0
+  - 5.0
+  - 10.0
+
+algorithms:
+  bandinv:
+    template: config/cifar10_nonamplified.yaml
+    learning_rates:
+      - 0.1
+      - 0.5
+      - 1.0
+  dpsgd:
+    template: config/cifar10_dpsgd_momentum.yaml
+    learning_rates:
+      - 0.1
+      - 0.5
+      - 1.0
+  dpmuon:
+    template: config/cifar10_dpmuon.yaml
+    lr_settings:
+      - name: low
+        muon: 0.01
+        adamw: 0.0005
+      - name: base
+        muon: 0.02
+        adamw: 0.001
+      - name: high
+        muon: 0.04
+        adamw: 0.002

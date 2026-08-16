@@ -49,6 +49,7 @@ class FixedCycleParticipation:
 
 @dataclass(frozen=True)
 class Cifar10NonAmplifiedExperimentConfig:
+  algorithm: Literal["bandinv"]
   name: str
   seed: int
   gpu: int
@@ -148,7 +149,7 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   if not isinstance(document, Mapping):
     raise ValueError("config must be a mapping")
   expected_sections = {
-      "experiment", "runtime", "data", "model", "training", "schedule", "privacy", "strategy", "output"
+      "algorithm", "experiment", "runtime", "data", "model", "training", "schedule", "privacy", "strategy", "output"
   }
   if set(document) != expected_sections:
     raise ValueError(f"config sections must be exactly {sorted(expected_sections)}")
@@ -169,6 +170,9 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
       {"bandwidth", "reduction", "max_optimizer_steps", "force_refit"},
   )
   output = _section(document, "output", {"strategy_dir", "checkpoint_dir", "log_dir"})
+  algorithm = _string(document["algorithm"], "algorithm")
+  if algorithm != "bandinv":
+    raise ValueError("BandInvMF config requires algorithm: bandinv")
   mode = _string(schedule["mode"], "schedule.mode")
   if mode != "fixed_cycle":
     raise ValueError("schedule.mode must be 'fixed_cycle'")
@@ -184,6 +188,7 @@ def load_cifar10_nonamplified_config(path: str | Path) -> Cifar10NonAmplifiedExp
   if not 0.0 <= momentum < 1.0:
     raise ValueError("training.momentum must be in [0, 1)")
   config = Cifar10NonAmplifiedExperimentConfig(
+      algorithm=algorithm,  # type: ignore[arg-type]
       name=_string(experiment["name"], "experiment.name"),
       seed=_nonnegative_int(experiment["seed"], "experiment.seed"),
       gpu=_nonnegative_int(runtime["gpu"], "runtime.gpu"),

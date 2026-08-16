@@ -1,41 +1,38 @@
+algorithm: dpmuon
 experiment:
-  name: exp1_lr1.0_clip10
+  name: exp1_dpmuon_high_clip10
   seed: 0
-
 runtime:
-  gpu: 2
-
+  gpu: 1
 data:
   data_dir: data
-
 model:
   pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz
-
 training:
   epochs: 10
   logical_batch_size: 512
   microbatch_size: 16
-  momentum: 0.95
-  learning_rate: 1.0
   clip_norm: 10.0
-  # Number of actual training epochs between evaluations.
   eval_every: 1
-
+muon:
+  learning_rate: 0.04
+  weight_decay: 0.01
+  momentum: 0.95
+  ns_steps: 5
+  consistent_rms: 0.2
+  use_bf16_ns: true
+adamw:
+  learning_rate: 0.002
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-08
+  weight_decay: 0.01
 schedule:
   mode: fixed_cycle
-
 privacy:
   epsilon: 9.0
-  delta: 1.0e-5
+  delta: 1.0e-05
   adjacency: add_remove
-
-strategy:
-  bandwidth: 4
-  reduction: mean
-  max_optimizer_steps: 1000
-  force_refit: false
-
 output:
-  strategy_dir: artifacts/strategies
   checkpoint_dir: checkpoints
-  log_dir: exp1/logs
+  log_dir: exp1/logs/dpmuon

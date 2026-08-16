@@ -1,41 +1,33 @@
+algorithm: bandinv
 experiment:
-  name: exp1_lr0.1_clip5
+  name: exp1_bandinv_lr1.0_clip1
   seed: 0
-
 runtime:
-  gpu: 0
-
+  gpu: 2
 data:
   data_dir: data
-
 model:
   pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz
-
 training:
   epochs: 10
   logical_batch_size: 512
   microbatch_size: 16
   momentum: 0.95
-  learning_rate: 0.1
-  clip_norm: 5.0
-  # Number of actual training epochs between evaluations.
+  learning_rate: 1.0
+  clip_norm: 1.0
   eval_every: 1
-
 schedule:
   mode: fixed_cycle
-
 privacy:
   epsilon: 9.0
-  delta: 1.0e-5
+  delta: 1.0e-05
   adjacency: add_remove
-
 strategy:
   bandwidth: 4
   reduction: mean
   max_optimizer_steps: 1000
   force_refit: false
-
 output:
   strategy_dir: artifacts/strategies
   checkpoint_dir: checkpoints
-  log_dir: exp1/logs
+  log_dir: exp1/logs/bandinv

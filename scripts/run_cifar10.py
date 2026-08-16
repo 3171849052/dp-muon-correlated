@@ -29,25 +29,21 @@ from dp_muon.training.cifar10_experiment import (
 )
 
 
-def _config_kind(path: str) -> str:
-  """Identifies the strategy-free IID baseline schema before full validation."""
+def _config_algorithm(path: str) -> str:
+  """Reads the explicitly declared CIFAR-10 algorithm before schema validation."""
   try:
     with Path(path).open(encoding="utf-8") as stream:
       document = yaml.safe_load(stream)
-  except FileNotFoundError:
-    # Keep the legacy entry point lazy: the selected runner remains responsible
-    # for reporting a missing or malformed BandInvMF config.
-    return "bandinv"
   except (OSError, yaml.YAMLError) as error:
     raise ValueError(f"could not read config {path}") from error
-  if not isinstance(document, dict) or "strategy" in document:
-    return "bandinv"
-  return "dpmuon" if {"muon", "adamw"}.issubset(document) else "dpsgd"
-
-
-def _is_dpsgd_config(path: str) -> bool:
-  """Compatibility predicate retained for existing launcher integrations."""
-  return _config_kind(path) == "dpsgd"
+  if not isinstance(document, dict):
+    raise ValueError("config must be a mapping with an algorithm field")
+  algorithm = document.get("algorithm")
+  if not isinstance(algorithm, str):
+    raise ValueError("config.algorithm is required and must be one of: bandinv, dpsgd, dpmuon")
+  if algorithm not in {"bandinv", "dpsgd", "dpmuon"}:
+    raise ValueError(f"unknown config.algorithm {algorithm!r}; expected: bandinv, dpsgd, dpmuon")
+  return algorithm
 
 
 def main() -> None:
@@ -60,38 +56,38 @@ def main() -> None:
   output.add_argument("--print-gpu", action="store_true")
   output.add_argument("--prepare-run", action="store_true")
   args = parser.parse_args()
-  kind = _config_kind(args.config)
+  algorithm = _config_algorithm(args.config)
   if args.print_log_dir:
     print(
-        resolve_dpmuon_log_dir(args.config) if kind == "dpmuon"
-        else resolve_dpsgd_log_dir(args.config) if kind == "dpsgd"
+        resolve_dpmuon_log_dir(args.config) if algorithm == "dpmuon"
+        else resolve_dpsgd_log_dir(args.config) if algorithm == "dpsgd"
         else resolve_output_log_dir(args.config)
     )
     return
   if args.print_gpu:
     config = (
-        load_cifar10_dpmuon_config(args.config) if kind == "dpmuon"
-        else load_cifar10_dpsgd_momentum_config(args.config) if kind == "dpsgd"
+        load_cifar10_dpmuon_config(args.config) if algorithm == "dpmuon"
+        else load_cifar10_dpsgd_momentum_config(args.config) if algorithm == "dpsgd"
         else load_cifar10_nonamplified_config(args.config)
     )
     print(config.gpu)
     return
   if args.prepare_run:
     paths = (
-        prepare_cifar10_dpmuon_run(args.config) if kind == "dpmuon"
-        else prepare_cifar10_dpsgd_momentum_run(args.config) if kind == "dpsgd"
+        prepare_cifar10_dpmuon_run(args.config) if algorithm == "dpmuon"
+        else prepare_cifar10_dpsgd_momentum_run(args.config) if algorithm == "dpsgd"
         else prepare_cifar10_nonamplified_run(args.config)
     )
     print(paths.directory)
     return
-  if kind == "dpmuon":
+  if algorithm == "dpmuon":
     if args.resume_checkpoint is None and args.run_dir is None:
       run_cifar10_dpmuon(args.config)
     else:
       run_cifar10_dpmuon(
           args.config, resume_checkpoint=args.resume_checkpoint, run_dir=args.run_dir
       )
-  elif kind == "dpsgd":
+  elif algorithm == "dpsgd":
     if args.resume_checkpoint is None and args.run_dir is None:
       run_cifar10_dpsgd_momentum(args.config)
     else:

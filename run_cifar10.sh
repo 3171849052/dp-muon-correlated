@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # command launched inside tmux.
 # cifar10_nonamplified cifar10_dpsgd_momentum
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-DEFAULT_CONFIG="$ROOT/config/cifar10_dpsgd_momentum.yaml"
+DEFAULT_CONFIG="$ROOT/config/cifar10_nonamplified.yaml"
 
 if [[ $# -eq 0 ]]; then
   CONFIG=$DEFAULT_CONFIG
@@ -31,7 +31,10 @@ CONFIG=$(realpath "$CONFIG")
 GPU=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --print-gpu)
 RUN_DIR=$(cd "$ROOT" && python scripts/run_cifar10.py --config "$CONFIG" --prepare-run)
 TRAIN_LOG="$RUN_DIR/train.log"
+
 SESSION="cifar10_$(basename "$RUN_DIR")"
+SESSION="${SESSION//./_}"
+SESSION="${SESSION//:/_}"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   echo "tmux session already exists: $SESSION" >&2

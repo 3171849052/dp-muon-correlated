@@ -1,3 +1,5 @@
+algorithm: dpsgd
+
 experiment:
   name: cifar10_dpsgd_momentum_vit_tiny
   seed: 0

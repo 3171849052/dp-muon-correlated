@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 import math
 from numbers import Integral, Real
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
 import yaml
 
@@ -26,6 +26,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 @dataclass(frozen=True)
 class Cifar10DPMuonExperimentConfig:
+  algorithm: Literal["dpmuon"]
   name: str; seed: int; gpu: int; data_dir: str; pretrained: str
   epochs: int; logical_batch_size: int; microbatch_size: int; clip_norm: float; eval_every: int
   muon_learning_rate: float; muon_weight_decay: float; momentum: float; ns_steps: int; consistent_rms: float
@@ -69,7 +70,7 @@ def load_cifar10_dpmuon_config(path: str | Path) -> Cifar10DPMuonExperimentConfi
     document = yaml.safe_load(source.read_text(encoding="utf-8"))
   except (OSError, yaml.YAMLError) as error:
     raise ValueError(f"could not read config {source}") from error
-  if not isinstance(document, Mapping) or set(document) != {"experiment", "runtime", "data", "model", "training", "muon", "adamw", "schedule", "privacy", "output"}:
+  if not isinstance(document, Mapping) or set(document) != {"algorithm", "experiment", "runtime", "data", "model", "training", "muon", "adamw", "schedule", "privacy", "output"}:
     raise ValueError("config has unexpected sections")
   experiment = _mapping(document, "experiment", {"name", "seed"})
   runtime = _mapping(document, "runtime", {"gpu"})
@@ -81,6 +82,9 @@ def load_cifar10_dpmuon_config(path: str | Path) -> Cifar10DPMuonExperimentConfi
   schedule = _mapping(document, "schedule", {"mode"})
   privacy = _mapping(document, "privacy", {"epsilon", "delta", "adjacency"})
   output = _mapping(document, "output", {"checkpoint_dir", "log_dir"})
+  algorithm = _string(document["algorithm"], "algorithm")
+  if algorithm != "dpmuon":
+    raise ValueError("DP-Muon config requires algorithm: dpmuon")
   if schedule["mode"] != "fixed_cycle":
     raise ValueError("schedule.mode must be 'fixed_cycle'")
   if privacy["adjacency"] not in {"add_remove", "replace_one"}:
@@ -88,6 +92,7 @@ def load_cifar10_dpmuon_config(path: str | Path) -> Cifar10DPMuonExperimentConfi
   if not isinstance(muon["use_bf16_ns"], bool):
     raise ValueError("muon.use_bf16_ns must be boolean")
   result = Cifar10DPMuonExperimentConfig(
+      algorithm=algorithm,  # type: ignore[arg-type]
       name=_string(experiment["name"], "experiment.name"), seed=_integer(experiment["seed"], "experiment.seed", positive=False), gpu=_integer(runtime["gpu"], "runtime.gpu", positive=False),
       data_dir=_string(data["data_dir"], "data.data_dir"), pretrained=_string(model["pretrained"], "model.pretrained"),
       epochs=_integer(training["epochs"], "training.epochs"), logical_batch_size=_integer(training["logical_batch_size"], "training.logical_batch_size"), microbatch_size=_integer(training["microbatch_size"], "training.microbatch_size"), clip_norm=_number(training["clip_norm"], "training.clip_norm", positive=True), eval_every=_integer(training["eval_every"], "training.eval_every"),
