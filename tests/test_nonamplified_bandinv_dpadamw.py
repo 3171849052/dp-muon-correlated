@@ -287,6 +287,11 @@ def test_prefix_sum_same_config_cache_hit(tmp_path, monkeypatch):
       request, fit_strategy=fit_bandinv_strategy,
   )
   assert action1 == "fit"
+  # The manager passes workload_coef=None; fit_bandinv_strategy must have
+  # generated the default prefix-sum (all-ones) workload.
+  np.testing.assert_array_equal(
+      np.asarray(snapshot1.strategy.workload_coef), np.ones(request.horizon)
+  )
   # Second call: reuse
   snapshot2, action2 = get_or_fit_prefix_sum_strategy_snapshot(
       request, fit_strategy=fit_bandinv_strategy,

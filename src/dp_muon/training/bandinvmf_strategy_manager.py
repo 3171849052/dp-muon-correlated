@@ -29,6 +29,22 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True)
+class BandInvMFFitRequest:
+  """All public values that determine a cached Nesterov BandInvMF strategy."""
+
+  horizon: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  momentum: float
+  learning_rate: float
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+  strategy_dir: str | Path
+  force_refit: bool
+
+
+@dataclass(frozen=True)
 class PrefixSumBandInvMFFitRequest:
   """All public values that determine a cached prefix-sum BandInvMF strategy.
 
@@ -40,18 +56,6 @@ class PrefixSumBandInvMFFitRequest:
   min_sep: int
   max_participations: int
   bandwidth: int
-  reduction: Literal["mean", "max", "last"]
-  max_optimizer_steps: int
-  strategy_dir: str | Path
-  force_refit: bool
-  """All public values that determine a cached Nesterov BandInvMF strategy."""
-
-  horizon: int
-  min_sep: int
-  max_participations: int
-  bandwidth: int
-  momentum: float
-  learning_rate: float
   reduction: Literal["mean", "max", "last"]
   max_optimizer_steps: int
   strategy_dir: str | Path
@@ -148,6 +152,10 @@ def _prefix_sum_strategy_is_compatible(
       and strategy.bandwidth == request.bandwidth
       and strategy.min_sep == request.min_sep
       and strategy.max_participations == request.max_participations
+      and np.array_equal(
+          np.asarray(strategy.workload_coef),
+          np.ones(request.horizon),
+      )
   )
 
 

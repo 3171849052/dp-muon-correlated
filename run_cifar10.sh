@@ -5,9 +5,9 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # The project uses a ``src`` layout and may be run without an editable install.
 # Keep the source tree importable for both the setup queries below and the
 # command launched inside tmux.
-# cifar10_nonamplified cifar10_dpsgd_momentum cifar10_dpmuon cifar10_bandinv_dpmuon_naive cifar10_dpadamw
+# cifar10_nonamplified cifar10_dpsgd_momentum cifar10_dpmuon cifar10_bandinv_dpmuon_naive cifar10_dpadamw cifar10_bandinv_dpadamw_naive
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-DEFAULT_CONFIG="$ROOT/config/cifar10_dpadamw.yaml"
+DEFAULT_CONFIG="$ROOT/config/cifar10_bandinv_dpmuon_naive.yaml"
 
 if [[ $# -eq 0 ]]; then
   CONFIG=$DEFAULT_CONFIG

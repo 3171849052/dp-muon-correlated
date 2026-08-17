@@ -332,14 +332,14 @@ def test_strategy_workload_is_prefix_sum_not_nesterov(tmp_path, monkeypatch):
   captured = {}
 
   def fake_fit(*args, **kwargs):
-    captured["workload"] = np.asarray(kwargs.get("workload_coef"))
+    captured["workload"] = kwargs.get("workload_coef")
     return _strategy(config, participation)
 
   monkeypatch.setattr(experiment, "fit_bandinv_strategy", fake_fit)
   experiment.get_or_fit_strategy_snapshot(config, participation)
-  # Prefix-sum workload = all ones
-  assert captured["workload"] is not None
-  assert np.array_equal(captured["workload"], np.ones(participation.horizon))
+  # The manager must pass None so fit_bandinv_strategy uses its default
+  # prefix-sum (all-ones) workload instead of a Nesterov trajectory.
+  assert captured["workload"] is None
 
 
 # --- Test 15: AdamW defaults match IID DP-AdamW ---

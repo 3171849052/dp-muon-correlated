@@ -1,7 +1,7 @@
 algorithm: dp-adamw-correlated-naive
 
 experiment:
-  name: +_vit_tiny
+  name: cifar10_bandinv_dpadamw_vit_tiny
   seed: 0
 runtime:
   gpu: 0
