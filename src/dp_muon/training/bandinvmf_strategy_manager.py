@@ -29,7 +29,21 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True)
-class BandInvMFFitRequest:
+class PrefixSumBandInvMFFitRequest:
+  """All public values that determine a cached prefix-sum BandInvMF strategy.
+
+  No momentum or learning_rate is needed — the default prefix-sum workload
+  (all-ones) is used.
+  """
+
+  horizon: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+  strategy_dir: str | Path
+  force_refit: bool
   """All public values that determine a cached Nesterov BandInvMF strategy."""
 
   horizon: int
@@ -76,6 +90,28 @@ def strategy_artifact_path(
   )
 
 
+def prefix_sum_strategy_artifact_path(
+    strategy_dir: str | Path,
+    *,
+    horizon: int,
+    min_sep: int,
+    max_participations: int,
+    bandwidth: int,
+    reduction: str,
+    max_optimizer_steps: int,
+) -> Path:
+  """Returns a deterministic prefix-sum artifact path, avoiding collision with
+  nesterov-trajectory artifacts."""
+  directory = Path(strategy_dir)
+  if not directory.is_absolute():
+    directory = REPOSITORY_ROOT / directory
+  return directory / (
+      f"prefix-sum_n{horizon}_p{bandwidth}"
+      f"_b{min_sep}_k{max_participations}"
+      f"_r{reduction}_opt{max_optimizer_steps}.npz"
+  )
+
+
 def _strategy_is_compatible(
     strategy: BandInvMFStrategy, request: BandInvMFFitRequest
 ) -> bool:
@@ -99,6 +135,30 @@ def _metadata_is_compatible(path: Path, request: BandInvMFFitRequest) -> bool:
       metadata.workload_type == "nesterov-trajectory"
       and metadata.momentum == request.momentum
       and metadata.learning_rate == request.learning_rate
+      and metadata.reduction == request.reduction
+      and metadata.max_optimizer_steps == request.max_optimizer_steps
+  )
+
+
+def _prefix_sum_strategy_is_compatible(
+    strategy: BandInvMFStrategy, request: PrefixSumBandInvMFFitRequest
+) -> bool:
+  return (
+      strategy.horizon == request.horizon
+      and strategy.bandwidth == request.bandwidth
+      and strategy.min_sep == request.min_sep
+      and strategy.max_participations == request.max_participations
+  )
+
+
+def _prefix_sum_metadata_is_compatible(
+    path: Path, request: PrefixSumBandInvMFFitRequest
+) -> bool:
+  metadata = load_bandinv_strategy_metadata(path)
+  return (
+      metadata.workload_type == "prefix-sum"
+      and metadata.momentum is None
+      and metadata.learning_rate is None
       and metadata.reduction == request.reduction
       and metadata.max_optimizer_steps == request.max_optimizer_steps
   )
@@ -240,14 +300,103 @@ def get_or_fit_strategy(
   return snapshot.path, snapshot.strategy, action
 
 
+def _load_compatible_prefix_sum_snapshot_unlocked(
+    path: Path, request: PrefixSumBandInvMFFitRequest
+) -> LoadedStrategySnapshot | None:
+  try:
+    strategy = load_bandinv_strategy(path)
+    if _prefix_sum_strategy_is_compatible(strategy, request) and _prefix_sum_metadata_is_compatible(
+        path, request
+    ):
+      return LoadedStrategySnapshot(path, strategy, file_fingerprint(path))
+  except ValueError:
+    pass
+  return None
+
+
+def require_compatible_prefix_sum_strategy_snapshot(
+    request: PrefixSumBandInvMFFitRequest,
+) -> LoadedStrategySnapshot:
+  """Loads the requested prefix-sum strategy or fails; used for strict checkpoint resume."""
+  path = prefix_sum_strategy_artifact_path(
+      request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
+      max_participations=request.max_participations, bandwidth=request.bandwidth,
+      reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+  )
+  with file_lock(path):
+    snapshot = _load_compatible_prefix_sum_snapshot_unlocked(path, request)
+  if snapshot is None:
+    raise ValueError("required compatible prefix-sum BandInvMF strategy artifact is missing or invalid")
+  return snapshot
+
+
+def get_or_fit_prefix_sum_strategy_snapshot(
+    request: PrefixSumBandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  """Returns the exact published prefix-sum snapshot or fits it under the artifact lock."""
+  if request.bandwidth > request.horizon:
+    raise ValueError("strategy.bandwidth must not exceed derived horizon")
+  path = prefix_sum_strategy_artifact_path(
+      request.strategy_dir,
+      horizon=request.horizon,
+      min_sep=request.min_sep,
+      max_participations=request.max_participations,
+      bandwidth=request.bandwidth,
+      reduction=request.reduction,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  initial_fingerprint = _artifact_fingerprint(path)
+  if not request.force_refit:
+    existing = _load_compatible_prefix_sum_snapshot_unlocked(path, request)
+  with file_lock(path):
+    existing = _load_compatible_prefix_sum_snapshot_unlocked(path, request)
+    if existing is not None and (
+        not request.force_refit or existing.sha256 != initial_fingerprint
+    ):
+      return existing, "reuse"
+    # workload_coef=None => default prefix-sum (all-ones) workload.
+    fitted = fit_strategy(
+        request.horizon,
+        request.bandwidth,
+        request.min_sep,
+        max_participations=request.max_participations,
+        workload_coef=None,
+        max_optimizer_steps=request.max_optimizer_steps,
+        reduction=request.reduction,
+    )
+    with atomic_temporary_path(path) as temporary:
+      save_bandinv_strategy(
+          temporary,
+          fitted,
+          reduction=request.reduction,
+          workload_type="prefix-sum",
+          momentum=None,
+          learning_rate=None,
+          max_optimizer_steps=request.max_optimizer_steps,
+      )
+      if _load_compatible_prefix_sum_snapshot_unlocked(temporary, request) is None:
+        raise ValueError("fitted prefix-sum BandInvMF artifact failed validation")
+      atomic_replace(temporary, path)
+    snapshot = _load_compatible_prefix_sum_snapshot_unlocked(path, request)
+    if snapshot is None:
+      raise ValueError("published prefix-sum BandInvMF artifact failed validation")
+    return snapshot, "fit"
+
+
 __all__ = [
     "BandInvMFFitRequest",
+    "PrefixSumBandInvMFFitRequest",
     "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
     "get_or_fit_strategy_snapshot",
+    "get_or_fit_prefix_sum_strategy_snapshot",
     "load_strategy_snapshot",
     "require_compatible_strategy",
     "require_compatible_strategy_snapshot",
+    "require_compatible_prefix_sum_strategy_snapshot",
     "strategy_artifact_path",
+    "prefix_sum_strategy_artifact_path",
 ]

@@ -14,6 +14,7 @@ from .nonamplified_dpsgd import NonAmplifiedDPSGDState
 from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_dpadamw import NonAmplifiedDPAdamWState
 from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
+from .nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
 from .nonamplified_linear import NonAmplifiedBandInvState
 from .file_locking import atomic_replace, atomic_temporary_path, file_lock
 
@@ -27,8 +28,8 @@ def _concrete_step(value: Any, name: str) -> int:
 
 def _validate_steps(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
-            NonAmplifiedDPSGDState | NonAmplifiedDPMuonState |
-            NonAmplifiedDPAdamWState), current_step: int
+            NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
+            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState), current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -38,6 +39,11 @@ def _validate_steps(
     if int(current_step) != nesterov_step or int(current_step) != noise_step:
       raise ValueError("current_step must equal nesterov_state.step and noise_state.step")
   elif isinstance(state, NonAmplifiedBandInvDPMuonState):
+    optimizer_step = _concrete_step(state.step, "step")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if int(current_step) != optimizer_step or int(current_step) != noise_step:
+      raise ValueError("current_step must equal state.step and noise_state.step")
+  elif isinstance(state, NonAmplifiedBandInvDPAdamWState):
     optimizer_step = _concrete_step(state.step, "step")
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
     if int(current_step) != optimizer_step or int(current_step) != noise_step:
@@ -62,8 +68,8 @@ def save_checkpoint(
     path: str | Path,
     *,
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
-            NonAmplifiedDPSGDState | NonAmplifiedDPMuonState |
-            NonAmplifiedDPAdamWState),
+            NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
+            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState),
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],

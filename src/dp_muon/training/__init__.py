@@ -12,6 +12,11 @@ from .nonamplified_bandinv_dpmuon import (
     init_nonamplified_bandinv_dpmuon_state,
     make_nonamplified_bandinv_dpmuon_train_step,
 )
+from .nonamplified_bandinv_dpadamw import (
+    NonAmplifiedBandInvDPAdamWState,
+    init_nonamplified_bandinv_dpadamw_state,
+    make_nonamplified_bandinv_dpadamw_train_step,
+)
 from .checkpoint import load_checkpoint, save_checkpoint
 from .nonamplified_dpadamw import (
     NonAmplifiedDPAdamWState,
@@ -34,13 +39,16 @@ from .nonamplified_dpmuon import (
 __all__ = [
     "NonAmplifiedBandInvState",
     "NonAmplifiedBandInvDPMuonState",
+    "NonAmplifiedBandInvDPAdamWState",
     "NonAmplifiedDPAdamWState",
     "NonAmplifiedDPSGDState",
     "NonAmplifiedDPMuonState",
     "init_nonamplified_bandinv_state",
     "init_nonamplified_bandinv_dpmuon_state",
+    "init_nonamplified_bandinv_dpadamw_state",
     "make_nonamplified_bandinv_train_step",
     "make_nonamplified_bandinv_dpmuon_train_step",
+    "make_nonamplified_bandinv_dpadamw_train_step",
     "init_nonamplified_dpadamw_state",
     "make_nonamplified_dpadamw_optimizer",
     "make_nonamplified_dpadamw_train_step",
