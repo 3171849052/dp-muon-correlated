@@ -20,6 +20,12 @@ from dp_muon.training.cifar10_dpmuon_experiment import (
     resolve_output_log_dir as resolve_dpmuon_log_dir,
     run_cifar10_dpmuon,
 )
+from dp_muon.training.cifar10_dpadamw_experiment import (
+    load_cifar10_dpadamw_config,
+    prepare_cifar10_dpadamw_run,
+    resolve_output_log_dir as resolve_dpadamw_log_dir,
+    run_cifar10_dpadamw,
+)
 from dp_muon.training.cifar10_bandinv_dpmuon_experiment import (
     load_cifar10_bandinv_dpmuon_config,
     prepare_cifar10_bandinv_dpmuon_run,
@@ -50,10 +56,10 @@ def _config_algorithm(path: str) -> str:
         "config.algorithm is required and must be one of: bandinv, dpsgd, "
         "dpmuon, dp-muon-correlated-naive"
     )
-  if algorithm not in {"bandinv", "dpsgd", "dpmuon", "dp-muon-correlated-naive"}:
+  if algorithm not in {"bandinv", "dpsgd", "dpmuon", "dpadamw", "dp-muon-correlated-naive"}:
     raise ValueError(
         f"unknown config.algorithm {algorithm!r}; expected: bandinv, dpsgd, "
-        "dpmuon, dp-muon-correlated-naive"
+        "dpmuon, dpadamw, dp-muon-correlated-naive"
     )
   return algorithm
 
@@ -73,6 +79,7 @@ def main() -> None:
     print(
         resolve_bandinv_dpmuon_log_dir(args.config)
         if algorithm == "dp-muon-correlated-naive"
+        else resolve_dpadamw_log_dir(args.config) if algorithm == "dpadamw"
         else resolve_dpmuon_log_dir(args.config) if algorithm == "dpmuon"
         else resolve_dpsgd_log_dir(args.config) if algorithm == "dpsgd"
         else resolve_output_log_dir(args.config)
@@ -82,6 +89,7 @@ def main() -> None:
     config = (
         load_cifar10_bandinv_dpmuon_config(args.config)
         if algorithm == "dp-muon-correlated-naive"
+        else load_cifar10_dpadamw_config(args.config) if algorithm == "dpadamw"
         else load_cifar10_dpmuon_config(args.config) if algorithm == "dpmuon"
         else load_cifar10_dpsgd_momentum_config(args.config) if algorithm == "dpsgd"
         else load_cifar10_nonamplified_config(args.config)
@@ -92,6 +100,7 @@ def main() -> None:
     paths = (
         prepare_cifar10_bandinv_dpmuon_run(args.config)
         if algorithm == "dp-muon-correlated-naive"
+        else prepare_cifar10_dpadamw_run(args.config) if algorithm == "dpadamw"
         else prepare_cifar10_dpmuon_run(args.config) if algorithm == "dpmuon"
         else prepare_cifar10_dpsgd_momentum_run(args.config) if algorithm == "dpsgd"
         else prepare_cifar10_nonamplified_run(args.config)
@@ -103,6 +112,13 @@ def main() -> None:
       run_cifar10_bandinv_dpmuon(args.config)
     else:
       run_cifar10_bandinv_dpmuon(
+          args.config, resume_checkpoint=args.resume_checkpoint, run_dir=args.run_dir
+      )
+  elif algorithm == "dpadamw":
+    if args.resume_checkpoint is None and args.run_dir is None:
+      run_cifar10_dpadamw(args.config)
+    else:
+      run_cifar10_dpadamw(
           args.config, resume_checkpoint=args.resume_checkpoint, run_dir=args.run_dir
       )
   elif algorithm == "dpmuon":

@@ -307,7 +307,7 @@ def test_pretrained_snapshot_keeps_params_and_sha_in_one_locked_version(tmp_path
 def test_all_trainers_share_pretrained_snapshot_helper():
   import inspect
   source = inspect.getsource(cifar10_driver)
-  assert source.count("load_pretrained_snapshot(config.pretrained") == 4
+  assert source.count("load_pretrained_snapshot(config.pretrained") == 5
 
 
 def test_manual_fit_publication_is_loadable_and_failure_does_not_publish(tmp_path, monkeypatch):
