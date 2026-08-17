@@ -3,6 +3,7 @@ from dataclasses import replace
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
 import pytest
 
 from dp_muon.privacy import calibrate_nonamplified_iid
@@ -65,6 +66,8 @@ def test_one_full_tree_noise_sample_and_reproducible_jit(monkeypatch):
   assert len(query_calls) == 2
   # Noise tree matches the parameter PyTree structure.
   assert jax.tree_util.tree_structure(calls[0][0]) == jax.tree_util.tree_structure(initial.params)
+  # AdamW only sees the private_grad by construction: the monkeypatched noise
+  # adds a known constant to every leaf, and the optimizer receives the sum.
   # Repeated invocations with the same seed produce identical results.
   for actual, expected in zip(jax.tree_util.tree_leaves(repeated.params), jax.tree_util.tree_leaves(eager.params), strict=True):
     np.testing.assert_allclose(actual, expected)
@@ -77,33 +80,77 @@ def test_one_full_tree_noise_sample_and_reproducible_jit(monkeypatch):
 
 
 def test_zero_noise_matches_clean_adamw_update():
-  step, optimizer = _make_step(0.0)
-  initial = init_nonamplified_dpadamw_state(_params(), jax.random.key(4), optimizer)
+  """DP-AdamW with noise_std=0 must produce the same result as plain optax.adamw."""
+  step, step_optimizer = _make_step(0.0)
+  initial = init_nonamplified_dpadamw_state(_params(), jax.random.key(4), step_optimizer)
   batch = {"x": jnp.array([1.0], jnp.float32)}
   actual = step(initial, batch)
+  # Independent reference: create a clean optax.adamw that is NOT the one
+  # returned by make_nonamplified_dpadamw_train_step.
+  reference_optimizer = optax.adamw(
+      learning_rate=0.1, b1=0.9, b2=0.999, eps=1e-8, weight_decay=0.0,
+  )
   clean_grad = jax.grad(_loss)(initial.params, batch)
-  updates, expected_state = optimizer.update(clean_grad, initial.optimizer_state, initial.params)
-  expected_params = jax.tree_util.tree_map(lambda p, u: p + u, initial.params, updates)
-  for actual_leaf, expected_leaf in zip(jax.tree_util.tree_leaves(actual.params), jax.tree_util.tree_leaves(expected_params), strict=True):
+  ref_updates, ref_state = reference_optimizer.update(
+      clean_grad, reference_optimizer.init(initial.params), initial.params
+  )
+  expected_params = jax.tree_util.tree_map(lambda p, u: p + u, initial.params, ref_updates)
+  # Compare params leaf-by-leaf.
+  for actual_leaf, expected_leaf in zip(
+      jax.tree_util.tree_leaves(actual.params),
+      jax.tree_util.tree_leaves(expected_params),
+      strict=True,
+  ):
     np.testing.assert_allclose(actual_leaf, expected_leaf)
-  assert jax.tree_util.tree_structure(actual.optimizer_state) == jax.tree_util.tree_structure(expected_state)
+  # Compare optimizer state numerically (not just structure).
+  # Both states are optax AdamW states with the same hyper-parameters, so every
+  # leaf (mu, nu, step) should be identical after one step on the same gradient.
+  actual_leaves = list(jax.tree_util.tree_leaves(actual.optimizer_state))
+  expected_leaves = list(jax.tree_util.tree_leaves(ref_state))
+  assert len(actual_leaves) == len(expected_leaves)
+  for actual_leaf, expected_leaf in zip(actual_leaves, expected_leaves):
+    np.testing.assert_allclose(np.asarray(actual_leaf), np.asarray(expected_leaf))
 
 
 def test_checkpointed_optimizer_resumes_identically(tmp_path):
-  step, optimizer = _make_step(0.0)
+  """Checkpoint resume must preserve AdamW moments, DP RNG, and step counter."""
+  noise_std = 0.2
+  step, optimizer = _make_step(noise_std)
   initial = init_nonamplified_dpadamw_state(_params(), jax.random.key(8), optimizer)
   batches = [{"x": jnp.array([value], jnp.float32)} for value in (1.0, -0.5, 2.0)]
+  # A: uninterrupted training over all batches.
   uninterrupted = initial
   for batch in batches:
     uninterrupted = step(uninterrupted, batch)
+  # B: run first batch, save checkpoint, load, run remaining.
   resumed = step(initial, batches[0])
   checkpoint = tmp_path / "dpadamw.pkl"
-  save_checkpoint(checkpoint, state=resumed, current_step=1, experiment_config={"test": True}, artifact_identifiers={"algorithm": "dpadamw"})
-  resumed = load_checkpoint(checkpoint)["state"]
+  save_checkpoint(
+      checkpoint, state=resumed, current_step=1,
+      experiment_config={"test": True}, artifact_identifiers={"algorithm": "dpadamw"},
+  )
+  loaded = load_checkpoint(checkpoint)["state"]
   for batch in batches[1:]:
-    resumed = step(resumed, batch)
-  for actual, expected in zip(jax.tree_util.tree_leaves(resumed.params), jax.tree_util.tree_leaves(uninterrupted.params), strict=True):
-    np.testing.assert_allclose(actual, expected)
+    loaded = step(loaded, batch)
+  # Verify all state fields are identical.
+  for actual_leaf, expected_leaf in zip(
+      jax.tree_util.tree_leaves(loaded.params),
+      jax.tree_util.tree_leaves(uninterrupted.params),
+      strict=True,
+  ):
+    np.testing.assert_allclose(np.asarray(actual_leaf), np.asarray(expected_leaf))
+  for actual_leaf, expected_leaf in zip(
+      jax.tree_util.tree_leaves(loaded.optimizer_state),
+      jax.tree_util.tree_leaves(uninterrupted.optimizer_state),
+      strict=True,
+  ):
+    np.testing.assert_allclose(np.asarray(actual_leaf), np.asarray(expected_leaf))
+  np.testing.assert_array_equal(
+      jax.random.key_data(loaded.rng_key), jax.random.key_data(uninterrupted.rng_key),
+  )
+  np.testing.assert_array_equal(
+      np.asarray(loaded.step), np.asarray(uninterrupted.step),
+  )
 
 
 def test_learning_rate_parameter_validation():

@@ -42,14 +42,22 @@ def test_derives_fixed_cycle_participation():
   assert (participation.horizon, participation.min_sep, participation.max_participations) == (488, 97, 5)
 
 
-def test_yaml_runner_rejects_invalid_adjacency(tmp_path):
-  config_path = tmp_path / "bad_adjacency.yaml"
+def test_yaml_accepts_replace_one_adjacency(tmp_path):
+  config_path = tmp_path / "replace_one.yaml"
   config_path.write_text(
       CONFIG.read_text(encoding="utf-8").replace("adjacency: add_remove", "adjacency: replace_one"),
       encoding="utf-8",
   )
   config = load_cifar10_dpadamw_config(config_path)
   assert config.adjacency == "replace_one"
+
+
+def test_yaml_runner_rejects_invalid_adjacency(tmp_path):
+  config_path = tmp_path / "invalid_adj.yaml"
+  content = CONFIG.read_text(encoding="utf-8").replace("adjacency: add_remove", "adjacency: invalid")
+  config_path.write_text(content, encoding="utf-8")
+  with pytest.raises(ValueError, match="privacy.adjacency must be"):
+    load_cifar10_dpadamw_config(config_path)
 
 
 def test_yaml_runner_rejects_unknown_algorithm(tmp_path):

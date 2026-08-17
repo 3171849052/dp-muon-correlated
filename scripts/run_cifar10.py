@@ -54,7 +54,7 @@ def _config_algorithm(path: str) -> str:
   if not isinstance(algorithm, str):
     raise ValueError(
         "config.algorithm is required and must be one of: bandinv, dpsgd, "
-        "dpmuon, dp-muon-correlated-naive"
+        "dpmuon, dpadamw, dp-muon-correlated-naive"
     )
   if algorithm not in {"bandinv", "dpsgd", "dpmuon", "dpadamw", "dp-muon-correlated-naive"}:
     raise ValueError(
