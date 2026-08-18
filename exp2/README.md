@@ -27,13 +27,24 @@ nonlinear AdamW moments and bias corrections, then applies
 cancellation.  An optional `R_linear` for `adam-m-aware` is the same recurrence
 with the first-moment linear direction, and is only a reference.
 
-## Run
+## Run the complete experiment
 
 ```bash
+conda activate curve
 python exp2/collect_trajectory.py --config config/cifar10_bandinv_dpadamw_naive.yaml \
-  --steps 64 --output exp2/trajectory.npz
+  --output exp2/results/replay_full_horizon/trajectory.npz
+python exp2/fit_strategies.py --config config/cifar10_bandinv_dpadamw_naive.yaml \
+  --trajectory exp2/results/replay_full_horizon/trajectory.npz \
+  --strategy-dir exp2/results/replay_full_horizon/strategies
 python exp2/run.py --config exp2/config.yaml
+python exp2/full_training.py --config config/cifar10_bandinv_dpadamw_naive.yaml \
+  --strategy-dir exp2/results/replay_full_horizon/strategies \
+  --output-dir exp2/results/full_training --seeds 0
 ```
+
+The config derives `horizon=floor(epochs*N/batch)=488`, `min_sep=floor(N/batch)=97`,
+and `max_participations=epochs=5` from CIFAR-10; these values are never
+hand-written in Exp2.
 
 `run.py` uses 1,000 samples, seed 0, and targets `[0.01, 0.1, 1.0]` by
 default, with `sample_batch_size=16`.  Aggregation keeps per-sample energy sums
@@ -46,5 +57,13 @@ also contain a deterministic paired-bootstrap 95% CI for `delta_R`.
 The `R_linear` and `adamw_minus_linear_R` fields are descriptive references for
 the m-aware linear system.  They are not interpreted as a signed
 "nonlinearity cancellation loss"; only `delta_R` is the strategy comparison.
-Outputs are `results/results.csv`, `results/prefix_results.csv`, and
-`results/summary.json`.
+Replay outputs are `results/replay_full_horizon/results.csv`,
+`prefix_results.csv`, and `summary.json`. Full training outputs are in
+`results/full_training/`, with one `metrics_*.csv` per strategy/seed,
+`comparison.csv`, checkpoints, and `summary.json`.
+
+Replay answers question A, `Delta R = R_m-aware - R_naive`; a negative value
+means better temporal cancellation. Full training answers question B by
+comparing final/best test loss and accuracy at the same `(epsilon, delta)`.
+The training result is not inferred from replay: m-aware cancellation does not
+imply an accuracy improvement.

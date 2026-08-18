@@ -1,8 +1,10 @@
-# Create exp2/trajectory.npz first with collect_trajectory.py.
-trajectory: exp2/trajectory.npz
+# Horizon and fixed-cycle participation values are derived from the base config
+# and the loaded CIFAR-10 dataset. They are intentionally not duplicated here.
+base_config: config/cifar10_bandinv_dpadamw_naive.yaml
+trajectory: exp2/results/replay_full_horizon/trajectory.npz
 trajectory_config: config/cifar10_bandinv_dpadamw_naive.yaml
-strategy_dir: exp2/strategies
-output_dir: exp2/results
+strategy_dir: exp2/results/replay_full_horizon/strategies
+output_dir: exp2/results/replay_full_horizon
 
 samples: 1000
 seed: 0
@@ -13,7 +15,6 @@ bootstrap_replicates: 2000
 
 strategy:
   bandwidth: 4
-  min_sep: 1
-  max_participations: null
   reduction: mean
   max_optimizer_steps: 1000
+  force_refit: false

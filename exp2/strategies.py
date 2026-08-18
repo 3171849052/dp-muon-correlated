@@ -29,12 +29,18 @@ class StrategySpec:
   horizon: int
   bandwidth: int
   min_sep: int
-  max_participations: int | None
+  max_participations: int
   learning_rate: float
   beta1: float
   weight_decay: float
   reduction: str = "mean"
   max_optimizer_steps: int = 1000
+
+  def __post_init__(self) -> None:
+    if self.horizon < 1 or self.bandwidth < 1 or self.bandwidth > self.horizon:
+      raise ValueError("strategy horizon and bandwidth are invalid")
+    if self.min_sep < 1 or self.max_participations < 1:
+      raise ValueError("strategy min_sep and max_participations must be positive")
 
 
 def workload_for(spec: StrategySpec):
@@ -70,10 +76,12 @@ def save_strategy(path: str | Path, strategy: BandInvMFStrategy, spec: StrategyS
   )
 
 
-def load_or_fit_strategy(path: str | Path, spec: StrategySpec) -> BandInvMFStrategy:
+def load_or_fit_strategy(
+    path: str | Path, spec: StrategySpec, *, force_refit: bool = False
+) -> BandInvMFStrategy:
   """Loads a compatible artifact or fits and writes it at ``path``."""
   path = Path(path)
-  if path.exists():
+  if path.exists() and not force_refit:
     strategy = load_bandinv_strategy(path)
     metadata = load_bandinv_strategy_metadata(path)
     expected_matrix = spec.name == ADAM_M_AWARE
@@ -89,6 +97,7 @@ def load_or_fit_strategy(path: str | Path, spec: StrategySpec) -> BandInvMFStrat
         and metadata.reduction == spec.reduction
         and matches(metadata.learning_rate, spec.learning_rate)
         and matches(metadata.weight_decay, spec.weight_decay)
+        and metadata.max_optimizer_steps == spec.max_optimizer_steps
         and (strategy.workload_matrix is not None) == expected_matrix
         and (spec.name != ADAM_M_AWARE or matches(metadata.momentum, spec.beta1))
     ):

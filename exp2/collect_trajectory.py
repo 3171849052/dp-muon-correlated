@@ -6,21 +6,23 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
-from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 import jax
 import numpy as np
-import yaml
-
 from dp_muon.data import iter_logical_batches, load_cifar10
 from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
 from dp_muon.privacy import make_clipped_gradient_query
-from dp_muon.training.cifar10_dpadamw_experiment import load_cifar10_dpadamw_config
+from dp_muon.training.cifar10_bandinv_dpadamw_experiment import (
+    load_cifar10_bandinv_dpadamw_config,
+)
 from dp_muon.training.cifar10_driver import build_fixed_cycle_logical_schedule, cross_entropy_loss
 from dp_muon.training.nonamplified_dpadamw import make_nonamplified_dpadamw_optimizer
+
+from exp2.common import derive_contract
 
 
 def _leaf_at_path(tree: object, parameter_name: str):
@@ -35,54 +37,26 @@ def _leaf_at_path(tree: object, parameter_name: str):
   return current
 
 
-def _load_exp2_config(path: str | Path):
-  """Loads either the IID AdamW schema or the correlated-naive schema.
-
-  Exp2 only replays a clean path, so the correlated config's strategy/privacy
-  sections are intentionally ignored; its public model/training/AdamW fields
-  are still used verbatim.
-  """
-  try:
-    return load_cifar10_dpadamw_config(path)
-  except ValueError as standard_error:
-    try:
-      document = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as error:
-      raise standard_error from error
-    if not isinstance(document, dict) or document.get("algorithm") != "dp-adamw-correlated-naive":
-      raise standard_error
-    try:
-      training = document["training"]
-      adamw = document["adamw"]
-      return SimpleNamespace(
-          data_dir=document["data"]["data_dir"], pretrained=document["model"]["pretrained"],
-          epochs=int(training["epochs"]), logical_batch_size=int(training["logical_batch_size"]),
-          microbatch_size=int(training["microbatch_size"]), clip_norm=float(training["clip_norm"]),
-          seed=int(document["experiment"]["seed"]), learning_rate=float(adamw["learning_rate"]),
-          beta1=float(adamw["beta1"]), beta2=float(adamw["beta2"]), eps=float(adamw["eps"]),
-          weight_decay=float(adamw["weight_decay"]),
-      )
-    except (KeyError, TypeError, ValueError) as error:
-      raise ValueError("invalid correlated-naive config for Exp2 clean trajectory") from error
-
-
 def collect_trajectory(
-    *, config_path: str | Path, parameter_name: str, steps: int = 64,
+    *, config_path: str | Path, parameter_name: str, steps: int | None = None,
     start_step: int = 0, output: str | Path,
 ) -> Path:
   """Runs a clean AdamW path and records its post-clipping gradient leaf."""
-  if steps < 1:
-    raise ValueError("steps must be positive")
   if start_step != 0:
     raise ValueError("Exp2 currently requires start_step == 0")
-  config = _load_exp2_config(config_path)
+  config = load_cifar10_bandinv_dpadamw_config(config_path)
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
-  if steps > (config.epochs * len(train_images)) // config.logical_batch_size:
+  contract = derive_contract(config, num_examples=len(train_images))
+  if steps is None:
+    steps = contract.horizon
+  if steps < 1:
+    raise ValueError("steps must be positive")
+  if steps > contract.horizon:
     raise ValueError("requested clean window exceeds the configured fixed-cycle run")
   schedule = build_fixed_cycle_logical_schedule(
-      num_examples=len(train_images), batch_size=config.logical_batch_size,
-      horizon=steps, min_sep=len(train_images) // config.logical_batch_size,
-      max_participations=config.epochs, seed=config.seed,
+      num_examples=len(train_images), batch_size=config.batch_size,
+      horizon=steps, min_sep=contract.min_sep,
+      max_participations=contract.max_participations, seed=config.seed,
   )
   model = ViTTiny()
   params = load_pretrained_vit_tiny(
@@ -97,7 +71,7 @@ def collect_trajectory(
   )
   clipped_gradient = make_clipped_gradient_query(
       lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
-      clip_norm=config.clip_norm, normalize_by=float(config.logical_batch_size),
+      clip_norm=config.clip_norm, normalize_by=float(config.batch_size),
       batch_argnums=1, keep_batch_dim=True, microbatch_size=config.microbatch_size,
   )
   optimizer_state = optimizer.init(params)
@@ -124,6 +98,13 @@ def collect_trajectory(
       beta1=np.asarray(config.beta1, dtype=np.float64), beta2=np.asarray(config.beta2, dtype=np.float64),
       eps=np.asarray(config.eps, dtype=np.float64), weight_decay=np.asarray(config.weight_decay, dtype=np.float64),
       clip_norm=np.asarray(config.clip_norm, dtype=np.float64),
+      num_examples=np.asarray(contract.num_examples, dtype=np.int64),
+      epochs=np.asarray(contract.epochs, dtype=np.int64),
+      batch_size=np.asarray(contract.batch_size, dtype=np.int64),
+      horizon=np.asarray(contract.horizon, dtype=np.int64),
+      min_sep=np.asarray(contract.min_sep, dtype=np.int64),
+      max_participations=np.asarray(contract.max_participations, dtype=np.int64),
+      effective_epochs=np.asarray(contract.effective_epochs, dtype=np.float64),
   )
   return destination
 
@@ -132,7 +113,8 @@ def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--config", type=Path, default=ROOT / "config/cifar10_bandinv_dpadamw_naive.yaml")
   parser.add_argument("--parameter-name", default="blocks/0/attention/query/kernel")
-  parser.add_argument("--steps", type=int, default=64)
+  parser.add_argument("--steps", type=int, default=None,
+                      help="optional shorter debug window; default is the derived full horizon")
   parser.add_argument("--start-step", type=int, default=0)
   parser.add_argument("--output", type=Path, default=ROOT / "exp2/trajectory.npz")
   args = parser.parse_args()

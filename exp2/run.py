@@ -19,6 +19,7 @@ import yaml
 
 from dp_muon.bandinvmf import BandInvMFStrategy
 
+from exp2.common import contract_dict
 from exp2.strategies import ADAM_M_AWARE, DECAYED_PREFIX, StrategySpec, load_or_fit_strategy
 
 
@@ -36,7 +37,11 @@ def _scalar(archive: np.lib.npyio.NpzFile, name: str) -> Any:
 
 def load_trajectory(path: str | Path) -> dict[str, Any]:
   """Loads the public archive emitted by :mod:`exp2.collect_trajectory`."""
-  required = {"g", "parameter_name", "start_step", "learning_rate", "beta1", "beta2", "eps", "weight_decay"}
+  required = {
+      "g", "parameter_name", "start_step", "learning_rate", "beta1", "beta2", "eps",
+      "weight_decay", "num_examples", "epochs", "batch_size", "horizon", "min_sep",
+      "max_participations", "effective_epochs",
+  }
   with np.load(path, allow_pickle=False) as archive:
     missing = required.difference(archive.files)
     if missing:
@@ -45,14 +50,20 @@ def load_trajectory(path: str | Path) -> dict[str, Any]:
     if g.ndim != 3 or g.shape[0] < 1 or min(g.shape[1:]) < 1 or not np.all(np.isfinite(g)):
       raise ValueError("trajectory g must be finite and have shape (T,m,n)")
     result = {"g": g, "parameter_name": str(_scalar(archive, "parameter_name"))}
-    for name in ("start_step", "learning_rate", "beta1", "beta2", "eps", "weight_decay"):
-      result[name] = int(_scalar(archive, name)) if name == "start_step" else float(_scalar(archive, name))
+    for name in ("start_step", "num_examples", "epochs", "batch_size", "horizon", "min_sep", "max_participations"):
+      result[name] = int(_scalar(archive, name))
+    for name in ("learning_rate", "beta1", "beta2", "eps", "weight_decay", "effective_epochs"):
+      result[name] = float(_scalar(archive, name))
   if result["start_step"] != 0:
     raise ValueError("Exp2 currently requires trajectory start_step == 0")
   if result["learning_rate"] <= 0 or result["eps"] <= 0 or result["weight_decay"] < 0:
     raise ValueError("trajectory AdamW scalar metadata is invalid")
   if not 0 <= result["beta1"] < 1 or not 0 <= result["beta2"] < 1:
     raise ValueError("trajectory beta1 and beta2 must be in [0, 1)")
+  if result["horizon"] != result["g"].shape[0]:
+    raise ValueError("trajectory horizon metadata does not match g")
+  if result["min_sep"] < 1 or result["max_participations"] < 1:
+    raise ValueError("trajectory fixed-cycle metadata is invalid")
   return result
 
 
@@ -321,13 +332,19 @@ def main() -> None:
     raise ValueError("experiment config must be a mapping")
   trajectory = load_trajectory(_resolve(document["trajectory"]))
   fitted = document.get("strategy", {})
+  if "min_sep" in fitted or "max_participations" in fitted:
+    raise ValueError("min_sep and max_participations must be derived from the dataset")
   spec_base = dict(horizon=trajectory["g"].shape[0], learning_rate=trajectory["learning_rate"],
                    beta1=trajectory["beta1"], weight_decay=trajectory["weight_decay"],
-                   bandwidth=int(fitted.get("bandwidth", 4)), min_sep=int(fitted.get("min_sep", 1)),
-                   max_participations=fitted.get("max_participations"), reduction=str(fitted.get("reduction", "mean")),
+                   bandwidth=int(fitted.get("bandwidth", 4)), min_sep=trajectory["min_sep"],
+                   max_participations=trajectory["max_participations"], reduction=str(fitted.get("reduction", "mean")),
                    max_optimizer_steps=int(fitted.get("max_optimizer_steps", 1000)))
   strategy_dir = _resolve(document.get("strategy_dir", "exp2/strategies"))
-  strategies = {name: load_or_fit_strategy(strategy_dir / f"{name}.npz", StrategySpec(name=name, **spec_base))
+  force_refit = bool(fitted.get("force_refit", False))
+  strategies = {name: load_or_fit_strategy(
+      strategy_dir / f"{name}.npz", StrategySpec(name=name, **spec_base),
+      force_refit=force_refit,
+  )
                 for name in (DECAYED_PREFIX, ADAM_M_AWARE)}
   rows, prefixes, summary = run_replay(
       trajectory, strategies=strategies, samples=int(document.get("samples", 1000)), seed=int(document.get("seed", 0)),
@@ -336,6 +353,29 @@ def main() -> None:
       bootstrap_seed=int(document.get("bootstrap_seed", 1)),
       bootstrap_replicates=int(document.get("bootstrap_replicates", 2000)),
   )
+  summary["contract"] = {
+      "num_examples": trajectory["num_examples"],
+      "epochs": trajectory["epochs"],
+      "batch_size": trajectory["batch_size"],
+      "horizon": trajectory["horizon"],
+      "min_sep": trajectory["min_sep"],
+      "max_participations": trajectory["max_participations"],
+  }
+  summary["strategies"] = {
+      name: {
+          "workload_type": name,
+          "workload_representation": (
+              "general-causal-matrix" if strategy.workload_matrix is not None
+              else "decayed-prefix-coef"
+          ),
+          "horizon": strategy.horizon,
+          "min_sep": strategy.min_sep,
+          "max_participations": strategy.max_participations,
+          "sensitivity_squared": float(strategy.sensitivity_squared),
+          "objective": float(strategy.objective),
+      }
+      for name, strategy in strategies.items()
+  }
   output_dir = _resolve(document.get("output_dir", "exp2/results"))
   output_dir.mkdir(parents=True, exist_ok=True)
   _write_csv(output_dir / "results.csv", rows, [

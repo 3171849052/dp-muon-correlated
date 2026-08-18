@@ -20,7 +20,7 @@ def _trajectory():
 def _strategy(name):
   matrix = np.eye(3, dtype=np.float32)
   coef = np.array([1.0], dtype=np.float32)
-  return BandInvMFStrategy(horizon=3, bandwidth=1, min_sep=1, max_participations=None,
+  return BandInvMFStrategy(horizon=3, bandwidth=1, min_sep=2, max_participations=2,
       workload_coef=None if name == ADAM_M_AWARE else jnp.ones(3),
       workload_matrix=matrix if name == ADAM_M_AWARE else None,
       noising_coef=jnp.asarray(coef), strategy_coef=jnp.ones(3),
@@ -120,8 +120,8 @@ def test_aggregation_is_invariant_to_replay_batch_size():
 
 
 def test_workloads_use_required_representations():
-  spec_a = StrategySpec(DECAYED_PREFIX, 4, 2, 1, None, 0.1, 0.8, 0.2)
-  spec_m = StrategySpec(ADAM_M_AWARE, 4, 2, 1, None, 0.1, 0.8, 0.2)
+  spec_a = StrategySpec(DECAYED_PREFIX, 4, 2, 2, 2, 0.1, 0.8, 0.2)
+  spec_m = StrategySpec(ADAM_M_AWARE, 4, 2, 2, 2, 0.1, 0.8, 0.2)
   assert "workload_coef" in workload_for(spec_a)
   assert "workload_matrix" in workload_for(spec_m)
   np.testing.assert_allclose(workload_for(spec_a)["workload_coef"], decayed_prefix_sum_workload_coef(4, .1, .2))

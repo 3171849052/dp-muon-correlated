@@ -1,0 +1,45 @@
+{
+  "adamw": {
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-08,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.01
+  },
+  "config": "/media/data/data/lt/dp-muon-correlated/config/cifar10_bandinv_dpadamw_naive.yaml",
+  "contract": {
+    "batch_size": 512,
+    "effective_epochs": 4.99712,
+    "epochs": 5,
+    "horizon": 488,
+    "max_participations": 5,
+    "min_sep": 97,
+    "num_examples": 50000
+  },
+  "strategies": {
+    "adam-m-aware": {
+      "action": "fit",
+      "artifact": "/media/data/data/lt/dp-muon-correlated/exp2/results/replay_full_horizon/strategies/adam-m-aware.npz",
+      "bandwidth": 4,
+      "horizon": 488,
+      "max_participations": 5,
+      "min_sep": 97,
+      "objective": 2.1219593691057526e-05,
+      "sensitivity_squared": 24.85852813720703,
+      "workload_representation": "general-causal-matrix",
+      "workload_type": "adam-m-aware"
+    },
+    "decayed-prefix": {
+      "action": "fit",
+      "artifact": "/media/data/data/lt/dp-muon-correlated/exp2/results/replay_full_horizon/strategies/decayed-prefix.npz",
+      "bandwidth": 4,
+      "horizon": 488,
+      "max_participations": 5,
+      "min_sep": 97,
+      "objective": 62.15800094604492,
+      "sensitivity_squared": 25.295289993286133,
+      "workload_representation": "decayed-prefix-coef",
+      "workload_type": "decayed-prefix"
+    }
+  }
+}
