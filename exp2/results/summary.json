@@ -1,0 +1,85 @@
+{
+  "paired_latent_draws": true,
+  "samples": 1000,
+  "seed": 0,
+  "targets": {
+    "0.01": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 7.774324867970938,
+        "adamw_minus_linear_R": -5.681255166004368
+      },
+      "delta_R": -0.056409549430865624,
+      "strategies": {
+        "adam-m-aware": {
+          "D": 0.0018183827122251104,
+          "J": 0.003806001761538175,
+          "R": 2.09306970196657,
+          "actual_median_relative_noise_ratio": 0.009999999999999985,
+          "global_scalar": 3.910703144034336e-08
+        },
+        "decayed-prefix": {
+          "D": 0.0018418125074797296,
+          "J": 0.003958937769791963,
+          "R": 2.1494792513974357,
+          "actual_median_relative_noise_ratio": 0.01000000000000004,
+          "global_scalar": 3.9325597057754854e-08
+        }
+      }
+    },
+    "0.1": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 7.774324867970936,
+        "adamw_minus_linear_R": -3.1528024268425936
+      },
+      "delta_R": -0.14083293966620847,
+      "strategies": {
+        "adam-m-aware": {
+          "D": 0.045088929307041836,
+          "J": 0.20837949863894326,
+          "R": 4.621522441128342,
+          "actual_median_relative_noise_ratio": 0.09999999999999974,
+          "global_scalar": 3.910703144034336e-07
+        },
+        "decayed-prefix": {
+          "D": 0.04601695280210229,
+          "J": 0.21914908278486073,
+          "R": 4.762355380794551,
+          "actual_median_relative_noise_ratio": 0.10000000000000048,
+          "global_scalar": 3.932559705775486e-07
+        }
+      }
+    },
+    "1.0": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 7.774324867970935,
+        "adamw_minus_linear_R": 0.14124445925052065
+      },
+      "delta_R": -0.13016728482396456,
+      "strategies": {
+        "adam-m-aware": {
+          "D": 0.43295089186190805,
+          "J": 3.427052799815293,
+          "R": 7.915569327221456,
+          "actual_median_relative_noise_ratio": 0.9999999999999997,
+          "global_scalar": 3.910703144034335e-06
+        },
+        "decayed-prefix": {
+          "D": 0.4427370332794981,
+          "J": 3.5621455581652297,
+          "R": 8.04573661204542,
+          "actual_median_relative_noise_ratio": 1.0000000000000022,
+          "global_scalar": 3.932559705775486e-06
+        }
+      }
+    }
+  },
+  "trajectory": {
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-08,
+    "learning_rate": 0.001,
+    "parameter_name": "blocks/0/attention/query/kernel",
+    "start_step": 0,
+    "weight_decay": 0.01
+  }
+}

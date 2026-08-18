@@ -1,0 +1,16 @@
+# Create exp2/trajectory.npz first with collect_trajectory.py.
+trajectory: exp2/trajectory.npz
+strategy_dir: exp2/strategies
+output_dir: exp2/results
+
+samples: 1000
+seed: 0
+sample_batch_size: 16
+target_relative_noise: [0.01, 0.1, 1.0]
+
+strategy:
+  bandwidth: 4
+  min_sep: 1
+  max_participations: null
+  reduction: mean
+  max_optimizer_steps: 1000
