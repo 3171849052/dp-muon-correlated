@@ -15,7 +15,7 @@ from .strategy import BandInvMFStrategy
 
 
 _REQUIRED_FIELDS = (
-    "horizon", "bandwidth", "min_sep", "max_participations", "workload_coef",
+    "horizon", "bandwidth", "min_sep", "max_participations",
     "noising_coef", "strategy_coef", "sensitivity_squared", "objective",
 )
 
@@ -47,6 +47,18 @@ def _finite_float_array(value: np.ndarray, name: str, shape: tuple[int, ...] | N
   if not np.issubdtype(array.dtype, np.floating) or (shape is not None and array.shape != shape):
     expected = "a floating array" if shape is None else f"a floating array with shape {shape}"
     raise ValueError(f"artifact field {name!r} must be {expected}")
+  if not np.all(np.isfinite(array)):
+    raise ValueError(f"artifact field {name!r} must contain finite values")
+  return jnp.asarray(array)
+
+
+def _finite_numeric_array(
+    value: np.ndarray, name: str, shape: tuple[int, ...]
+) -> jnp.ndarray:
+  """Validates a finite numeric workload matrix, including integer inputs."""
+  array = np.asarray(value)
+  if not np.issubdtype(array.dtype, np.number) or array.shape != shape:
+    raise ValueError(f"artifact field {name!r} must be numeric with shape {shape}")
   if not np.all(np.isfinite(array)):
     raise ValueError(f"artifact field {name!r} must contain finite values")
   return jnp.asarray(array)
@@ -94,7 +106,20 @@ def load_bandinv_strategy(path: str | Path) -> BandInvMFStrategy:
       max_participations = None if raw_max_participations == -1 else raw_max_participations
       if bandwidth > horizon:
         raise ValueError("artifact bandwidth must not exceed horizon")
-      workload_coef = _finite_float_array(archive["workload_coef"], "workload_coef", (horizon,))
+      has_coef = "workload_coef" in archive.files
+      has_matrix = "workload_matrix" in archive.files
+      if has_coef == has_matrix:
+        raise ValueError("strategy artifact must contain exactly one workload field")
+      workload_coef = None
+      workload_matrix = None
+      if has_coef:
+        workload_coef = _finite_float_array(archive["workload_coef"], "workload_coef", (horizon,))
+      else:
+        workload_matrix = _finite_numeric_array(
+            archive["workload_matrix"], "workload_matrix", (horizon, horizon)
+        )
+        if np.any(np.triu(np.asarray(workload_matrix), k=1) != 0):
+          raise ValueError("artifact field 'workload_matrix' must be causal")
       noising_coef = _finite_float_array(archive["noising_coef"], "noising_coef", (bandwidth,))
       strategy_coef = _finite_float_array(archive["strategy_coef"], "strategy_coef")
       if strategy_coef.ndim != 1 or strategy_coef.shape[0] != horizon:
@@ -115,6 +140,7 @@ def load_bandinv_strategy(path: str | Path) -> BandInvMFStrategy:
       strategy_coef=strategy_coef,
       sensitivity_squared=sensitivity_squared,
       objective=objective,
+      workload_matrix=workload_matrix,
   )
 
 
@@ -173,6 +199,8 @@ def save_bandinv_strategy(
     weight_decay: float | None = None,
 ) -> None:
   """Writes a strategy and its cache-compatibility metadata."""
+  if (strategy.workload_coef is None) == (strategy.workload_matrix is None):
+    raise ValueError("strategy must contain exactly one workload representation")
   output = Path(path)
   output.parent.mkdir(parents=True, exist_ok=True)
   # Passing a file object avoids numpy's automatic ".npz" suffix addition,
@@ -186,7 +214,11 @@ def save_bandinv_strategy(
         max_participations=np.asarray(
             -1 if strategy.max_participations is None else strategy.max_participations
         ),
-        workload_coef=np.asarray(strategy.workload_coef),
+        **(
+            {"workload_coef": np.asarray(strategy.workload_coef)}
+            if strategy.workload_coef is not None
+            else {"workload_matrix": np.asarray(strategy.workload_matrix)}
+        ),
         noising_coef=np.asarray(strategy.noising_coef),
         strategy_coef=np.asarray(strategy.strategy_coef),
         sensitivity_squared=np.asarray(strategy.sensitivity_squared),

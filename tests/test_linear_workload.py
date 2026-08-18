@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from dp_muon.optim import (
+    adam_first_moment_workload_matrix,
     decayed_prefix_sum_workload_coef,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     fixed_lr_nesterov_trajectory_workload_coef,
@@ -64,6 +65,44 @@ def test_adamw_decayed_prefix_workload_is_rho_powers():
   np.testing.assert_allclose(
       decayed_prefix_sum_workload_coef(horizon, learning_rate, weight_decay),
       rho ** jnp.arange(horizon),
+  )
+
+
+def test_adam_first_moment_workload_matches_step_recurrence():
+  horizon, beta, eta, weight_decay = 6, 0.8, 0.03, 0.2
+  actual = np.asarray(adam_first_moment_workload_matrix(horizon, beta, eta, weight_decay))
+  expected = np.zeros((horizon, horizon))
+  for source in range(horizon):
+    gradient = np.zeros(horizon)
+    gradient[source] = 1.0
+    moment = np.zeros(horizon)
+    parameter = np.zeros(horizon)
+    for step in range(horizon):
+      moment = beta * moment + (1.0 - beta) * gradient * (step == source)
+      corrected = moment / (1.0 - beta ** (step + 1))
+      parameter = (1.0 - eta * weight_decay) * parameter - eta * corrected
+      expected[step, source] = -parameter[source]
+  np.testing.assert_allclose(actual, expected, rtol=2e-6, atol=2e-7)
+
+
+def test_adam_first_moment_workload_degenerate_cases():
+  horizon, eta, weight_decay = 5, 0.07, 0.3
+  rho = 1.0 - eta * weight_decay
+  expected_decay = eta * _lower_toeplitz(rho ** jnp.arange(horizon))
+  np.testing.assert_allclose(
+      adam_first_moment_workload_matrix(horizon, 0.0, eta, weight_decay),
+      expected_decay,
+  )
+  # H^m is distinct from Nesterov H; construct its bias-corrected kernel.
+  rows, columns = jnp.indices((horizon, horizon))
+  hm = jnp.where(
+      rows >= columns,
+      (1 - 0.4) * 0.4 ** (rows - columns) / (1 - 0.4 ** (rows + 1)),
+      0.0,
+  )
+  np.testing.assert_allclose(
+      adam_first_moment_workload_matrix(horizon, 0.4, eta, 0.0),
+      eta * _lower_toeplitz(jnp.ones(horizon)) @ hm,
   )
 
 

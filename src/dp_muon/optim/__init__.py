@@ -1,6 +1,7 @@
 """Linear optimizer components used by the Muon baseline."""
 
 from .linear_workload import (
+    adam_first_moment_workload_matrix,
     decayed_prefix_sum_workload_coef,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     fixed_lr_nesterov_trajectory_workload_coef,
@@ -28,6 +29,7 @@ from .sgd_momentum import (
 
 __all__ = [
     "MuonNesterovState",
+    "adam_first_moment_workload_matrix",
     "SGDMomentumState",
     "decayed_prefix_sum_workload_coef",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",

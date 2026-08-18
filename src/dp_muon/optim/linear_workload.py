@@ -74,6 +74,39 @@ def decayed_prefix_sum_workload_coef(
   return jnp.asarray(rho) ** jnp.arange(int(horizon))
 
 
+def adam_first_moment_workload_matrix(
+    horizon: int,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+) -> jax.Array:
+  """Returns the exact lower-triangular Adam first-moment workload.
+
+  Rows use zero-based Adam steps.  The first-moment kernel includes bias
+  correction at the query step, and decoupled weight decay is applied after
+  the moment update, so the result is ``learning_rate * P_rho @ H^m``.
+  """
+  horizon, beta = _validate_configuration(horizon, beta1)
+  learning_rate = _validated_scalar(
+      learning_rate, "learning_rate", lower=0.0, strict_lower=True
+  )
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+  index = jnp.arange(horizon)
+  row = index[:, None]
+  column = index[None, :]
+  lag = row - column
+  causal = row >= column
+  beta_array = jnp.asarray(beta)
+  rho = jnp.asarray(1.0 - learning_rate * weight_decay, dtype=beta_array.dtype)
+  moment = jnp.where(
+      causal,
+      (1.0 - beta_array) * beta_array**lag / (1.0 - beta_array ** (row + 1)),
+      0.0,
+  )
+  decay = jnp.where(causal, rho**lag, 0.0)
+  return jnp.asarray(learning_rate, dtype=moment.dtype) * (decay @ moment)
+
+
 def fixed_lr_nesterov_decayed_trajectory_workload_coef(
     horizon: int, momentum: float, learning_rate: float, weight_decay: float
 ) -> jax.Array:
@@ -98,6 +131,7 @@ def fixed_lr_nesterov_decayed_trajectory_workload_coef(
 
 
 __all__ = [
+    "adam_first_moment_workload_matrix",
     "decayed_prefix_sum_workload_coef",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
