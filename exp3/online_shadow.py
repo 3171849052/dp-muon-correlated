@@ -15,6 +15,7 @@ from dp_muon.bandinvmf import (
 )
 from dp_muon.privacy import ParticipationSpec, PrivacyCalibration, make_clipped_gradient_query
 from dp_muon.training.nonamplified_dpadamw import make_nonamplified_dpadamw_optimizer
+from dp_muon.training.nonamplified_linear import validate_nonamplified_bandinv_privacy_setup
 
 PyTree = Any
 
@@ -90,6 +91,7 @@ def make_online_shadow_train_step(loss_fn: Callable[..., Any], strategy: BandInv
     beta1: float = .9, beta2: float = .999, eps: float = 1e-8, weight_decay: float = .01,
     microbatch_size: int | None = None):
   """Builds a genuine DP-AdamW update plus scalar online diagnostics."""
+  validate_nonamplified_bandinv_privacy_setup(strategy, calibration, participation_spec)
   optimizer = make_nonamplified_dpadamw_optimizer(learning_rate=learning_rate, beta1=beta1,
       beta2=beta2, eps=eps, weight_decay=weight_decay)
   clipped_query = make_clipped_gradient_query(loss_fn, clip_norm=calibration.clip_norm,
@@ -98,8 +100,17 @@ def make_online_shadow_train_step(loss_fn: Callable[..., Any], strategy: BandInv
 
   def step_fn(state: OnlineShadowState, batch: Any) -> OnlineShadowState:
     g = clipped_query(state.params, batch)
+    step = state.noise_state.step
+    noising_coef = jnp.asarray(strategy.noising_coef)
+    runtime_noising_coef = noising_coef + (
+        jnp.asarray(step, dtype=noising_coef.dtype) * jnp.zeros_like(noising_coef)
+    )
+    iid_noise_std = jnp.asarray(calibration.iid_noise_std)
+    runtime_iid_noise_std = iid_noise_std + (
+        jnp.asarray(step, dtype=iid_noise_std.dtype) * jnp.zeros_like(iid_noise_std)
+    )
     noise, new_noise, new_key = sample_bandinv_noise(state.rng_key, state.noise_state,
-        jnp.asarray(strategy.noising_coef), jnp.asarray(calibration.iid_noise_std))
+        runtime_noising_coef, runtime_iid_noise_std)
     private = jax.tree_util.tree_map(lambda a, b: a + b, g, noise)
     updates, new_opt = optimizer.update(private, state.optimizer_state, state.params)
     new_params = optax.apply_updates(state.params, updates)
