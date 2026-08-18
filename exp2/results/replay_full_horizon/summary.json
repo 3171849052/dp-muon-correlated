@@ -1,0 +1,129 @@
+{
+  "aggregation": "sample-sum-then-divide-by-N",
+  "bootstrap_replicates": 2000,
+  "bootstrap_seed": 1,
+  "contract": {
+    "batch_size": 512,
+    "epochs": 5,
+    "horizon": 488,
+    "max_participations": 5,
+    "min_sep": 97,
+    "num_examples": 50000
+  },
+  "paired_latent_draws": true,
+  "sample_batch_size": 16,
+  "samples": 1000,
+  "seed": 0,
+  "strategies": {
+    "adam-m-aware": {
+      "horizon": 488,
+      "max_participations": 5,
+      "min_sep": 97,
+      "objective": 2.1219593691057526e-05,
+      "sensitivity_squared": 24.85852813720703,
+      "workload_representation": "general-causal-matrix",
+      "workload_type": "adam-m-aware"
+    },
+    "decayed-prefix": {
+      "horizon": 488,
+      "max_participations": 5,
+      "min_sep": 97,
+      "objective": 62.15800094604492,
+      "sensitivity_squared": 25.295289993286133,
+      "workload_representation": "decayed-prefix-coef",
+      "workload_type": "decayed-prefix"
+    }
+  },
+  "targets": {
+    "0.01": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 0.744288337724042,
+        "adamw_minus_linear_R": 0.4171645466052528
+      },
+      "delta_R": 0.0004441348512760346,
+      "delta_R95_CI": [
+        0.000423842898134702,
+        0.0004646404633271317
+      ],
+      "strategies": {
+        "adam-m-aware": {
+          "D": 0.02226113031507598,
+          "J": 0.0258552540128753,
+          "R": 1.1614528843292948,
+          "actual_median_relative_noise_ratio": 0.009999999999999981,
+          "global_scalar": 2.1640091826052745e-08
+        },
+        "decayed-prefix": {
+          "D": 0.022270057211895403,
+          "J": 0.025855731274386617,
+          "R": 1.1610087494780188,
+          "actual_median_relative_noise_ratio": 0.010000000000000002,
+          "global_scalar": 2.1629518656585796e-08
+        }
+      }
+    },
+    "0.1": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 0.7442883377240415,
+        "adamw_minus_linear_R": 0.7157331053468166
+      },
+      "delta_R": 0.0028470845980581583,
+      "delta_R95_CI": [
+        0.0027994804900533356,
+        0.0028946665191723507
+      ],
+      "strategies": {
+        "adam-m-aware": {
+          "D": 0.6462376636783267,
+          "J": 0.9435208462903704,
+          "R": 1.460021443070858,
+          "actual_median_relative_noise_ratio": 0.09999999999999976,
+          "global_scalar": 2.1640091826052746e-07
+        },
+        "decayed-prefix": {
+          "D": 0.6484495294098517,
+          "J": 0.9449040270197896,
+          "R": 1.4571743584727999,
+          "actual_median_relative_noise_ratio": 0.10000000000000041,
+          "global_scalar": 2.1629518656585798e-07
+        }
+      }
+    },
+    "1.0": {
+      "adam_m_aware_linear_reference": {
+        "R_linear": 0.7442883377240418,
+        "adamw_minus_linear_R": 3.942014637285986
+      },
+      "delta_R": 0.04259464475093111,
+      "delta_R95_CI": [
+        0.04251584797469066,
+        0.042676301647603256
+      ],
+      "strategies": {
+        "adam-m-aware": {
+          "D": 10.382270520273925,
+          "J": 48.65446522651861,
+          "R": 4.686302975010028,
+          "actual_median_relative_noise_ratio": 0.9999999999999958,
+          "global_scalar": 2.1640091826052745e-06
+        },
+        "decayed-prefix": {
+          "D": 10.47844996892712,
+          "J": 48.65886540891004,
+          "R": 4.643708330259097,
+          "actual_median_relative_noise_ratio": 1.0000000000000018,
+          "global_scalar": 2.1629518656585796e-06
+        }
+      }
+    }
+  },
+  "trajectory": {
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-08,
+    "learning_rate": 0.0005,
+    "parameter_name": "blocks/0/attention/query/kernel",
+    "start_step": 0,
+    "weight_decay": 0.01
+  }
+}
