@@ -97,6 +97,28 @@ def test_aggregate_is_ratio_of_sums():
   assert stats["R"] == stats["J"] / stats["D"]
 
 
+def test_aggregation_is_invariant_to_replay_batch_size():
+  trajectory = _trajectory()
+  strategies = {DECAYED_PREFIX: _strategy(DECAYED_PREFIX), ADAM_M_AWARE: _strategy(ADAM_M_AWARE)}
+  replays = [run_replay(
+      trajectory, strategies=strategies, samples=31, seed=9, target_relative_noise=[0.1],
+      sample_batch_size=batch_size, bootstrap_seed=17, bootstrap_replicates=200,
+  ) for batch_size in (1000, 16, 7)]
+  first_rows, first_prefixes, first_summary = replays[0]
+  for rows, prefixes, summary in replays[1:]:
+    np.testing.assert_allclose(
+        [[row[key] or 0.0 for key in ("J", "D", "R", "delta_R")] for row in rows],
+        [[row[key] or 0.0 for key in ("J", "D", "R", "delta_R")] for row in first_rows],
+        rtol=1e-10, atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        [[row[key] for key in ("J_k", "D_k", "R_k")] for row in prefixes],
+        [[row[key] for key in ("J_k", "D_k", "R_k")] for row in first_prefixes],
+        rtol=1e-10, atol=1e-12,
+    )
+    assert summary["targets"]["0.1"]["delta_R95_CI"] == first_summary["targets"]["0.1"]["delta_R95_CI"]
+
+
 def test_workloads_use_required_representations():
   spec_a = StrategySpec(DECAYED_PREFIX, 4, 2, 1, None, 0.1, 0.8, 0.2)
   spec_m = StrategySpec(ADAM_M_AWARE, 4, 2, 1, None, 0.1, 0.8, 0.2)

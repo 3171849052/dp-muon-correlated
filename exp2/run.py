@@ -118,6 +118,21 @@ def cancellation_statistics(delta_q: np.ndarray, delta_theta: np.ndarray, learni
           "R": float(np.sum(j) / total_d) if total_d else 0.0}
 
 
+def _sample_energy_sums(
+    delta_q: np.ndarray, delta_theta: np.ndarray, learning_rate: float,
+) -> tuple[np.ndarray, np.ndarray]:
+  """Returns per-sample ``J_k`` and per-step ``D`` increment sums.
+
+  Keeping sample sums until the final division makes aggregation invariant to
+  the chosen replay batch size, including a short final batch.
+  """
+  x = -learning_rate * np.asarray(delta_q, dtype=np.float64)
+  theta = np.asarray(delta_theta, dtype=np.float64)
+  j_samples = np.sum(theta * theta, axis=(2, 3))
+  d_samples = np.sum(x * x, axis=(2, 3))
+  return j_samples, d_samples
+
+
 def linear_m_reference(noise: np.ndarray, trajectory: dict[str, Any]) -> dict[str, Any]:
   """Linear reference for ``A_m`` using the Adam first-moment recurrence only."""
   beta1, eta, weight_decay = trajectory["beta1"], trajectory["learning_rate"], trajectory["weight_decay"]
@@ -171,11 +186,13 @@ def _global_scalars(
 def run_replay(
     trajectory: dict[str, Any], *, strategies: dict[str, BandInvMFStrategy], samples: int,
     seed: int, target_relative_noise: list[float], sample_batch_size: int = 4,
+    bootstrap_seed: int = 1, bootstrap_replicates: int = 2000,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
   """Runs paired nonlinear Monte Carlo replay for both Exp2 strategies."""
   if set(strategies) != {DECAYED_PREFIX, ADAM_M_AWARE}:
     raise ValueError("Exp2 requires exactly decayed-prefix and adam-m-aware strategies")
-  if samples < 1 or sample_batch_size < 1 or not target_relative_noise or any(x <= 0 for x in target_relative_noise):
+  if (samples < 1 or sample_batch_size < 1 or bootstrap_replicates < 1
+      or not target_relative_noise or any(x <= 0 for x in target_relative_noise)):
     raise ValueError("samples, sample_batch_size, and target_relative_noise must be positive")
   horizon = trajectory["g"].shape[0]
   for name, strategy in strategies.items():
@@ -192,6 +209,7 @@ def run_replay(
   totals = {name: {target: {"j": np.zeros(horizon), "d": np.zeros(horizon)}
                     for target in target_relative_noise} for name in strategies}
   linear_totals = {target: {"j": np.zeros(horizon), "d": np.zeros(horizon)} for target in target_relative_noise}
+  sample_totals = {name: {target: {"j": [], "d": []} for target in target_relative_noise} for name in strategies}
   actual_ratios = {name: {target: [] for target in target_relative_noise} for name in strategies}
   rng = np.random.default_rng(seed)
   for offset in range(0, samples, sample_batch_size):
@@ -206,16 +224,34 @@ def run_replay(
         delta_q, delta_theta = adamw_perturbations(noise=noise, clean_gradients=trajectory["g"], **{
             key: trajectory[key] for key in ("learning_rate", "beta1", "beta2", "eps", "weight_decay")
         })
-        stats = cancellation_statistics(delta_q, delta_theta, trajectory["learning_rate"])
-        totals[name][target]["j"] += stats["J_k"]
-        totals[name][target]["d"] += np.diff(np.r_[0.0, stats["D_k"]])
+        j_samples, d_samples = _sample_energy_sums(delta_q, delta_theta, trajectory["learning_rate"])
+        totals[name][target]["j"] += np.sum(j_samples, axis=0)
+        totals[name][target]["d"] += np.sum(d_samples, axis=0)
+        sample_totals[name][target]["j"].append(j_samples)
+        sample_totals[name][target]["d"].append(d_samples)
         if name == ADAM_M_AWARE:
-          reference = linear_m_reference(noise, trajectory)
-          linear_totals[target]["j"] += reference["J_k"]
-          linear_totals[target]["d"] += np.diff(np.r_[0.0, reference["D_k"]])
+          # Recompute the linear per-sample energies from its recurrence so
+          # bootstrap and aggregate calculations use the same sample sums.
+          linear_delta_q = np.empty_like(noise, dtype=np.float64)
+          moment = np.zeros_like(noise[:, 0], dtype=np.float64)
+          for step in range(noise.shape[1]):
+            moment = trajectory["beta1"] * moment + (1.0 - trajectory["beta1"]) * noise[:, step]
+            linear_delta_q[:, step] = moment / (1.0 - trajectory["beta1"] ** (step + 1))
+          rho = 1.0 - trajectory["learning_rate"] * trajectory["weight_decay"]
+          linear_theta = np.empty_like(linear_delta_q)
+          previous = np.zeros_like(linear_delta_q[:, 0])
+          for step in range(noise.shape[1]):
+            previous = rho * previous - trajectory["learning_rate"] * linear_delta_q[:, step]
+            linear_theta[:, step] = previous
+          reference_j, reference_d = _sample_energy_sums(linear_delta_q, linear_theta, trajectory["learning_rate"])
+          linear_totals[target]["j"] += np.sum(reference_j, axis=0)
+          linear_totals[target]["d"] += np.sum(reference_d, axis=0)
   rows: list[dict[str, Any]] = []
   prefixes: list[dict[str, Any]] = []
-  summary: dict[str, Any] = {"samples": samples, "seed": seed, "paired_latent_draws": True,
+  summary: dict[str, Any] = {"samples": samples, "seed": seed,
+      "sample_batch_size": sample_batch_size, "aggregation": "sample-sum-then-divide-by-N",
+      "bootstrap_seed": bootstrap_seed, "bootstrap_replicates": bootstrap_replicates,
+      "paired_latent_draws": True,
       "trajectory": {key: trajectory[key] for key in ("parameter_name", "start_step", "learning_rate", "beta1", "beta2", "eps", "weight_decay")},
       "targets": {}}
   for target in target_relative_noise:
@@ -231,21 +267,39 @@ def run_replay(
         prefixes.append({"target_r": target, "strategy": name, "prefix": prefix,
                          "J_k": float(j_k), "D_k": float(d_k), "R_k": float(r_value)})
     delta_r = per_strategy[ADAM_M_AWARE]["R"] - per_strategy[DECAYED_PREFIX]["R"]
+    bootstrap_rng = np.random.default_rng(bootstrap_seed + int(round(target * 1_000_000)))
+    bootstrap_indices = bootstrap_rng.integers(0, samples, size=(bootstrap_replicates, samples))
+    bootstrap_r: dict[str, np.ndarray] = {}
     for name in (DECAYED_PREFIX, ADAM_M_AWARE):
-      row = {"target_r": target, "strategy": name, **per_strategy[name],
-             "delta_R": delta_r if name == ADAM_M_AWARE else None}
-      rows.append(row)
+      j_samples = np.concatenate(sample_totals[name][target]["j"], axis=0)
+      d_samples = np.concatenate(sample_totals[name][target]["d"], axis=0)
+      j_boot = np.sum(j_samples[bootstrap_indices], axis=1)
+      d_boot = np.sum(d_samples[bootstrap_indices], axis=1)
+      bootstrap_r[name] = np.sum(j_boot, axis=1) / np.sum(np.cumsum(d_boot, axis=1), axis=1)
+    delta_boot = bootstrap_r[ADAM_M_AWARE] - bootstrap_r[DECAYED_PREFIX]
+    delta_ci = [float(np.percentile(delta_boot, 2.5)), float(np.percentile(delta_boot, 97.5))]
     linear_j = linear_totals[target]["j"] / samples
     linear_d = np.cumsum(linear_totals[target]["d"] / samples)
     linear_r = float(np.sum(linear_j) / np.sum(linear_d))
+    for name in (DECAYED_PREFIX, ADAM_M_AWARE):
+      row = {"target_r": target, "strategy": name, **per_strategy[name],
+             "delta_R": delta_r if name == ADAM_M_AWARE else None,
+             "delta_R95_low": delta_ci[0] if name == ADAM_M_AWARE else None,
+             "delta_R95_high": delta_ci[1] if name == ADAM_M_AWARE else None,
+             "global_scalar": scalars[name][target],
+             "actual_median_relative_noise_ratio": float(np.median(np.concatenate(actual_ratios[name][target]))),
+             "R_linear": linear_r if name == ADAM_M_AWARE else None,
+             "adamw_minus_linear_R": per_strategy[ADAM_M_AWARE]["R"] - linear_r if name == ADAM_M_AWARE else None}
+      rows.append(row)
     summary["targets"][str(target)] = {
         "delta_R": delta_r,
+        "delta_R95_CI": delta_ci,
         "strategies": {
             name: {**per_strategy[name], "global_scalar": scalars[name][target],
                    "actual_median_relative_noise_ratio": float(np.median(np.concatenate(actual_ratios[name][target]))) }
             for name in per_strategy
         },
-        "adam_m_aware_linear_reference": {"R_linear": linear_r,
+      "adam_m_aware_linear_reference": {"R_linear": linear_r,
           "adamw_minus_linear_R": per_strategy[ADAM_M_AWARE]["R"] - linear_r},
       }
   return rows, prefixes, summary
@@ -253,7 +307,7 @@ def run_replay(
 
 def _write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
   with path.open("w", encoding="utf-8", newline="") as stream:
-    writer = csv.DictWriter(stream, fieldnames=fieldnames)
+    writer = csv.DictWriter(stream, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
     writer.writerows(rows)
 
@@ -278,11 +332,16 @@ def main() -> None:
   rows, prefixes, summary = run_replay(
       trajectory, strategies=strategies, samples=int(document.get("samples", 1000)), seed=int(document.get("seed", 0)),
       target_relative_noise=[float(x) for x in document.get("target_relative_noise", [0.01, 0.1, 1.0])],
-      sample_batch_size=int(document.get("sample_batch_size", 4)),
+      sample_batch_size=int(document.get("sample_batch_size", 16)),
+      bootstrap_seed=int(document.get("bootstrap_seed", 1)),
+      bootstrap_replicates=int(document.get("bootstrap_replicates", 2000)),
   )
   output_dir = _resolve(document.get("output_dir", "exp2/results"))
   output_dir.mkdir(parents=True, exist_ok=True)
-  _write_csv(output_dir / "results.csv", rows, ["target_r", "strategy", "J", "D", "R", "delta_R"])
+  _write_csv(output_dir / "results.csv", rows, [
+      "target_r", "strategy", "J", "D", "R", "delta_R", "delta_R95_low", "delta_R95_high",
+      "R_linear", "adamw_minus_linear_R", "global_scalar", "actual_median_relative_noise_ratio",
+  ])
   _write_csv(output_dir / "prefix_results.csv", prefixes, ["target_r", "strategy", "prefix", "J_k", "D_k", "R_k"])
   (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
   print(f"wrote {output_dir / 'results.csv'}")

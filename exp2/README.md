@@ -4,6 +4,10 @@ Exp2 freezes one clean CIFAR-10 AdamW trajectory at `g_t`, after the existing
 clipping query and before the AdamW update.  `start_step=0` and a fixed learning
 rate are required.  The collector stores the AdamW public parameters (`beta1`,
 `beta2`, `eps`, `weight_decay`, and `learning_rate`) alongside `g`.
+The current run is aligned with `config/cifar10_bandinv_dpadamw_naive.yaml`:
+`learning_rate=0.0005`, `beta1=0.9`, `beta2=0.999`, `eps=1e-8`, and
+`weight_decay=0.01`.  The collector ignores the correlated noise mechanism and
+executes only the clean AdamW path.
 
 The two covariance designs are deliberately different:
 
@@ -26,13 +30,21 @@ with the first-moment linear direction, and is only a reference.
 ## Run
 
 ```bash
-python exp2/collect_trajectory.py --config config/cifar10_dpadamw.yaml \
+python exp2/collect_trajectory.py --config config/cifar10_bandinv_dpadamw_naive.yaml \
   --steps 64 --output exp2/trajectory.npz
 python exp2/run.py --config exp2/config.yaml
 ```
 
 `run.py` uses 1,000 samples, seed 0, and targets `[0.01, 0.1, 1.0]` by
-default.  A target receives one deterministic global scalar for each strategy;
-there is no sample- or step-dependent rescaling.  The same latent Gaussian
-draws are passed to both strategies in paired batches.  Outputs are
-`results/results.csv`, `results/prefix_results.csv`, and `results/summary.json`.
+default, with `sample_batch_size=16`.  Aggregation keeps per-sample energy sums
+until the final division by `N`, so results do not depend on batch partitioning.
+A target receives one deterministic global scalar for each strategy; there is
+no sample- or step-dependent rescaling.  The same latent Gaussian draws are
+passed to both strategies in paired batches.  `summary.json` and `results.csv`
+also contain a deterministic paired-bootstrap 95% CI for `delta_R`.
+
+The `R_linear` and `adamw_minus_linear_R` fields are descriptive references for
+the m-aware linear system.  They are not interpreted as a signed
+"nonlinearity cancellation loss"; only `delta_R` is the strategy comparison.
+Outputs are `results/results.csv`, `results/prefix_results.csv`, and
+`results/summary.json`.

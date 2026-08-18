@@ -1,5 +1,6 @@
 # Create exp2/trajectory.npz first with collect_trajectory.py.
 trajectory: exp2/trajectory.npz
+trajectory_config: config/cifar10_bandinv_dpadamw_naive.yaml
 strategy_dir: exp2/strategies
 output_dir: exp2/results
 
@@ -7,6 +8,8 @@ samples: 1000
 seed: 0
 sample_batch_size: 16
 target_relative_noise: [0.01, 0.1, 1.0]
+bootstrap_seed: 1
+bootstrap_replicates: 2000
 
 strategy:
   bandwidth: 4

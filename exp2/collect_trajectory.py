@@ -6,12 +6,14 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 import jax
 import numpy as np
+import yaml
 
 from dp_muon.data import iter_logical_batches, load_cifar10
 from dp_muon.models import ViTTiny, load_pretrained_vit_tiny
@@ -33,6 +35,37 @@ def _leaf_at_path(tree: object, parameter_name: str):
   return current
 
 
+def _load_exp2_config(path: str | Path):
+  """Loads either the IID AdamW schema or the correlated-naive schema.
+
+  Exp2 only replays a clean path, so the correlated config's strategy/privacy
+  sections are intentionally ignored; its public model/training/AdamW fields
+  are still used verbatim.
+  """
+  try:
+    return load_cifar10_dpadamw_config(path)
+  except ValueError as standard_error:
+    try:
+      document = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+      raise standard_error from error
+    if not isinstance(document, dict) or document.get("algorithm") != "dp-adamw-correlated-naive":
+      raise standard_error
+    try:
+      training = document["training"]
+      adamw = document["adamw"]
+      return SimpleNamespace(
+          data_dir=document["data"]["data_dir"], pretrained=document["model"]["pretrained"],
+          epochs=int(training["epochs"]), logical_batch_size=int(training["logical_batch_size"]),
+          microbatch_size=int(training["microbatch_size"]), clip_norm=float(training["clip_norm"]),
+          seed=int(document["experiment"]["seed"]), learning_rate=float(adamw["learning_rate"]),
+          beta1=float(adamw["beta1"]), beta2=float(adamw["beta2"]), eps=float(adamw["eps"]),
+          weight_decay=float(adamw["weight_decay"]),
+      )
+    except (KeyError, TypeError, ValueError) as error:
+      raise ValueError("invalid correlated-naive config for Exp2 clean trajectory") from error
+
+
 def collect_trajectory(
     *, config_path: str | Path, parameter_name: str, steps: int = 64,
     start_step: int = 0, output: str | Path,
@@ -42,7 +75,7 @@ def collect_trajectory(
     raise ValueError("steps must be positive")
   if start_step != 0:
     raise ValueError("Exp2 currently requires start_step == 0")
-  config = load_cifar10_dpadamw_config(config_path)
+  config = _load_exp2_config(config_path)
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   if steps > (config.epochs * len(train_images)) // config.logical_batch_size:
     raise ValueError("requested clean window exceeds the configured fixed-cycle run")
@@ -97,7 +130,7 @@ def collect_trajectory(
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("--config", type=Path, default=ROOT / "config/cifar10_dpadamw.yaml")
+  parser.add_argument("--config", type=Path, default=ROOT / "config/cifar10_bandinv_dpadamw_naive.yaml")
   parser.add_argument("--parameter-name", default="blocks/0/attention/query/kernel")
   parser.add_argument("--steps", type=int, default=64)
   parser.add_argument("--start-step", type=int, default=0)

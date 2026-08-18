@@ -1,74 +1,90 @@
 {
+  "aggregation": "sample-sum-then-divide-by-N",
+  "bootstrap_replicates": 2000,
+  "bootstrap_seed": 1,
   "paired_latent_draws": true,
+  "sample_batch_size": 16,
   "samples": 1000,
   "seed": 0,
   "targets": {
     "0.01": {
       "adam_m_aware_linear_reference": {
-        "R_linear": 7.774324867970938,
-        "adamw_minus_linear_R": -5.681255166004368
+        "R_linear": 6.245498588879104,
+        "adamw_minus_linear_R": -4.826442690831814
       },
-      "delta_R": -0.056409549430865624,
+      "delta_R": -0.12079262584342532,
+      "delta_R95_CI": [
+        -0.12107773139949245,
+        -0.1205166405312145
+      ],
       "strategies": {
         "adam-m-aware": {
-          "D": 0.0018183827122251104,
-          "J": 0.003806001761538175,
-          "R": 2.09306970196657,
-          "actual_median_relative_noise_ratio": 0.009999999999999985,
-          "global_scalar": 3.910703144034336e-08
+          "D": 0.013435823508615802,
+          "J": 0.01906618459502369,
+          "R": 1.4190558980472903,
+          "actual_median_relative_noise_ratio": 0.010000000000000007,
+          "global_scalar": 6.055342328395284e-08
         },
         "decayed-prefix": {
-          "D": 0.0018418125074797296,
-          "J": 0.003958937769791963,
-          "R": 2.1494792513974357,
-          "actual_median_relative_noise_ratio": 0.01000000000000004,
-          "global_scalar": 3.9325597057754854e-08
+          "D": 0.01445334732179749,
+          "J": 0.022255965538749693,
+          "R": 1.5398485238907156,
+          "actual_median_relative_noise_ratio": 0.010000000000000023,
+          "global_scalar": 6.319358998129414e-08
         }
       }
     },
     "0.1": {
       "adam_m_aware_linear_reference": {
-        "R_linear": 7.774324867970936,
-        "adamw_minus_linear_R": -3.1528024268425936
+        "R_linear": 6.245498588879102,
+        "adamw_minus_linear_R": -3.7816644160611386
       },
-      "delta_R": -0.14083293966620847,
+      "delta_R": -0.46481493813975483,
+      "delta_R95_CI": [
+        -0.46523780455406333,
+        -0.4643897595861664
+      ],
       "strategies": {
         "adam-m-aware": {
-          "D": 0.045088929307041836,
-          "J": 0.20837949863894326,
-          "R": 4.621522441128342,
-          "actual_median_relative_noise_ratio": 0.09999999999999974,
-          "global_scalar": 3.910703144034336e-07
+          "D": 0.2586604958361032,
+          "J": 0.6372965687990296,
+          "R": 2.463834172817964,
+          "actual_median_relative_noise_ratio": 0.10000000000000031,
+          "global_scalar": 6.055342328395284e-07
         },
         "decayed-prefix": {
-          "D": 0.04601695280210229,
-          "J": 0.21914908278486073,
-          "R": 4.762355380794551,
-          "actual_median_relative_noise_ratio": 0.10000000000000048,
-          "global_scalar": 3.932559705775486e-07
+          "D": 0.28361239289734463,
+          "J": 0.8306011823153996,
+          "R": 2.9286491109577186,
+          "actual_median_relative_noise_ratio": 0.10000000000000026,
+          "global_scalar": 6.319358998129414e-07
         }
       }
     },
     "1.0": {
       "adam_m_aware_linear_reference": {
-        "R_linear": 7.774324867970935,
-        "adamw_minus_linear_R": 0.14124445925052065
+        "R_linear": 6.2454985888791,
+        "adamw_minus_linear_R": -0.2961378659956626
       },
-      "delta_R": -0.13016728482396456,
+      "delta_R": -0.8197567143966937,
+      "delta_R95_CI": [
+        -0.8202484286250838,
+        -0.8192901868988499
+      ],
       "strategies": {
         "adam-m-aware": {
-          "D": 0.43295089186190805,
-          "J": 3.427052799815293,
-          "R": 7.915569327221456,
-          "actual_median_relative_noise_ratio": 0.9999999999999997,
-          "global_scalar": 3.910703144034335e-06
+          "D": 1.9112460093812302,
+          "J": 11.3706919399804,
+          "R": 5.949360722883437,
+          "actual_median_relative_noise_ratio": 1.000000000000001,
+          "global_scalar": 6.055342328395284e-06
         },
         "decayed-prefix": {
-          "D": 0.4427370332794981,
-          "J": 3.5621455581652297,
-          "R": 8.04573661204542,
-          "actual_median_relative_noise_ratio": 1.0000000000000022,
-          "global_scalar": 3.932559705775486e-06
+          "D": 2.142535024350715,
+          "J": 14.503071193315833,
+          "R": 6.769117437280131,
+          "actual_median_relative_noise_ratio": 1.0000000000000009,
+          "global_scalar": 6.319358998129414e-06
         }
       }
     }
@@ -77,7 +93,7 @@
     "beta1": 0.9,
     "beta2": 0.999,
     "eps": 1e-08,
-    "learning_rate": 0.001,
+    "learning_rate": 0.0005,
     "parameter_name": "blocks/0/attention/query/kernel",
     "start_step": 0,
     "weight_decay": 0.01
