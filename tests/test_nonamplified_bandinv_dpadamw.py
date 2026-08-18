@@ -250,17 +250,17 @@ def test_checkpoint_resume_matches_uninterrupted(tmp_path):
 
 # --- Test 6: prefix-sum artifact does not collide with nesterov-trajectory ---
 
-def test_prefix_sum_artifact_path_differs_from_nesterov():
+def test_prefix_sum_artifact_path_differs_from_nesterov(tmp_path):
   from dp_muon.training.bandinvmf_strategy_manager import (
       prefix_sum_strategy_artifact_path,
       strategy_artifact_path,
   )
   ps_path = prefix_sum_strategy_artifact_path(
-      "strategies", horizon=488, min_sep=97, max_participations=5,
+      tmp_path, horizon=488, min_sep=97, max_participations=5,
       bandwidth=4, reduction="mean", max_optimizer_steps=1000,
   )
   n_path = strategy_artifact_path(
-      "strategies", horizon=488, min_sep=97, max_participations=5,
+      tmp_path, horizon=488, min_sep=97, max_participations=5,
       bandwidth=4, momentum=0.95, learning_rate=0.001,
       reduction="mean", max_optimizer_steps=1000,
   )
@@ -313,7 +313,7 @@ def test_prefix_sum_metadata_rejects_nesterov_artifact(tmp_path, monkeypatch):
   # Save a nesterov-trajectory artifact at the prefix-sum path
   strategy, _, _ = _artifacts(horizon=10, noising_coef=(1.0, -0.5))
   ps_path = prefix_sum_strategy_artifact_path(
-      "strategies", horizon=10, min_sep=2, max_participations=3,
+      tmp_path, horizon=10, min_sep=2, max_participations=3,
       bandwidth=2, reduction="mean", max_optimizer_steps=100,
   )
   save_bandinv_strategy(
@@ -324,7 +324,7 @@ def test_prefix_sum_metadata_rejects_nesterov_artifact(tmp_path, monkeypatch):
   request = PrefixSumBandInvMFFitRequest(
       horizon=10, min_sep=2, max_participations=3, bandwidth=2,
       reduction="mean", max_optimizer_steps=100,
-      strategy_dir="strategies", force_refit=False,
+      strategy_dir=tmp_path, force_refit=False,
   )
   # The prefix-sum loader should not accept a nesterov-trajectory artifact
   from dp_muon.training.bandinvmf_strategy_manager import REPOSITORY_ROOT
