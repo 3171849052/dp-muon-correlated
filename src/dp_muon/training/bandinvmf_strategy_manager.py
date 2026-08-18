@@ -15,7 +15,10 @@ from dp_muon.bandinvmf import (
     load_bandinv_strategy_metadata,
     save_bandinv_strategy,
 )
-from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
+from dp_muon.optim import (
+    decayed_prefix_sum_workload_coef,
+    fixed_lr_nesterov_decayed_trajectory_workload_coef,
+)
 
 from .file_locking import (
     atomic_replace,
@@ -42,14 +45,15 @@ class BandInvMFFitRequest:
   max_optimizer_steps: int
   strategy_dir: str | Path
   force_refit: bool
+  weight_decay: float = 0.0
 
 
 @dataclass(frozen=True)
 class PrefixSumBandInvMFFitRequest:
   """All public values that determine a cached prefix-sum BandInvMF strategy.
 
-  No momentum or learning_rate is needed — the default prefix-sum workload
-  (all-ones) is used.
+  The decayed-prefix workload is determined by AdamW's learning rate and
+  decoupled weight decay.
   """
 
   horizon: int
@@ -60,6 +64,8 @@ class PrefixSumBandInvMFFitRequest:
   max_optimizer_steps: int
   strategy_dir: str | Path
   force_refit: bool
+  learning_rate: float = 1.0
+  weight_decay: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -80,6 +86,7 @@ def strategy_artifact_path(
     bandwidth: int,
     momentum: float,
     learning_rate: float,
+    weight_decay: float = 0.0,
     reduction: str,
     max_optimizer_steps: int,
 ) -> Path:
@@ -88,9 +95,9 @@ def strategy_artifact_path(
   if not directory.is_absolute():
     directory = REPOSITORY_ROOT / directory
   return directory / (
-      f"nesterov-trajectory_n{horizon}_p{bandwidth}"
+      f"nesterov-decayed-trajectory_n{horizon}_p{bandwidth}"
       f"_b{min_sep}_k{max_participations}"
-      f"_m{momentum}_lr{learning_rate}_r{reduction}_opt{max_optimizer_steps}.npz"
+      f"_m{momentum}_lr{learning_rate}_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
   )
 
 
@@ -101,18 +108,19 @@ def prefix_sum_strategy_artifact_path(
     min_sep: int,
     max_participations: int,
     bandwidth: int,
+    learning_rate: float = 1.0,
+    weight_decay: float = 0.0,
     reduction: str,
     max_optimizer_steps: int,
 ) -> Path:
-  """Returns a deterministic prefix-sum artifact path, avoiding collision with
-  nesterov-trajectory artifacts."""
+  """Returns a deterministic decayed-prefix artifact path."""
   directory = Path(strategy_dir)
   if not directory.is_absolute():
     directory = REPOSITORY_ROOT / directory
   return directory / (
-      f"prefix-sum_n{horizon}_p{bandwidth}"
+      f"decayed-prefix-sum_n{horizon}_p{bandwidth}"
       f"_b{min_sep}_k{max_participations}"
-      f"_r{reduction}_opt{max_optimizer_steps}.npz"
+      f"_lr{learning_rate}_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
   )
 
 
@@ -120,8 +128,9 @@ def _strategy_is_compatible(
     strategy: BandInvMFStrategy, request: BandInvMFFitRequest
 ) -> bool:
   expected_workload = np.asarray(
-      fixed_lr_nesterov_trajectory_workload_coef(
-          request.horizon, request.momentum, request.learning_rate
+      fixed_lr_nesterov_decayed_trajectory_workload_coef(
+          request.horizon, request.momentum, request.learning_rate,
+          request.weight_decay,
       )
   )
   return (
@@ -136,9 +145,10 @@ def _strategy_is_compatible(
 def _metadata_is_compatible(path: Path, request: BandInvMFFitRequest) -> bool:
   metadata = load_bandinv_strategy_metadata(path)
   return (
-      metadata.workload_type == "nesterov-trajectory"
+      metadata.workload_type == "nesterov-decayed-trajectory"
       and metadata.momentum == request.momentum
       and metadata.learning_rate == request.learning_rate
+      and metadata.weight_decay == request.weight_decay
       and metadata.reduction == request.reduction
       and metadata.max_optimizer_steps == request.max_optimizer_steps
   )
@@ -154,7 +164,9 @@ def _prefix_sum_strategy_is_compatible(
       and strategy.max_participations == request.max_participations
       and np.array_equal(
           np.asarray(strategy.workload_coef),
-          np.ones(request.horizon),
+          np.asarray(decayed_prefix_sum_workload_coef(
+              request.horizon, request.learning_rate, request.weight_decay
+          )),
       )
   )
 
@@ -164,9 +176,10 @@ def _prefix_sum_metadata_is_compatible(
 ) -> bool:
   metadata = load_bandinv_strategy_metadata(path)
   return (
-      metadata.workload_type == "prefix-sum"
+      metadata.workload_type == "decayed-prefix-sum"
       and metadata.momentum is None
-      and metadata.learning_rate is None
+      and metadata.learning_rate == request.learning_rate
+      and metadata.weight_decay == request.weight_decay
       and metadata.reduction == request.reduction
       and metadata.max_optimizer_steps == request.max_optimizer_steps
   )
@@ -215,6 +228,7 @@ def require_compatible_strategy_snapshot(
       request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
       max_participations=request.max_participations, bandwidth=request.bandwidth,
       momentum=request.momentum, learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
       reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
   )
   with file_lock(path):
@@ -248,6 +262,7 @@ def get_or_fit_strategy_snapshot(
       bandwidth=request.bandwidth,
       momentum=request.momentum,
       learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
       reduction=request.reduction,
       max_optimizer_steps=request.max_optimizer_steps,
   )
@@ -264,8 +279,9 @@ def get_or_fit_strategy_snapshot(
         not request.force_refit or existing.sha256 != initial_fingerprint
     ):
       return existing, "reuse"
-    workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
-        request.horizon, request.momentum, request.learning_rate
+    workload_coef = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+        request.horizon, request.momentum, request.learning_rate,
+        request.weight_decay,
     )
     fitted = fit_strategy(
         request.horizon,
@@ -282,9 +298,10 @@ def get_or_fit_strategy_snapshot(
           temporary,
           fitted,
           reduction=request.reduction,
-          workload_type="nesterov-trajectory",
+          workload_type="nesterov-decayed-trajectory",
           momentum=request.momentum,
           learning_rate=request.learning_rate,
+          weight_decay=request.weight_decay,
           max_optimizer_steps=request.max_optimizer_steps,
       )
       if _load_compatible_snapshot_unlocked(temporary, request) is None:
@@ -330,6 +347,7 @@ def require_compatible_prefix_sum_strategy_snapshot(
       request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
       max_participations=request.max_participations, bandwidth=request.bandwidth,
       reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+      learning_rate=request.learning_rate, weight_decay=request.weight_decay,
   )
   with file_lock(path):
     snapshot = _load_compatible_prefix_sum_snapshot_unlocked(path, request)
@@ -354,6 +372,8 @@ def get_or_fit_prefix_sum_strategy_snapshot(
       bandwidth=request.bandwidth,
       reduction=request.reduction,
       max_optimizer_steps=request.max_optimizer_steps,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
   )
   initial_fingerprint = _artifact_fingerprint(path)
   if not request.force_refit:
@@ -364,13 +384,15 @@ def get_or_fit_prefix_sum_strategy_snapshot(
         not request.force_refit or existing.sha256 != initial_fingerprint
     ):
       return existing, "reuse"
-    # workload_coef=None => default prefix-sum (all-ones) workload.
+    workload_coef = decayed_prefix_sum_workload_coef(
+        request.horizon, request.learning_rate, request.weight_decay
+    )
     fitted = fit_strategy(
         request.horizon,
         request.bandwidth,
         request.min_sep,
         max_participations=request.max_participations,
-        workload_coef=None,
+        workload_coef=workload_coef,
         max_optimizer_steps=request.max_optimizer_steps,
         reduction=request.reduction,
     )
@@ -379,9 +401,10 @@ def get_or_fit_prefix_sum_strategy_snapshot(
           temporary,
           fitted,
           reduction=request.reduction,
-          workload_type="prefix-sum",
+          workload_type="decayed-prefix-sum",
           momentum=None,
-          learning_rate=None,
+          learning_rate=request.learning_rate,
+          weight_decay=request.weight_decay,
           max_optimizer_steps=request.max_optimizer_steps,
       )
       if _load_compatible_prefix_sum_snapshot_unlocked(temporary, request) is None:

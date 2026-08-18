@@ -211,13 +211,15 @@ def strategy_artifact_path(
     config: Cifar10BandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
 ) -> Path:
-  """Returns the repository-root-resolved deterministic prefix-sum strategy path."""
+  """Returns the deterministic decayed-prefix AdamW strategy path."""
   return prefix_sum_strategy_artifact_path(
       config.strategy_dir,
       horizon=participation.horizon,
       min_sep=participation.min_sep,
       max_participations=participation.max_participations,
       bandwidth=config.bandwidth,
+      learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
       reduction=config.reduction,
       max_optimizer_steps=config.max_optimizer_steps,
   )
@@ -227,13 +229,15 @@ def get_or_fit_strategy_snapshot(
     config: Cifar10BandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
 ) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
-  """Fits/reuses the prefix-sum correlated DP-AdamW strategy."""
+  """Fits/reuses the decayed-prefix correlated DP-AdamW strategy."""
   return get_or_fit_prefix_sum_strategy_snapshot(
       PrefixSumBandInvMFFitRequest(
           horizon=participation.horizon,
           min_sep=participation.min_sep,
           max_participations=participation.max_participations,
           bandwidth=config.bandwidth,
+          learning_rate=config.learning_rate,
+          weight_decay=config.weight_decay,
           reduction=config.reduction,
           max_optimizer_steps=config.max_optimizer_steps,
           strategy_dir=config.strategy_dir,
@@ -247,13 +251,15 @@ def require_compatible_strategy_snapshot(
     config: Cifar10BandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
 ) -> LoadedStrategySnapshot:
-  """Loads the existing prefix-sum resume artifact and never replaces it."""
+  """Loads the existing decayed-prefix resume artifact and never replaces it."""
   return require_compatible_prefix_sum_strategy_snapshot(
       PrefixSumBandInvMFFitRequest(
           horizon=participation.horizon,
           min_sep=participation.min_sep,
           max_participations=participation.max_participations,
           bandwidth=config.bandwidth,
+          learning_rate=config.learning_rate,
+          weight_decay=config.weight_decay,
           reduction=config.reduction,
           max_optimizer_steps=config.max_optimizer_steps,
           strategy_dir=config.strategy_dir,
@@ -356,13 +362,14 @@ def _resolved_config(
           "artifact": str(strategy_path.resolve()),
           "sha256": strategy_sha256,
           "action": action,
-          "workload_type": "prefix-sum",
+          "workload_type": "decayed-prefix-sum",
           "horizon": strategy.horizon,
           "bandwidth": strategy.bandwidth,
           "min_sep": strategy.min_sep,
           "max_participations": strategy.max_participations,
           "momentum": None,
-          "learning_rate": None,
+          "learning_rate": config.learning_rate,
+          "weight_decay": config.weight_decay,
           "reduction": config.reduction,
           "max_optimizer_steps": config.max_optimizer_steps,
           "sensitivity_squared": float(strategy.sensitivity_squared),

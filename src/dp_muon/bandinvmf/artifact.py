@@ -29,6 +29,7 @@ class BandInvMFArtifactMetadata:
   momentum: float | None
   learning_rate: float | None
   max_optimizer_steps: int
+  weight_decay: float | None = None
 
 
 def _integer_scalar(value: np.ndarray, name: str, *, positive: bool = True) -> int:
@@ -125,7 +126,10 @@ def load_bandinv_strategy_metadata(path: str | Path) -> BandInvMFArtifactMetadat
   callers that only need the mathematical factorization.
   """
   source = Path(path)
-  required = ("reduction", "workload_type", "momentum", "learning_rate", "max_optimizer_steps")
+  required = (
+      "reduction", "workload_type", "momentum", "learning_rate",
+      "weight_decay", "max_optimizer_steps",
+  )
   try:
     with np.load(source, allow_pickle=False) as archive:
       missing = set(required).difference(archive.files)
@@ -142,6 +146,9 @@ def load_bandinv_strategy_metadata(path: str | Path) -> BandInvMFArtifactMetadat
       learning_rate = _optional_finite_float_scalar(
           archive["learning_rate"], "learning_rate"
       )
+      weight_decay = _optional_finite_float_scalar(
+          archive["weight_decay"], "weight_decay"
+      )
   except OSError as error:
     raise ValueError(f"could not load strategy artifact {source}") from error
   return BandInvMFArtifactMetadata(
@@ -149,6 +156,7 @@ def load_bandinv_strategy_metadata(path: str | Path) -> BandInvMFArtifactMetadat
       workload_type=workload_type,
       momentum=momentum,
       learning_rate=learning_rate,
+      weight_decay=weight_decay,
       max_optimizer_steps=max_optimizer_steps,
   )
 
@@ -162,6 +170,7 @@ def save_bandinv_strategy(
     momentum: float | None,
     learning_rate: float | None,
     max_optimizer_steps: int,
+    weight_decay: float | None = None,
 ) -> None:
   """Writes a strategy and its cache-compatibility metadata."""
   output = Path(path)
@@ -186,6 +195,7 @@ def save_bandinv_strategy(
         workload_type=np.asarray(workload_type),
         momentum=np.asarray(np.nan if momentum is None else momentum),
         learning_rate=np.asarray(np.nan if learning_rate is None else learning_rate),
+        weight_decay=np.asarray(np.nan if weight_decay is None else weight_decay),
         max_optimizer_steps=np.asarray(max_optimizer_steps),
     )
 

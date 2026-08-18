@@ -10,7 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 from dp_muon.bandinvmf import fit_bandinv_strategy, load_bandinv_strategy
-from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
+from dp_muon.optim import (
+    decayed_prefix_sum_workload_coef,
+    fixed_lr_nesterov_decayed_trajectory_workload_coef,
+)
 from dp_muon.training.file_locking import atomic_replace, atomic_temporary_path, file_lock
 from dp_muon.bandinvmf import save_bandinv_strategy
 
@@ -25,6 +28,7 @@ def default_artifact_path(
     workload: str = "prefix",
     momentum: float | None = None,
     learning_rate: float | None = None,
+    weight_decay: float = 0.0,
 ) -> Path:
   """Returns a stable name that identifies all public strategy parameters.
 
@@ -34,11 +38,14 @@ def default_artifact_path(
   """
   k = "max" if max_participations is None else str(max_participations)
   if workload == "prefix":
-    name = f"prefix_n{horizon}_p{bandwidth}_b{min_sep}_k{k}.npz"
+    name = (
+        f"decayed-prefix-sum_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
+        f"_lr{learning_rate}_wd{weight_decay}.npz"
+    )
   else:
     name = (
-        f"nesterov-trajectory_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
-        f"_m{momentum}_lr{learning_rate}.npz"
+        f"nesterov-decayed-trajectory_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
+        f"_m{momentum}_lr{learning_rate}_wd{weight_decay}.npz"
     )
   return root / "artifacts" / "strategies" / name
 
@@ -69,6 +76,7 @@ def publish_strategy_artifact(
     momentum: float | None,
     learning_rate: float | None,
     max_optimizer_steps: int,
+    weight_decay: float = 0.0,
 ) -> Path:
   """Publishes a manually fitted strategy through the shared lock protocol."""
   with file_lock(output):
@@ -76,6 +84,7 @@ def publish_strategy_artifact(
       save_bandinv_strategy(
           temporary, strategy, reduction=reduction, workload_type=workload_type,
           momentum=momentum, learning_rate=learning_rate,
+          weight_decay=weight_decay,
           max_optimizer_steps=max_optimizer_steps,
       )
       load_bandinv_strategy(temporary)
@@ -94,6 +103,7 @@ def main() -> None:
   parser.add_argument("--workload", choices=("prefix", "nesterov-trajectory"), default="prefix")
   parser.add_argument("--momentum", type=float)
   parser.add_argument("--learning-rate", type=float)
+  parser.add_argument("--weight-decay", type=float, default=0.0)
   parser.add_argument("--output", type=Path)
   args = parser.parse_args()
 
@@ -102,11 +112,15 @@ def main() -> None:
       parser.error("--momentum is required for --workload nesterov-trajectory")
     if args.learning_rate is None:
       parser.error("--learning-rate is required for --workload nesterov-trajectory")
-    workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
-        args.horizon, args.momentum, args.learning_rate
+    workload_coef = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+        args.horizon, args.momentum, args.learning_rate, args.weight_decay
     )
   else:
-    workload_coef = None
+    if args.learning_rate is None:
+      parser.error("--learning-rate is required for --workload prefix")
+    workload_coef = decayed_prefix_sum_workload_coef(
+        args.horizon, args.learning_rate, args.weight_decay
+    )
 
   result = fit_bandinv_strategy(
       args.horizon,
@@ -126,10 +140,14 @@ def main() -> None:
       workload=args.workload,
       momentum=args.momentum,
       learning_rate=args.learning_rate,
+      weight_decay=args.weight_decay,
   )
   publish_strategy_artifact(
-      output, result, reduction=args.reduction, workload_type=args.workload,
+      output, result,
+      reduction=args.reduction,
+      workload_type=("nesterov-decayed-trajectory" if args.workload == "nesterov-trajectory" else "decayed-prefix-sum"),
       momentum=args.momentum, learning_rate=args.learning_rate,
+      weight_decay=args.weight_decay,
       max_optimizer_steps=args.max_optimizer_steps,
   )
   print(f"saved strategy artifact: {output}")

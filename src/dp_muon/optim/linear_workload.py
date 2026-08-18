@@ -54,7 +54,52 @@ def fixed_lr_nesterov_trajectory_workload_coef(
   return jnp.asarray(learning_rate, dtype=h.dtype) * jnp.cumsum(h)
 
 
+def decayed_prefix_sum_workload_coef(
+    horizon: int, learning_rate: float, weight_decay: float
+) -> jax.Array:
+  """Returns ``P_rho`` coefficients for decoupled weight decay.
+
+  Here ``rho = 1 - learning_rate * weight_decay``.  The coefficient at lag
+  ``k`` is ``rho**k``; in particular zero decay exactly recovers prefix-sum.
+  """
+  if not isinstance(horizon, Integral) or horizon < 1:
+    raise ValueError("horizon must be a positive integer")
+  learning_rate = _validated_scalar(
+      learning_rate, "learning_rate", lower=0.0, strict_lower=True
+  )
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+  if weight_decay == 0.0:
+    return jnp.ones((int(horizon),))
+  rho = 1.0 - learning_rate * weight_decay
+  return jnp.asarray(rho) ** jnp.arange(int(horizon))
+
+
+def fixed_lr_nesterov_decayed_trajectory_workload_coef(
+    horizon: int, momentum: float, learning_rate: float, weight_decay: float
+) -> jax.Array:
+  """Returns ``eta P_rho H_beta^Nes`` Toeplitz coefficients.
+
+  This remains the naive Muon workload: it models Nesterov momentum and
+  decoupled weight decay only, leaving Muon's nonlinear ``Q`` out of scope.
+  """
+  horizon, beta = _validate_configuration(horizon, momentum)
+  learning_rate = _validated_scalar(
+      learning_rate, "learning_rate", lower=0.0, strict_lower=True
+  )
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+  if weight_decay == 0.0:
+    return fixed_lr_nesterov_trajectory_workload_coef(
+        horizon, beta, learning_rate
+    )
+  h = nesterov_kernel_coef(horizon, beta)
+  rho = jnp.asarray(1.0 - learning_rate * weight_decay, dtype=h.dtype)
+  powers = rho ** jnp.arange(horizon, dtype=h.dtype)
+  return jnp.asarray(learning_rate, dtype=h.dtype) * jnp.convolve(h, powers)[:horizon]
+
+
 __all__ = [
+    "decayed_prefix_sum_workload_coef",
+    "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "nesterov_kernel_coef",
 ]

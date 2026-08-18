@@ -61,10 +61,11 @@ def test_bandinv_mf_fit_request_is_importable_and_constructable():
   assert strategies.BandInvMFFitRequest is not strategies.PrefixSumBandInvMFFitRequest
 
 
-def test_prefix_sum_request_has_no_momentum_or_learning_rate():
+def test_decayed_prefix_request_records_learning_rate_and_weight_decay():
   request = _prefix_sum_request()
   assert not hasattr(request, "momentum")
-  assert not hasattr(request, "learning_rate")
+  assert request.learning_rate == 1.0
+  assert request.weight_decay == 0.0
 
 
 def test_prefix_sum_strategy_compatibility_requires_all_ones_workload():
@@ -85,8 +86,9 @@ def test_prefix_sum_wrong_workload_refits_even_with_prefix_sum_metadata(tmp_path
   # Metadata claims prefix-sum but the workload is not all-ones: must not hit.
   wrong_workload = _strategy(request, workload_coef=np.full(request.horizon, 3.0))
   save_bandinv_strategy(
-      path, wrong_workload, reduction="mean", workload_type="prefix-sum",
-      momentum=None, learning_rate=None, max_optimizer_steps=1,
+      path, wrong_workload, reduction="mean", workload_type="decayed-prefix-sum",
+      momentum=None, learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay, max_optimizer_steps=1,
   )
   assert strategies._load_compatible_prefix_sum_snapshot_unlocked(path, request) is None
   calls = []
@@ -125,5 +127,52 @@ def test_nesterov_and_prefix_sum_artifact_paths_do_not_collide(tmp_path):
       reduction="mean", max_optimizer_steps=1,
   )
   assert nesterov != prefix_sum
-  assert "nesterov-trajectory" in nesterov.name
-  assert "prefix-sum" in prefix_sum.name
+  assert "nesterov-decayed-trajectory" in nesterov.name
+  assert "decayed-prefix-sum" in prefix_sum.name
+
+
+def test_changed_weight_decay_cannot_reuse_prefix_artifact(tmp_path):
+  request = _prefix_sum_request(
+      strategy_dir=tmp_path, learning_rate=0.1, weight_decay=0.1
+  )
+  snapshot, action = strategies.get_or_fit_prefix_sum_strategy_snapshot(request)
+  assert action == "fit"
+  changed = _prefix_sum_request(
+      strategy_dir=tmp_path, learning_rate=0.1, weight_decay=0.2
+  )
+  assert strategies.prefix_sum_strategy_artifact_path(
+      request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
+      max_participations=request.max_participations, bandwidth=request.bandwidth,
+      learning_rate=request.learning_rate, weight_decay=request.weight_decay,
+      reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+  ) != strategies.prefix_sum_strategy_artifact_path(
+      changed.strategy_dir, horizon=changed.horizon, min_sep=changed.min_sep,
+      max_participations=changed.max_participations, bandwidth=changed.bandwidth,
+      learning_rate=changed.learning_rate, weight_decay=changed.weight_decay,
+      reduction=changed.reduction, max_optimizer_steps=changed.max_optimizer_steps,
+  )
+  assert strategies._load_compatible_prefix_sum_snapshot_unlocked(
+      snapshot.path, changed
+  ) is None
+
+
+def test_missing_weight_decay_metadata_is_not_a_cache_hit(tmp_path):
+  request = _prefix_sum_request(strategy_dir=tmp_path)
+  path = strategies.prefix_sum_strategy_artifact_path(
+      request.strategy_dir, horizon=request.horizon, min_sep=request.min_sep,
+      max_participations=request.max_participations, bandwidth=request.bandwidth,
+      learning_rate=request.learning_rate, weight_decay=request.weight_decay,
+      reduction=request.reduction, max_optimizer_steps=request.max_optimizer_steps,
+  )
+  strategy = _strategy(request, workload_coef=np.ones(request.horizon))
+  np.savez(
+      path, horizon=np.asarray(strategy.horizon), bandwidth=np.asarray(strategy.bandwidth),
+      min_sep=np.asarray(strategy.min_sep), max_participations=np.asarray(strategy.max_participations),
+      workload_coef=np.asarray(strategy.workload_coef), noising_coef=np.asarray(strategy.noising_coef),
+      strategy_coef=np.asarray(strategy.strategy_coef), sensitivity_squared=np.asarray(strategy.sensitivity_squared),
+      objective=np.asarray(strategy.objective), reduction=np.asarray("mean"),
+      workload_type=np.asarray("decayed-prefix-sum"), momentum=np.asarray(np.nan),
+      learning_rate=np.asarray(request.learning_rate),
+      max_optimizer_steps=np.asarray(request.max_optimizer_steps),
+  )
+  assert strategies._load_compatible_prefix_sum_snapshot_unlocked(path, request) is None

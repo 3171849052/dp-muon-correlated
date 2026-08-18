@@ -10,6 +10,7 @@ import pytest
 import yaml
 
 from dp_muon.bandinvmf import BandInvMFStrategy, save_bandinv_strategy
+from dp_muon.optim import decayed_prefix_sum_workload_coef
 from dp_muon.training.bandinvmf_strategy_manager import LoadedStrategySnapshot
 from dp_muon.training.cifar10_driver import (
     BANDINV_DPADAMW_ALGORITHM,
@@ -42,7 +43,9 @@ def _strategy(config, participation):
       bandwidth=config.bandwidth,
       min_sep=participation.min_sep,
       max_participations=participation.max_participations,
-      workload_coef=jnp.ones((participation.horizon,), jnp.float32),
+      workload_coef=decayed_prefix_sum_workload_coef(
+          participation.horizon, config.learning_rate, config.weight_decay
+      ),
       noising_coef=jnp.ones((config.bandwidth,), jnp.float32),
       strategy_coef=jnp.ones((participation.horizon,), jnp.float32),
       sensitivity_squared=jnp.array(1.0, jnp.float32),
@@ -56,9 +59,10 @@ def _save_matching_artifact(config, participation, *, reduction=None):
       path,
       _strategy(config, participation),
       reduction=reduction or config.reduction,
-      workload_type="prefix-sum",
+      workload_type="decayed-prefix-sum",
       momentum=None,
-      learning_rate=None,
+      learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
       max_optimizer_steps=config.max_optimizer_steps,
   )
   return path
@@ -315,18 +319,19 @@ def test_yaml_rejects_unknown_algorithm(tmp_path):
 
 # --- Test 13: prefix-sum artifact does not use momentum/learning_rate ---
 
-def test_strategy_artifact_path_has_no_momentum_or_lr(tmp_path):
+def test_strategy_artifact_path_records_adamw_lr_and_weight_decay(tmp_path):
   config = _config(tmp_path)
   participation = cifar10_experiment.derive_fixed_cycle_participation(50_000, 5, 512)
   path = experiment.strategy_artifact_path(config, participation)
-  assert "prefix-sum" in path.name
+  assert "decayed-prefix-sum" in path.name
   assert "_m" not in path.name
-  assert "_lr" not in path.name
+  assert f"_lr{config.learning_rate}" in path.name
+  assert f"_wd{config.weight_decay}" in path.name
 
 
 # --- Test 14: workload uses prefix-sum (all-ones), not nesterov ---
 
-def test_strategy_workload_is_prefix_sum_not_nesterov(tmp_path, monkeypatch):
+def test_strategy_workload_is_decayed_prefix_not_nesterov(tmp_path, monkeypatch):
   config = _config(tmp_path)
   participation = cifar10_experiment.derive_fixed_cycle_participation(50_000, 5, 512)
   captured = {}
@@ -337,9 +342,12 @@ def test_strategy_workload_is_prefix_sum_not_nesterov(tmp_path, monkeypatch):
 
   monkeypatch.setattr(experiment, "fit_bandinv_strategy", fake_fit)
   experiment.get_or_fit_strategy_snapshot(config, participation)
-  # The manager must pass None so fit_bandinv_strategy uses its default
-  # prefix-sum (all-ones) workload instead of a Nesterov trajectory.
-  assert captured["workload"] is None
+  np.testing.assert_array_equal(
+      captured["workload"],
+      decayed_prefix_sum_workload_coef(
+          participation.horizon, config.learning_rate, config.weight_decay
+      ),
+  )
 
 
 # --- Test 15: AdamW defaults match IID DP-AdamW ---

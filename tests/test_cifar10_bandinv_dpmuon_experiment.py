@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from dp_muon.bandinvmf import BandInvMFStrategy, save_bandinv_strategy
-from dp_muon.optim import fixed_lr_nesterov_trajectory_workload_coef
+from dp_muon.optim import fixed_lr_nesterov_decayed_trajectory_workload_coef
 from dp_muon.training.bandinvmf_strategy_manager import LoadedStrategySnapshot
 from dp_muon.training.cifar10_driver import (
     BANDINV_DPMUON_ALGORITHM,
@@ -38,8 +38,9 @@ def _config(tmp_path, **changes):
 
 
 def _strategy(config, participation):
-  workload = fixed_lr_nesterov_trajectory_workload_coef(
-      participation.horizon, config.momentum, config.muon_learning_rate
+  workload = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+      participation.horizon, config.momentum, config.muon_learning_rate,
+      config.muon_weight_decay,
   )
   return BandInvMFStrategy(
       horizon=participation.horizon,
@@ -60,9 +61,10 @@ def _save_matching_artifact(config, participation, *, reduction=None):
       path,
       _strategy(config, participation),
       reduction=reduction or config.reduction,
-      workload_type="nesterov-trajectory",
+      workload_type="nesterov-decayed-trajectory",
       momentum=config.momentum,
       learning_rate=config.muon_learning_rate,
+      weight_decay=config.muon_weight_decay,
       max_optimizer_steps=config.max_optimizer_steps,
   )
   return path
@@ -159,11 +161,13 @@ def test_strategy_workload_uses_muon_learning_rate_not_adamw(tmp_path, monkeypat
 
   monkeypatch.setattr(experiment, "fit_bandinv_strategy", fake_fit)
   experiment.get_or_fit_strategy(config, participation)
-  expected = fixed_lr_nesterov_trajectory_workload_coef(
-      participation.horizon, config.momentum, config.muon_learning_rate
+  expected = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+      participation.horizon, config.momentum, config.muon_learning_rate,
+      config.muon_weight_decay,
   )
-  adamw_workload = fixed_lr_nesterov_trajectory_workload_coef(
-      participation.horizon, config.momentum, config.adamw_learning_rate
+  adamw_workload = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+      participation.horizon, config.momentum, config.adamw_learning_rate,
+      config.muon_weight_decay,
   )
   assert np.array_equal(captured["workload"], np.asarray(expected))
   assert not np.array_equal(captured["workload"], np.asarray(adamw_workload))
@@ -240,7 +244,7 @@ def test_cli_print_log_dir_and_gpu_for_naive(monkeypatch, capsys):
       sys, "argv", ["run_cifar10.py", "--config", str(CONFIG), "--print-gpu"]
   )
   run_cifar10.main()
-  assert capsys.readouterr().out == "3\n"
+  assert capsys.readouterr().out == f"{experiment.load_cifar10_bandinv_dpmuon_config(CONFIG).gpu}\n"
 
 
 def test_cli_prepare_and_run_dispatch_to_naive_adapter(tmp_path, monkeypatch, capsys):
