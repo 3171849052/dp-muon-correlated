@@ -13,6 +13,7 @@ from dp_muon.bandinvmf import fit_bandinv_strategy, load_bandinv_strategy
 from dp_muon.optim import (
     decayed_prefix_sum_workload_coef,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
+    fixed_lr_nesterov_trajectory_workload_coef,
 )
 from dp_muon.training.file_locking import atomic_replace, atomic_temporary_path, file_lock
 from dp_muon.bandinvmf import save_bandinv_strategy
@@ -38,15 +39,24 @@ def default_artifact_path(
   """
   k = "max" if max_participations is None else str(max_participations)
   if workload == "prefix":
+    name = f"prefix_n{horizon}_p{bandwidth}_b{min_sep}_k{k}.npz"
+  elif workload == "nesterov-trajectory":
+    name = (
+        f"nesterov-trajectory_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
+        f"_m{momentum}_lr{learning_rate}.npz"
+    )
+  elif workload == "decayed-prefix":
     name = (
         f"decayed-prefix-sum_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
         f"_lr{learning_rate}_wd{weight_decay}.npz"
     )
-  else:
+  elif workload == "nesterov-decayed-trajectory":
     name = (
         f"nesterov-decayed-trajectory_n{horizon}_p{bandwidth}_b{min_sep}_k{k}"
         f"_m{momentum}_lr{learning_rate}_wd{weight_decay}.npz"
     )
+  else:
+    raise ValueError(f"unknown workload: {workload!r}")
   return root / "artifacts" / "strategies" / name
 
 
@@ -100,27 +110,49 @@ def main() -> None:
   parser.add_argument("--max-participations", type=int)
   parser.add_argument("--max-optimizer-steps", type=int, default=1000)
   parser.add_argument("--reduction", choices=("mean", "max", "last"), default="mean")
-  parser.add_argument("--workload", choices=("prefix", "nesterov-trajectory"), default="prefix")
+  parser.add_argument(
+      "--workload",
+      choices=("prefix", "nesterov-trajectory", "decayed-prefix", "nesterov-decayed-trajectory"),
+      default="prefix",
+  )
   parser.add_argument("--momentum", type=float)
   parser.add_argument("--learning-rate", type=float)
   parser.add_argument("--weight-decay", type=float, default=0.0)
   parser.add_argument("--output", type=Path)
   args = parser.parse_args()
 
-  if args.workload == "nesterov-trajectory":
+  if args.workload == "prefix":
+    if args.weight_decay != 0.0:
+      parser.error("--weight-decay is only supported for decayed workloads")
+    workload_coef = None
+    workload_type = "prefix"
+  elif args.workload == "nesterov-trajectory":
+    if args.weight_decay != 0.0:
+      parser.error("--weight-decay is only supported for decayed workloads")
     if args.momentum is None:
       parser.error("--momentum is required for --workload nesterov-trajectory")
     if args.learning_rate is None:
       parser.error("--learning-rate is required for --workload nesterov-trajectory")
-    workload_coef = fixed_lr_nesterov_decayed_trajectory_workload_coef(
-        args.horizon, args.momentum, args.learning_rate, args.weight_decay
+    workload_coef = fixed_lr_nesterov_trajectory_workload_coef(
+        args.horizon, args.momentum, args.learning_rate
     )
-  else:
+    workload_type = "nesterov-trajectory"
+  elif args.workload == "decayed-prefix":
     if args.learning_rate is None:
-      parser.error("--learning-rate is required for --workload prefix")
+      parser.error("--learning-rate is required for --workload decayed-prefix")
     workload_coef = decayed_prefix_sum_workload_coef(
         args.horizon, args.learning_rate, args.weight_decay
     )
+    workload_type = "decayed-prefix-sum"
+  else:
+    if args.momentum is None:
+      parser.error("--momentum is required for --workload nesterov-decayed-trajectory")
+    if args.learning_rate is None:
+      parser.error("--learning-rate is required for --workload nesterov-decayed-trajectory")
+    workload_coef = fixed_lr_nesterov_decayed_trajectory_workload_coef(
+        args.horizon, args.momentum, args.learning_rate, args.weight_decay
+    )
+    workload_type = "nesterov-decayed-trajectory"
 
   result = fit_bandinv_strategy(
       args.horizon,
@@ -145,7 +177,7 @@ def main() -> None:
   publish_strategy_artifact(
       output, result,
       reduction=args.reduction,
-      workload_type=("nesterov-decayed-trajectory" if args.workload == "nesterov-trajectory" else "decayed-prefix-sum"),
+      workload_type=workload_type,
       momentum=args.momentum, learning_rate=args.learning_rate,
       weight_decay=args.weight_decay,
       max_optimizer_steps=args.max_optimizer_steps,
