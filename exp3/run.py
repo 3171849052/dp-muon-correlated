@@ -50,8 +50,10 @@ def run_one(config, contract, name, strategy, seed, train_images, train_labels, 
     te = evaluate_classifier_metrics(s.params, model, test_images, test_labels, batch_size=config.batch_size)
     return {"train_loss": tr["test_loss"], "test_loss": te["test_loss"], "test_accuracy": te["test_accuracy"],
             "amplitude_distortion": s.amplitude, "direction_distortion": s.direction,
-            "R_linear_prefix": s.sum_j_linear/(s.sum_d_linear+1e-30),
-            "R_adamw_prefix": s.sum_j_adamw/(s.sum_d_adamw+1e-30)}
+            "R_linear_prefix": s.j_linear/(s.d_prefix_linear+1e-30),
+            "R_adamw_prefix": s.j_adamw/(s.d_prefix_adamw+1e-30),
+            "R_linear_aggregate": s.sum_j_linear/(s.sum_d_linear+1e-30),
+            "R_adamw_aggregate": s.sum_j_adamw/(s.sum_d_adamw+1e-30)}
   ckpt = output / f"checkpoint_{name.replace('-', '_')}_seed{seed}.pkl"
   final, history = run_training(initial_state=state, train_step=step_fn,
       logical_batches=iter_logical_batches(train_images, train_labels, schedule), horizon=contract.horizon,
@@ -67,7 +69,7 @@ def run_one(config, contract, name, strategy, seed, train_images, train_labels, 
     fields = sorted({k for r in rows for k in r}); writer = csv.DictWriter(f, fieldnames=fields); writer.writeheader(); writer.writerows(rows)
   last = rows[-1]
   return {"strategy": name, "seed": seed, "final_train_loss": last["train_loss"], "final_test_loss": last["test_loss"],
-      "final_accuracy": last["test_accuracy"], "R_linear": last["R_linear_prefix"], "R_adamw": last["R_adamw_prefix"],
+      "final_accuracy": last["test_accuracy"], "R_linear": last["R_linear_aggregate"], "R_adamw": last["R_adamw_aggregate"],
       "amplitude_distortion": last["amplitude_distortion"], "direction_distortion": last["direction_distortion"],
       "calibration": asdict(calibration), "horizon": contract.horizon, "min_sep": contract.min_sep,
       "max_participations": contract.max_participations}

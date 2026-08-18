@@ -15,6 +15,7 @@ from dp_muon.bandinvmf import (
 )
 from dp_muon.privacy import ParticipationSpec, PrivacyCalibration, make_clipped_gradient_query
 from dp_muon.training.nonamplified_dpadamw import make_nonamplified_dpadamw_optimizer
+from dp_muon.training.nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
 from dp_muon.training.nonamplified_linear import validate_nonamplified_bandinv_privacy_setup
 
 PyTree = Any
@@ -44,12 +45,7 @@ def _dot(left: PyTree, right: PyTree) -> jax.Array:
 
 @jax.tree_util.register_pytree_node_class
 @dataclass(frozen=True)
-class OnlineShadowState:
-  params: PyTree
-  optimizer_state: Any
-  noise_state: BandInvMFNoiseState
-  rng_key: jax.Array
-  step: jax.Array
+class OnlineShadowState(NonAmplifiedBandInvDPAdamWState):
   clean_m: PyTree
   clean_v: PyTree
   dp_m: PyTree
@@ -57,8 +53,12 @@ class OnlineShadowState:
   noise_m: PyTree
   d_linear: PyTree
   d_adamw: PyTree
+  j_linear: jax.Array
+  d_prefix_linear: jax.Array
   sum_j_linear: jax.Array
   sum_d_linear: jax.Array
+  j_adamw: jax.Array
+  d_prefix_adamw: jax.Array
   sum_j_adamw: jax.Array
   sum_d_adamw: jax.Array
   amplitude: jax.Array
@@ -67,7 +67,8 @@ class OnlineShadowState:
   def tree_flatten(self):
     children = (self.params, self.optimizer_state, self.noise_state, self.rng_key, self.step,
                 self.clean_m, self.clean_v, self.dp_m, self.dp_v, self.noise_m,
-                self.d_linear, self.d_adamw, self.sum_j_linear, self.sum_d_linear,
+                self.d_linear, self.d_adamw, self.j_linear, self.d_prefix_linear,
+                self.sum_j_linear, self.sum_d_linear, self.j_adamw, self.d_prefix_adamw,
                 self.sum_j_adamw, self.sum_d_adamw, self.amplitude, self.direction)
     return children, None
 
@@ -83,7 +84,9 @@ def init_online_shadow_state(params: PyTree, strategy: BandInvMFStrategy,
   return OnlineShadowState(params, optimizer.init(params), init_bandinv_noise_state(params, strategy.bandwidth),
       rng_key, jnp.array(0, jnp.int32), zeros, zeros, zeros, zeros, zeros, zeros, zeros,
       jnp.array(0., jnp.float32), jnp.array(0., jnp.float32), jnp.array(0., jnp.float32),
-      jnp.array(0., jnp.float32), jnp.array(0., jnp.float32), jnp.array(0., jnp.float32))
+      jnp.array(0., jnp.float32), jnp.array(0., jnp.float32), jnp.array(0., jnp.float32),
+      jnp.array(0., jnp.float32), jnp.array(0., jnp.float32), jnp.array(0., jnp.float32),
+      jnp.array(0., jnp.float32))
 
 
 def make_online_shadow_train_step(loss_fn: Callable[..., Any], strategy: BandInvMFStrategy,
@@ -132,9 +135,11 @@ def make_online_shadow_train_step(loss_fn: Callable[..., Any], strategy: BandInv
     dlin = jax.tree_util.tree_map(lambda d, x: (1-learning_rate*weight_decay)*d+x, state.d_linear, xlin)
     dadam = jax.tree_util.tree_map(lambda d, x: (1-learning_rate*weight_decay)*d+x, state.d_adamw, xdp)
     jl, ja = _sqnorm(dlin), _sqnorm(dadam)
-    dl, da = state.sum_d_linear + _sqnorm(xlin), state.sum_d_adamw + _sqnorm(xdp)
+    dl_prefix = state.d_prefix_linear + _sqnorm(xlin)
+    da_prefix = state.d_prefix_adamw + _sqnorm(xdp)
     return OnlineShadowState(new_params, new_opt, new_noise, new_key, t, cm, cv, dm, dv, nm,
-        dlin, dadam, state.sum_j_linear+jl, dl, state.sum_j_adamw+ja, da, amp, direction)
+        dlin, dadam, jl, dl_prefix, state.sum_j_linear+jl, state.sum_d_linear+dl_prefix,
+        ja, da_prefix, state.sum_j_adamw+ja, state.sum_d_adamw+da_prefix, amp, direction)
 
   return step_fn, optimizer
 
