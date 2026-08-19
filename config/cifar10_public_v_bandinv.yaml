@@ -32,7 +32,7 @@ public_v:
   public_v_batches_per_segment: 1
 
 adamw:
-  learning_rate: 0.01
+  learning_rate: 0.001
   beta1: 0.9
   weight_decay: 0.01
 

@@ -473,6 +473,7 @@ def run_training(
     metrics_writer: MetricsCSVWriter | None = None,
     privacy_accountant: Callable[[int], float] | None = None,
     before_step: Callable[[Any, int], Any] | None = None,
+    after_step: Callable[[Any, int], None] | None = None,
     on_state_ready: Callable[[Any, int], None] | None = None,
 ) -> tuple[Any, list[dict[str, float | int]]]:
   """Runs exactly one private update for each logical batch, with optional resume.
@@ -531,6 +532,8 @@ def run_training(
         raise ValueError("logical_batches must contain exactly horizon batches") from error
       state = compiled_step(state, batch)  # The sole private update for this batch.
       current_step = logical_step + 1
+      if after_step is not None:
+        after_step(state, current_step)
       if num_train_examples is None:
         should_evaluate = current_step % eval_every == 0 or current_step == horizon
       else:
