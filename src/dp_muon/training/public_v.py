@@ -1,4 +1,4 @@
-"""Direct public per-example second-moment estimation."""
+"""Public batch-gradient second-moment estimation."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ PyTree = Any
 
 @dataclass(frozen=True)
 class PublicVEstimator:
-  """Estimates ``E[g_i**2]`` from public examples at fixed parameters."""
+  """Averages squared mean-loss gradients across public batches."""
 
   loss_fn: Callable[[PyTree, Any], jax.Array]
   eps: float = 1e-8
@@ -25,10 +25,10 @@ class PublicVEstimator:
     if not self.eps > 0:
       raise ValueError("eps must be positive")
 
-  def squared_gradient_sum(
+  def squared_batch_gradient(
       self, params: PyTree, public_batch: Any
-  ) -> tuple[PyTree, jax.Array]:
-    """Returns ``sum_i g_i**2`` and the example count for one batch."""
+  ) -> PyTree:
+    """Returns the squared gradient of one public batch's mean loss."""
     leaves = jax.tree_util.tree_leaves(public_batch)
     if not leaves:
       raise ValueError("public batch must have at least one leaf")
@@ -38,60 +38,44 @@ class PublicVEstimator:
     if batch_size < 1 or any(value.shape[0] != batch_size for value in leaves):
       raise ValueError("public batch leaves must have the same non-empty leading axis")
 
-    def per_example_loss(parameters: PyTree, example: Any) -> jax.Array:
-      singleton_batch = jax.tree_util.tree_map(
-          lambda value: jnp.expand_dims(value, axis=0), example
-      )
-      return self.loss_fn(parameters, singleton_batch)
-
-    def accumulate(squared_sum: PyTree, example: Any) -> tuple[PyTree, None]:
-      gradient = jax.grad(per_example_loss)(params, example)
-      return (
-          jax.tree_util.tree_map(
-              lambda total, value: total + jnp.square(value),
-              squared_sum,
-              gradient,
-          ),
-          None,
-      )
-
-    squared_sum, _ = jax.lax.scan(
-        accumulate,
-        jax.tree_util.tree_map(jnp.zeros_like, params),
-        public_batch,
-    )
-    return squared_sum, jnp.asarray(batch_size, dtype=jnp.int32)
+    gradient = jax.grad(self.loss_fn)(params, public_batch)
+    return jax.tree_util.tree_map(jnp.square, gradient)
 
   def estimate_with_count(
       self,
       params: PyTree,
       public_batches: Iterable[Any],
       *,
-      batch_estimate: Callable[[PyTree, Any], tuple[PyTree, jax.Array]] | None = None,
+      batch_estimate: Callable[[PyTree, Any], PyTree] | None = None,
   ) -> tuple[PyTree, int]:
-    """Accumulates a segment-local direct estimate across public batches."""
+    """Returns the equal-batch average and total diagnostic example count."""
     estimate_batch = (
-        self.squared_gradient_sum if batch_estimate is None else batch_estimate
+        self.squared_batch_gradient if batch_estimate is None else batch_estimate
     )
     squared_sum = None
+    batch_count = 0
     example_count = 0
     for public_batch in public_batches:
-      batch_sum, batch_count = estimate_batch(params, public_batch)
+      leaves = jax.tree_util.tree_leaves(public_batch)
+      if not leaves or leaves[0].ndim < 1:
+        raise ValueError("public batch must have a leading example axis")
+      squared_gradient = estimate_batch(params, public_batch)
       squared_sum = (
-          batch_sum
+          squared_gradient
           if squared_sum is None
-          else jax.tree_util.tree_map(jnp.add, squared_sum, batch_sum)
+          else jax.tree_util.tree_map(jnp.add, squared_sum, squared_gradient)
       )
-      example_count += int(batch_count)
-    if squared_sum is None or example_count < 1:
-      raise ValueError("each segment requires at least one public example")
+      batch_count += 1
+      example_count += int(leaves[0].shape[0])
+    if squared_sum is None or batch_count < 1:
+      raise ValueError("each segment requires at least one public batch")
     return (
-        jax.tree_util.tree_map(lambda value: value / example_count, squared_sum),
+        jax.tree_util.tree_map(lambda value: value / batch_count, squared_sum),
         example_count,
     )
 
   def estimate(self, params: PyTree, public_batches: Iterable[Any]) -> PyTree:
-    """Returns the direct public ``mean_i(g_i**2)`` estimate."""
+    """Returns ``mean_b(square(grad(mean_loss_on_batch_b)))``."""
     v_hat, _ = self.estimate_with_count(params, public_batches)
     return v_hat
 

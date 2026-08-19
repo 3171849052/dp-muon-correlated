@@ -141,9 +141,11 @@ def test_yaml_switches_public_source_without_training_code_changes(tmp_path):
   source = Path(__file__).parents[1] / "config/cifar10_public_v_bandinv.yaml"
   config = load_cifar10_public_v_bandinv_config(source)
   assert config.public_source == "cifar10_split"
+  assert config.public_v_temporal_mode == "direct"
+  assert config.public_v_beta2 == 0.999
   assert config.public_v_eps == 1e-8
-  assert config.public_v_batches_per_segment == 4
-  assert config.segment_length == 64
+  assert config.public_v_batches_per_segment >= 1
+  assert config.segment_length >= 1
   changed = tmp_path / "external.yaml"
   changed.write_text(
       source.read_text(encoding="utf-8").replace(
@@ -228,31 +230,45 @@ def _assert_tree_equal(left, right):
       np.testing.assert_array_equal(actual, expected)
 
 
-def test_public_v_is_direct_mean_of_per_example_squared_gradients():
+def _assert_tree_allclose(left, right):
+  for actual, expected in zip(
+      jax.tree_util.tree_leaves(left),
+      jax.tree_util.tree_leaves(right),
+      strict=True,
+  ):
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-7)
+
+
+def test_public_v_single_batch_is_squared_batch_mean_gradient():
+  params = _params()
+  estimator = PublicVEstimator(_public_loss, eps=1e-6)
+  batch = _batch()
+  actual = estimator.estimate(params, [batch])
+  expected = jax.tree_util.tree_map(
+      jnp.square, jax.grad(_public_loss)(params, batch)
+  )
+  _assert_tree_equal(actual, expected)
+
+
+def test_public_v_averages_squared_mean_gradients_across_batches():
   params = _params()
   estimator = PublicVEstimator(_public_loss, eps=1e-6)
   batches = [_batch(), _batch(1.5)]
   actual, count = estimator.estimate_with_count(
       params,
       batches,
-      batch_estimate=jax.jit(estimator.squared_gradient_sum),
+      batch_estimate=jax.jit(estimator.squared_batch_gradient),
   )
-  examples = {
-      key: jnp.concatenate([batch[key] for batch in batches], axis=0)
-      for key in batches[0]
-  }
-  per_example_gradients = jax.vmap(
-      lambda x, y: jax.grad(
-          lambda parameters: _public_loss(
-              parameters, {"x": x[None, :], "y": y[None]}
-          )
-      )(params)
-  )(examples["x"], examples["y"])
+  squared_batch_gradients = [
+      jax.tree_util.tree_map(jnp.square, jax.grad(_public_loss)(params, batch))
+      for batch in batches
+  ]
   expected = jax.tree_util.tree_map(
-      lambda values: jnp.mean(jnp.square(values), axis=0), per_example_gradients
+      lambda *values: jnp.mean(jnp.stack(values), axis=0),
+      *squared_batch_gradients,
   )
   assert count == 4
-  _assert_tree_equal(actual, expected)
+  _assert_tree_allclose(actual, expected)
   for parameter, value in zip(
       jax.tree_util.tree_leaves(params),
       jax.tree_util.tree_leaves(actual),
@@ -263,16 +279,16 @@ def test_public_v_is_direct_mean_of_per_example_squared_gradients():
     assert value.device == parameter.device
 
 
-def test_public_v_distinguishes_mean_square_from_square_mean():
+def test_public_v_is_not_mean_of_per_example_squared_gradients():
   estimator = PublicVEstimator(
       lambda parameter, batch: jnp.mean(parameter * batch["x"])
   )
   params = jnp.asarray(2.0, jnp.float32)
   batch = {"x": jnp.asarray([1.0, -1.0], jnp.float32)}
   actual = estimator.estimate(params, [batch])
-  np.testing.assert_allclose(actual, 1.0)
-  mean_gradient_squared = jnp.square(jax.grad(estimator.loss_fn)(params, batch))
-  np.testing.assert_allclose(mean_gradient_squared, 0.0)
+  np.testing.assert_allclose(actual, 0.0)
+  per_example_mean_square = jnp.mean(jnp.square(batch["x"]))
+  np.testing.assert_allclose(per_example_mean_square, 1.0)
 
 
 def test_frozen_v_segment_transition_and_synthetic_private_chain(tmp_path):
@@ -302,10 +318,12 @@ def test_frozen_v_segment_transition_and_synthetic_private_chain(tmp_path):
       learning_rates=0.05,
       reduction="mean",
       max_optimizer_steps=1,
+      temporal_mode="direct",
       fit_strategy=_fake_fit,
   )
   frozen = state.optimizer_state.public_v_hat
   _assert_tree_equal(frozen, estimator.estimate(params, [_batch()]))
+  _assert_tree_equal(state.public_v_temporal, frozen)
   assert first_info.public_v_num_examples == 2
   assert first_info.workload_matrix.shape == (2, 2)
   step = jax.jit(
@@ -336,12 +354,14 @@ def test_frozen_v_segment_transition_and_synthetic_private_chain(tmp_path):
       learning_rates=0.05,
       reduction="mean",
       max_optimizer_steps=1,
+      temporal_mode="direct",
       fit_strategy=_fake_fit,
   )
   _assert_tree_equal(state.params, params_before)
   _assert_tree_equal(state.optimizer_state.mu, momentum_before)
   assert int(state.optimizer_state.count) == 2
   _assert_tree_equal(state.optimizer_state.public_v_hat, expected_second_v)
+  _assert_tree_equal(state.public_v_temporal, expected_second_v)
   assert second_info.public_v_num_examples == 2
   assert int(state.noise_state.step) == 0
   assert second_info.workload_matrix.shape == (1, 1)
@@ -376,6 +396,75 @@ def test_frozen_v_segment_transition_and_synthetic_private_chain(tmp_path):
       accountant.epsilon_spent(3),
       gdp.eps_from_mu(mu=0.5, delta=1e-5),
   )
+
+
+def test_public_v_ema_uses_segment_length_and_survives_checkpoint(tmp_path):
+  params = _params()
+  estimator = PublicVEstimator(_public_loss, eps=1e-6)
+  optimizer = PublicVAdamW(learning_rate=0.05, beta1=0.7, eps=1e-6)
+  initial = init_public_v_bandinv_adamw_state(
+      params,
+      optimizer=optimizer,
+      noise_root_key=jax.random.key(19),
+      bandwidth=2,
+  )
+
+  def begin(state, batch, *, index, length):
+    return begin_public_v_segment(
+        state,
+        [batch],
+        estimator=estimator,
+        optimizer=optimizer,
+        segment_index=index,
+        segment_length=length,
+        global_min_sep=3,
+        bandwidth=2,
+        num_segments=2,
+        global_noise_multiplier=0.0,
+        query_sensitivity=1.0,
+        learning_rates=0.05,
+        reduction="mean",
+        max_optimizer_steps=1,
+        temporal_mode="ema",
+        public_v_beta2=0.8,
+        fit_strategy=_fake_fit,
+    )[0]
+
+  first_q = estimator.estimate(params, [_batch()])
+  first = begin(initial, _batch(), index=0, length=2)
+  _assert_tree_equal(first.public_v_temporal, first_q)
+  private_step = jax.jit(
+      make_public_v_bandinv_adamw_train_step(
+          _private_loss, _calibration(), optimizer
+      )
+  )
+  boundary = private_step(private_step(first, _batch()), _batch())
+  _assert_tree_equal(boundary.public_v_temporal, first_q)
+
+  checkpoint = tmp_path / "ema-state.pkl"
+  save_checkpoint(
+      checkpoint,
+      state=boundary,
+      current_step=2,
+      experiment_config={"algorithm": "public-v-ema-test"},
+      artifact_identifiers={"algorithm": "dp-adamw-public-v-bandinv"},
+  )
+  resumed_boundary = load_checkpoint(checkpoint)["state"]
+  _assert_tree_equal(resumed_boundary.public_v_temporal, first_q)
+
+  second_batch = _batch(2.0)
+  second_q = estimator.estimate(boundary.params, [second_batch])
+  rho = 0.8**3
+  expected = jax.tree_util.tree_map(
+      lambda previous, current: rho * previous + (1.0 - rho) * current,
+      first_q,
+      second_q,
+  )
+  uninterrupted = begin(boundary, second_batch, index=1, length=3)
+  resumed = begin(resumed_boundary, second_batch, index=1, length=3)
+  _assert_tree_allclose(uninterrupted.public_v_temporal, expected)
+  _assert_tree_allclose(uninterrupted.optimizer_state.public_v_hat, expected)
+  _assert_tree_equal(resumed, uninterrupted)
 
 
 def test_segment_workload_matches_explicit_frozen_v_adamw_recurrence():

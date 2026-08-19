@@ -10,7 +10,7 @@ runtime:
 data:
   data_dir: data
   public_source: cifar10_split
-  cifar10_public_size: 5000
+  cifar10_public_size: 1000
   public_split_seed: 2026
   cifar100_public_classes: [0, 5, 10, 12, 17, 22, 25, 28, 40, 94]
 
@@ -23,14 +23,16 @@ training:
   microbatch_size: 16
   clip_norm: 1.0
   eval_every: 1
-  segment_length: 64
+  segment_length: 98
 
 public_v:
+  temporal_mode: direct
+  beta2: 0.999
   public_v_eps: 1.0e-8
-  public_v_batches_per_segment: 4
+  public_v_batches_per_segment: 1
 
 adamw:
-  learning_rate: 0.0005
+  learning_rate: 0.01
   beta1: 0.9
   weight_decay: 0.01
 

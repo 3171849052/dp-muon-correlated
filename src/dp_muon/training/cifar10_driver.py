@@ -310,6 +310,8 @@ class Cifar10PublicVBandInvDPAdamWTrainConfig:
   cifar10_public_size: int
   public_split_seed: int
   cifar100_public_classes: tuple[int, ...]
+  public_v_temporal_mode: str
+  public_v_beta2: float
   public_v_eps: float
   public_v_batches_per_segment: int
   segment_length: int
@@ -353,6 +355,10 @@ class Cifar10PublicVBandInvDPAdamWTrainConfig:
       raise ValueError("cifar100_public_classes must contain 10 unique IDs in [0, 99]")
     if not 0 <= self.beta1 < 1:
       raise ValueError("Adam beta1 must be in [0, 1)")
+    if self.public_v_temporal_mode not in {"direct", "ema"}:
+      raise ValueError("public_v_temporal_mode must be 'direct' or 'ema'")
+    if not 0 <= self.public_v_beta2 < 1:
+      raise ValueError("public_v_beta2 must be in [0, 1)")
     if self.learning_rate <= 0 or self.public_v_eps <= 0 or self.weight_decay < 0:
       raise ValueError("AdamW scalar configuration is invalid")
 
@@ -1060,7 +1066,7 @@ def train_dp_public_v_bandinv(
       lambda parameters, batch: public_cross_entropy_loss(parameters, batch, model),
       eps=config.public_v_eps,
   )
-  compiled_public_v_batch_estimate = jax.jit(estimator.squared_gradient_sum)
+  compiled_public_v_batch_estimate = jax.jit(estimator.squared_batch_gradient)
 
   # The repository's fixed-cycle accountant is non-amplified.  Deriving
   # horizon/min_sep/max_participations from the private subset is what makes
@@ -1121,6 +1127,8 @@ def train_dp_public_v_bandinv(
         learning_rates=config.learning_rate,
         reduction=config.reduction,
         max_optimizer_steps=config.max_optimizer_steps,
+        temporal_mode=config.public_v_temporal_mode,
+        public_v_beta2=config.public_v_beta2,
         fit_strategy=fit_strategy,
         public_v_batch_estimate=compiled_public_v_batch_estimate,
     )

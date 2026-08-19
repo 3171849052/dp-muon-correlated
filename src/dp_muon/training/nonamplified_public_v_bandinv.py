@@ -40,6 +40,7 @@ class PublicVBandInvAdamWState:
 
   params: PyTree
   optimizer_state: PublicVAdamWState
+  public_v_temporal: PyTree
   noise_state: BandInvMFNoiseState
   noise_root_key: jax.Array
   rng_key: jax.Array
@@ -57,6 +58,7 @@ class PublicVBandInvAdamWState:
     return (
         self.params,
         self.optimizer_state,
+        self.public_v_temporal,
         self.noise_state,
         self.noise_root_key,
         self.rng_key,
@@ -104,6 +106,7 @@ def init_public_v_bandinv_adamw_state(
   return PublicVBandInvAdamWState(
       params=params,
       optimizer_state=optimizer.init(params),
+      public_v_temporal=jax.tree_util.tree_map(jnp.zeros_like, params),
       noise_state=init_bandinv_noise_state(params, int(bandwidth)),
       noise_root_key=noise_root_key,
       rng_key=jax.random.fold_in(noise_root_key, 0),
@@ -135,12 +138,12 @@ def begin_public_v_segment(
     learning_rates: float | np.ndarray,
     reduction: str,
     max_optimizer_steps: int,
+    temporal_mode: str = "direct",
+    public_v_beta2: float = 0.999,
     fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
-    public_v_batch_estimate: (
-        Callable[[PyTree, Any], tuple[PyTree, jax.Array]] | None
-    ) = None,
+    public_v_batch_estimate: Callable[[PyTree, Any], PyTree] | None = None,
 ) -> tuple[PublicVBandInvAdamWState, PublicVSegmentInfo]:
-  """Directly estimates public V, fits A_time, freezes V, and resets noise."""
+  """Estimates and temporally updates public V, then resets segment noise."""
   start_step = int(state.step)
   if segment_length < 1 or num_segments < 1 or global_min_sep < 1:
     raise ValueError("segment and participation dimensions must be positive")
@@ -150,12 +153,25 @@ def begin_public_v_segment(
     raise ValueError("segments must begin in consecutive order")
   if start_step != int(state.segment_end):
     raise ValueError("the previous segment must finish before the next begins")
+  if temporal_mode not in {"direct", "ema"}:
+    raise ValueError("temporal_mode must be 'direct' or 'ema'")
+  if not 0.0 <= public_v_beta2 < 1.0:
+    raise ValueError("public_v_beta2 must be in [0, 1)")
 
-  v_hat, public_v_num_examples = estimator.estimate_with_count(
+  q, public_v_num_examples = estimator.estimate_with_count(
       state.params,
       public_batches,
       batch_estimate=public_v_batch_estimate,
   )
+  if temporal_mode == "direct" or segment_index == 0:
+    v_hat = q
+  else:
+    rho = public_v_beta2**segment_length
+    v_hat = jax.tree_util.tree_map(
+        lambda previous, current: rho * previous + (1.0 - rho) * current,
+        state.public_v_temporal,
+        q,
+    )
   optimizer_state = optimizer.set_public_v(state.optimizer_state, v_hat, state.params)
   # Frozen V acts on the parameter axis; this RMS is diagnostic only and must
   # not affect the temporal BandInvMF workload or its fitted strategy.
@@ -191,6 +207,7 @@ def begin_public_v_segment(
   new_state = PublicVBandInvAdamWState(
       params=state.params,
       optimizer_state=optimizer_state,
+      public_v_temporal=v_hat,
       noise_state=init_bandinv_noise_state(state.params, strategy.bandwidth),
       noise_root_key=state.noise_root_key,
       rng_key=rng_key,
@@ -261,6 +278,7 @@ def make_public_v_bandinv_adamw_train_step(
     return PublicVBandInvAdamWState(
         params=params,
         optimizer_state=optimizer_state,
+        public_v_temporal=state.public_v_temporal,
         noise_state=noise_state,
         noise_root_key=state.noise_root_key,
         rng_key=rng_key,
