@@ -112,6 +112,18 @@ def _continuous_strategy(config, contract, *, max_optimizer_steps=None):
   return load_or_fit_strategy(path, spec, force_refit=config.force_refit)
 
 
+def _privacy_accountant(condition, strategy, calibration):
+  """Only Continuous has a mathematically supported prefix accountant."""
+  if condition != "continuous":
+    return None
+  return lambda step: epsilon_spent_for_bandinv_prefix(
+      prefix_steps=step, noising_coef=strategy.noising_coef,
+      horizon=strategy.horizon, min_sep=strategy.min_sep,
+      max_participations=strategy.max_participations,
+      calibration=calibration,
+      full_sensitivity_squared=float(strategy.sensitivity_squared))
+
+
 def run_real(config_path: str | Path, out: Path, seeds: list[int]) -> None:
   config = load_cifar10_bandinv_dpadamw_config(resolve_repo_path(config_path))
   train_x, train_y = load_cifar10(resolve_repo_path(config.data_dir), train=True)
@@ -177,13 +189,8 @@ def run_real(config_path: str | Path, out: Path, seeds: list[int]) -> None:
           num_train_examples=len(train_x), logical_batch_size=config.batch_size,
           metrics_writer=MetricsCSVWriter(metrics_path), before_step=before_step,
           after_step=hook,
-          privacy_accountant=(lambda step: epsilon_spent_for_bandinv_prefix(
-              prefix_steps=step, noising_coef=continuous.noising_coef,
-              horizon=continuous.horizon, min_sep=continuous.min_sep,
-              max_participations=continuous.max_participations,
-              calibration=calibration,
-              full_sensitivity_squared=float(continuous.sensitivity_squared)))
-              if condition == "continuous" else lambda step: config.epsilon)
+          privacy_accountant=_privacy_accountant(
+              condition, continuous, calibration))
       results.append(_result(seed, condition, history))
       if condition == "continuous":
         path = out / f"diagnostics_continuous_seed{seed}.csv"
@@ -246,17 +253,21 @@ def run_smoke(out: Path, seeds: list[int]) -> None:
       _, history = run_training(
           initial_state=initial, train_step=step_fn, logical_batches=list(batches),
           horizon=horizon, experiment_config={"smoke": True, "condition": condition},
-          artifact_identifiers={"experiment": "exp4-smoke"}, eval_every=3,
-          evaluate=evaluate, before_step=before, after_step=hook)
-      # The smoke standard-metrics file uses the same evaluated records.
-      with (out / f"metrics_{condition}_seed{seed}.csv").open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(history[0])); writer.writeheader(); writer.writerows(history)
+          artifact_identifiers={"experiment": "exp4-smoke"}, eval_every=1,
+          evaluate=evaluate, before_step=before, after_step=hook,
+          num_train_examples=12, logical_batch_size=2,
+          metrics_writer=MetricsCSVWriter(out / f"metrics_{condition}_seed{seed}.csv"),
+          privacy_accountant=_privacy_accountant(condition, continuous, calibration))
       results.append(_result(seed, condition, history))
       if condition == "continuous":
         path = out / f"diagnostics_continuous_seed{seed}.csv"
         _write_diagnostics(diagnostics, path); plot_p_diagnostics(path, out, seed)
         diagnostic_paths.append((seed, path))
-  _write_outputs(out, results, {"smoke": True, "privacy": {"epsilon": 3., "delta": 1e-5}}, diagnostic_paths)
+  _write_outputs(out, results, {"smoke": True, "privacy": {
+      "epsilon": 3., "delta": 1e-5,
+      "continuous_sensitivity_squared": float(continuous.sensitivity_squared),
+      **{f"{name}_sensitivity_squared": plan.sensitivity_squared
+         for name, plan in plans.items()}}}, diagnostic_paths)
 
 
 def main(argv=None):

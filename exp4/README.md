@@ -20,6 +20,11 @@ L2 energy. The resulting global maximum is passed once to the existing GDP
 calibration. Blocks do not receive separate privacy budgets and no sampling
 amplification is used.
 
+Continuous reports prefix epsilon using the existing BandInvMF accountant.
+Segmented runs currently report only the calibrated full-transcript privacy
+target, so intermediate metrics leave `epsilon_spent` as `NaN`; this does not
+change their final `(epsilon, delta)` calibration.
+
 Validation command:
 
 ```bash

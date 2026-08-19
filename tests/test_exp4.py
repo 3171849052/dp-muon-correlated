@@ -1,5 +1,6 @@
 from dataclasses import replace
 from itertools import combinations
+import json
 from pathlib import Path
 
 import jax
@@ -11,7 +12,7 @@ from dp_muon.bandinvmf import BandInvMFStrategy, init_bandinv_noise_state
 from dp_muon.optim import decayed_prefix_sum_workload_coef
 from dp_muon.training.nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
 from exp4.diagnostics import compute_p_tree, p_tree_statistics
-from exp4.run import parse_args, run_smoke
+from exp4.run import _privacy_accountant, parse_args, run_smoke
 from exp4.segmented_strategy import (
     SegmentedPlan, begin_segment, block_lengths, fit_segmented_plan,
     global_segmented_sensitivity_squared,
@@ -122,6 +123,19 @@ def test_segmented_calibration_uses_global_target():
   assert np.isclose(plan.calibration.matrix_sensitivity ** 2, plan.sensitivity_squared)
 
 
+def test_only_continuous_uses_prefix_privacy_accountant():
+  strategy = _strategy([1., .5])
+  plan = fit_segmented_plan(
+      horizon=2, block_size=2, bandwidth=1, min_sep=2, max_participations=1,
+      max_optimizer_steps=1, reduction="mean", learning_rate=.1, weight_decay=.01,
+      epsilon=2., delta=1e-5, clip_norm=1., normalize_by=2., adjacency="add_remove")
+  accountant = _privacy_accountant("continuous", strategy, plan.calibration)
+  assert callable(accountant)
+  assert np.isfinite(accountant(1))
+  assert _privacy_accountant("seg97", strategy, plan.calibration) is None
+  assert _privacy_accountant("seg16", strategy, plan.calibration) is None
+
+
 def test_cli_seeds_and_real_smoke_outputs(tmp_path):
   args = parse_args(["--seeds", "0", "1", "2"])
   assert args.seeds == [0, 1, 2]
@@ -132,3 +146,15 @@ def test_cli_seeds_and_real_smoke_outputs(tmp_path):
   assert all((tmp_path / name).stat().st_size > 0 for name in required)
   rows = (tmp_path / "diagnostics_continuous_seed0.csv").read_text().splitlines()
   assert len(rows) == 19
+  for condition in ("seg97", "seg16"):
+    metrics = np.genfromtxt(
+        tmp_path / f"metrics_{condition}_seed0.csv", delimiter=",", names=True)
+    assert np.all(np.isnan(metrics["epsilon_spent"]))
+  continuous_metrics = np.genfromtxt(
+      tmp_path / "metrics_continuous_seed0.csv", delimiter=",", names=True)
+  assert np.all(np.isfinite(continuous_metrics["epsilon_spent"]))
+  summary = json.loads((tmp_path / "summary.json").read_text())
+  assert summary["privacy"]["epsilon"] == 3.
+  assert summary["privacy"]["delta"] == 1e-5
+  assert "seg97_sensitivity_squared" in summary["privacy"]
+  assert "seg16_sensitivity_squared" in summary["privacy"]
