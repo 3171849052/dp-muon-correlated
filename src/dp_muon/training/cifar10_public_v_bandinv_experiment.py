@@ -49,7 +49,6 @@ class Cifar10PublicVBandInvExperimentConfig:
   clip_norm: float
   eval_every: int
   segment_length: int
-  public_v_beta2: float
   public_v_eps: float
   public_v_batches_per_segment: int
   learning_rate: float
@@ -159,7 +158,7 @@ def load_cifar10_public_v_bandinv_config(
   public_v = _section(
       document,
       "public_v",
-      {"public_v_beta2", "public_v_eps", "public_v_batches_per_segment"},
+      {"public_v_eps", "public_v_batches_per_segment"},
   )
   adamw = _section(document, "adamw", {"learning_rate", "beta1", "weight_decay"})
   schedule = _section(document, "schedule", {"mode"})
@@ -189,9 +188,8 @@ def load_cifar10_public_v_bandinv_config(
   ):
     raise ValueError("data.cifar100_public_classes must contain 10 unique IDs in [0, 99]")
   beta1 = _number(adamw["beta1"], "adamw.beta1", nonnegative=True)
-  beta2 = _number(public_v["public_v_beta2"], "public_v.public_v_beta2", nonnegative=True)
-  if beta1 >= 1 or beta2 >= 1:
-    raise ValueError("Adam beta values must be less than 1")
+  if beta1 >= 1:
+    raise ValueError("adamw.beta1 must be less than 1")
   mode = _string(schedule["mode"], "schedule.mode")
   reduction = _string(strategy["reduction"], "strategy.reduction")
   adjacency = _string(privacy["adjacency"], "privacy.adjacency")
@@ -219,7 +217,6 @@ def load_cifar10_public_v_bandinv_config(
       clip_norm=_number(training["clip_norm"], "training.clip_norm", positive=True),
       eval_every=_integer(training["eval_every"], "training.eval_every"),
       segment_length=_integer(training["segment_length"], "training.segment_length"),
-      public_v_beta2=beta2,
       public_v_eps=_number(public_v["public_v_eps"], "public_v.public_v_eps", positive=True),
       public_v_batches_per_segment=_integer(
           public_v["public_v_batches_per_segment"],
@@ -315,7 +312,6 @@ def _train_config(
       cifar10_public_size=config.cifar10_public_size,
       public_split_seed=config.public_split_seed,
       cifar100_public_classes=config.cifar100_public_classes,
-      public_v_beta2=config.public_v_beta2,
       public_v_eps=config.public_v_eps,
       public_v_batches_per_segment=config.public_v_batches_per_segment,
       segment_length=config.segment_length,

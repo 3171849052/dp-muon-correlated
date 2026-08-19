@@ -37,7 +37,7 @@ from .nonamplified_public_v_bandinv import (
     init_public_v_bandinv_adamw_state,
     make_public_v_bandinv_adamw_train_step,
 )
-from .public_v import PublicVEstimator, PublicVState, public_preconditioner_rms
+from .public_v import PublicVEstimator, public_preconditioner_rms
 from .nonamplified_dpmuon import (
     NonAmplifiedDPMuonState,
     init_nonamplified_dpmuon_state,
@@ -55,7 +55,6 @@ __all__ = [
     "PublicVBandInvAdamWState",
     "PublicVEstimator",
     "PublicVSegmentInfo",
-    "PublicVState",
     "SegmentedBandInvPrivacyAccountant",
     "begin_public_v_segment",
     "init_nonamplified_bandinv_state",

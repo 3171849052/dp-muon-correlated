@@ -310,7 +310,6 @@ class Cifar10PublicVBandInvDPAdamWTrainConfig:
   cifar10_public_size: int
   public_split_seed: int
   cifar100_public_classes: tuple[int, ...]
-  public_v_beta2: float
   public_v_eps: float
   public_v_batches_per_segment: int
   segment_length: int
@@ -352,8 +351,8 @@ class Cifar10PublicVBandInvDPAdamWTrainConfig:
         or any(value < 0 or value >= 100 for value in self.cifar100_public_classes)
     ):
       raise ValueError("cifar100_public_classes must contain 10 unique IDs in [0, 99]")
-    if not 0 <= self.beta1 < 1 or not 0 <= self.public_v_beta2 < 1:
-      raise ValueError("Adam beta values must be in [0, 1)")
+    if not 0 <= self.beta1 < 1:
+      raise ValueError("Adam beta1 must be in [0, 1)")
     if self.learning_rate <= 0 or self.public_v_eps <= 0 or self.weight_decay < 0:
       raise ValueError("AdamW scalar configuration is invalid")
 
@@ -1059,10 +1058,9 @@ def train_dp_public_v_bandinv(
   )
   estimator = PublicVEstimator(
       lambda parameters, batch: public_cross_entropy_loss(parameters, batch, model),
-      beta2=config.public_v_beta2,
       eps=config.public_v_eps,
   )
-  compiled_public_v_update = jax.jit(estimator.update)
+  compiled_public_v_batch_estimate = jax.jit(estimator.squared_gradient_sum)
 
   # The repository's fixed-cycle accountant is non-amplified.  Deriving
   # horizon/min_sep/max_participations from the private subset is what makes
@@ -1085,7 +1083,6 @@ def train_dp_public_v_bandinv(
   initial_state = init_public_v_bandinv_adamw_state(
       pretrained_snapshot.params,
       optimizer=optimizer,
-      estimator=estimator,
       noise_root_key=noise_root_key,
       bandwidth=min(config.bandwidth, config.segment_length, config.horizon),
   )
@@ -1125,7 +1122,7 @@ def train_dp_public_v_bandinv(
         reduction=config.reduction,
         max_optimizer_steps=config.max_optimizer_steps,
         fit_strategy=fit_strategy,
-        public_v_update=compiled_public_v_update,
+        public_v_batch_estimate=compiled_public_v_batch_estimate,
     )
     accountant.set_current_state(state)
     print(
@@ -1133,7 +1130,7 @@ def train_dp_public_v_bandinv(
             "segment": info.segment_index,
             "start_step": info.start_step,
             "length": info.length,
-            "public_v_updates": int(state.public_v_state.t_v),
+            "public_v_num_examples": info.public_v_num_examples,
             "preconditioner_rms": info.preconditioner_rms,
             "strategy_sensitivity_squared": float(info.strategy.sensitivity_squared),
         },

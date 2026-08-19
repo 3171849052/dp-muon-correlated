@@ -15,7 +15,7 @@ data:
   cifar100_public_classes: [0, 5, 10, 12, 17, 22, 25, 28, 40, 94]
 
 model:
-  pretrained: pretrained/ViT-T_16.npz
+  pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz
 
 training:
   epochs: 5
@@ -26,12 +26,11 @@ training:
   segment_length: 64
 
 public_v:
-  public_v_beta2: 0.999
   public_v_eps: 1.0e-8
   public_v_batches_per_segment: 4
 
 adamw:
-  learning_rate: 0.001
+  learning_rate: 0.0005
   beta1: 0.9
   weight_decay: 0.01
 
@@ -39,12 +38,12 @@ schedule:
   mode: fixed_cycle
 
 strategy:
-  bandwidth: 16
+  bandwidth: 4
   reduction: mean
   max_optimizer_steps: 1000
 
 privacy:
-  epsilon: 8.0
+  epsilon: 3.0
   delta: 1.0e-5
   adjacency: add_remove
 

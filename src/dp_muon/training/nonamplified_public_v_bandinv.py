@@ -27,7 +27,7 @@ from dp_muon.optim import (
 )
 from dp_muon.privacy import PrivacyCalibration, make_clipped_gradient_query
 
-from .public_v import PublicVEstimator, PublicVState, public_preconditioner_rms
+from .public_v import PublicVEstimator, public_preconditioner_rms
 
 
 PyTree = Any
@@ -40,7 +40,6 @@ class PublicVBandInvAdamWState:
 
   params: PyTree
   optimizer_state: PublicVAdamWState
-  public_v_state: PublicVState
   noise_state: BandInvMFNoiseState
   noise_root_key: jax.Array
   rng_key: jax.Array
@@ -58,7 +57,6 @@ class PublicVBandInvAdamWState:
     return (
         self.params,
         self.optimizer_state,
-        self.public_v_state,
         self.noise_state,
         self.noise_root_key,
         self.rng_key,
@@ -90,13 +88,13 @@ class PublicVSegmentInfo:
   strategy: BandInvMFStrategy
   preconditioner_rms: float
   iid_noise_std: float
+  public_v_num_examples: int
 
 
 def init_public_v_bandinv_adamw_state(
     params: PyTree,
     *,
     optimizer: PublicVAdamW,
-    estimator: PublicVEstimator,
     noise_root_key: jax.Array,
     bandwidth: int,
 ) -> PublicVBandInvAdamWState:
@@ -106,7 +104,6 @@ def init_public_v_bandinv_adamw_state(
   return PublicVBandInvAdamWState(
       params=params,
       optimizer_state=optimizer.init(params),
-      public_v_state=estimator.init(params),
       noise_state=init_bandinv_noise_state(params, int(bandwidth)),
       noise_root_key=noise_root_key,
       rng_key=jax.random.fold_in(noise_root_key, 0),
@@ -139,9 +136,11 @@ def begin_public_v_segment(
     reduction: str,
     max_optimizer_steps: int,
     fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
-    public_v_update: Callable[[PublicVState, PyTree, Any], PublicVState] | None = None,
+    public_v_batch_estimate: (
+        Callable[[PyTree, Any], tuple[PyTree, jax.Array]] | None
+    ) = None,
 ) -> tuple[PublicVBandInvAdamWState, PublicVSegmentInfo]:
-  """Updates public V, fits temporal A_time, freezes V, and resets noise."""
+  """Directly estimates public V, fits A_time, freezes V, and resets noise."""
   start_step = int(state.step)
   if segment_length < 1 or num_segments < 1 or global_min_sep < 1:
     raise ValueError("segment and participation dimensions must be positive")
@@ -152,16 +151,11 @@ def begin_public_v_segment(
   if start_step != int(state.segment_end):
     raise ValueError("the previous segment must finish before the next begins")
 
-  update_public_v = estimator.update if public_v_update is None else public_v_update
-  public_v_state = state.public_v_state
-  public_batch_count = 0
-  for public_batch in public_batches:
-    public_v_state = update_public_v(public_v_state, state.params, public_batch)
-    public_batch_count += 1
-  if public_batch_count < 1:
-    raise ValueError("each segment requires at least one public V batch")
-
-  v_hat = estimator.bias_corrected_v(public_v_state)
+  v_hat, public_v_num_examples = estimator.estimate_with_count(
+      state.params,
+      public_batches,
+      batch_estimate=public_v_batch_estimate,
+  )
   optimizer_state = optimizer.set_public_v(state.optimizer_state, v_hat, state.params)
   # Frozen V acts on the parameter axis; this RMS is diagnostic only and must
   # not affect the temporal BandInvMF workload or its fitted strategy.
@@ -197,7 +191,6 @@ def begin_public_v_segment(
   new_state = PublicVBandInvAdamWState(
       params=state.params,
       optimizer_state=optimizer_state,
-      public_v_state=public_v_state,
       noise_state=init_bandinv_noise_state(state.params, strategy.bandwidth),
       noise_root_key=state.noise_root_key,
       rng_key=rng_key,
@@ -219,6 +212,7 @@ def begin_public_v_segment(
       strategy=strategy,
       preconditioner_rms=preconditioner_rms,
       iid_noise_std=iid_noise_std,
+      public_v_num_examples=public_v_num_examples,
   )
 
 
@@ -267,7 +261,6 @@ def make_public_v_bandinv_adamw_train_step(
     return PublicVBandInvAdamWState(
         params=params,
         optimizer_state=optimizer_state,
-        public_v_state=state.public_v_state,
         noise_state=noise_state,
         noise_root_key=state.noise_root_key,
         rng_key=rng_key,

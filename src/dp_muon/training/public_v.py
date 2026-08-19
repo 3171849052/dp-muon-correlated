@@ -1,4 +1,4 @@
-"""Public-only Adam second-moment estimation."""
+"""Direct public per-example second-moment estimation."""
 
 from __future__ import annotations
 
@@ -12,82 +12,97 @@ import jax.numpy as jnp
 PyTree = Any
 
 
-@jax.tree_util.register_pytree_node_class
-@dataclass(frozen=True)
-class PublicVState:
-  """Uncorrected public second moment and its independent update counter."""
-
-  v: PyTree
-  t_v: jax.Array
-
-  def tree_flatten(self):
-    return (self.v, self.t_v), None
-
-  @classmethod
-  def tree_unflatten(cls, aux_data: None, children: tuple[Any, ...]):
-    del aux_data
-    return cls(*children)
-
-
 @dataclass(frozen=True)
 class PublicVEstimator:
-  """Updates public V without owning model parameters or optimizer state."""
+  """Estimates ``E[g_i**2]`` from public examples at fixed parameters."""
 
   loss_fn: Callable[[PyTree, Any], jax.Array]
-  beta2: float = 0.999
   eps: float = 1e-8
 
   def __post_init__(self) -> None:
     if not callable(self.loss_fn):
       raise TypeError("loss_fn must be callable")
-    if not 0.0 <= self.beta2 < 1.0:
-      raise ValueError("beta2 must be in [0, 1)")
     if not self.eps > 0:
       raise ValueError("eps must be positive")
 
-  def init(self, params: PyTree) -> PublicVState:
-    return PublicVState(
-        v=jax.tree_util.tree_map(jnp.zeros_like, params),
-        t_v=jnp.array(0, dtype=jnp.int32),
+  def squared_gradient_sum(
+      self, params: PyTree, public_batch: Any
+  ) -> tuple[PyTree, jax.Array]:
+    """Returns ``sum_i g_i**2`` and the example count for one batch."""
+    leaves = jax.tree_util.tree_leaves(public_batch)
+    if not leaves:
+      raise ValueError("public batch must have at least one leaf")
+    if any(value.ndim < 1 for value in leaves):
+      raise ValueError("public batch leaves must have a leading example axis")
+    batch_size = leaves[0].shape[0]
+    if batch_size < 1 or any(value.shape[0] != batch_size for value in leaves):
+      raise ValueError("public batch leaves must have the same non-empty leading axis")
+
+    def per_example_loss(parameters: PyTree, example: Any) -> jax.Array:
+      singleton_batch = jax.tree_util.tree_map(
+          lambda value: jnp.expand_dims(value, axis=0), example
+      )
+      return self.loss_fn(parameters, singleton_batch)
+
+    def accumulate(squared_sum: PyTree, example: Any) -> tuple[PyTree, None]:
+      gradient = jax.grad(per_example_loss)(params, example)
+      return (
+          jax.tree_util.tree_map(
+              lambda total, value: total + jnp.square(value),
+              squared_sum,
+              gradient,
+          ),
+          None,
+      )
+
+    squared_sum, _ = jax.lax.scan(
+        accumulate,
+        jax.tree_util.tree_map(jnp.zeros_like, params),
+        public_batch,
+    )
+    return squared_sum, jnp.asarray(batch_size, dtype=jnp.int32)
+
+  def estimate_with_count(
+      self,
+      params: PyTree,
+      public_batches: Iterable[Any],
+      *,
+      batch_estimate: Callable[[PyTree, Any], tuple[PyTree, jax.Array]] | None = None,
+  ) -> tuple[PyTree, int]:
+    """Accumulates a segment-local direct estimate across public batches."""
+    estimate_batch = (
+        self.squared_gradient_sum if batch_estimate is None else batch_estimate
+    )
+    squared_sum = None
+    example_count = 0
+    for public_batch in public_batches:
+      batch_sum, batch_count = estimate_batch(params, public_batch)
+      squared_sum = (
+          batch_sum
+          if squared_sum is None
+          else jax.tree_util.tree_map(jnp.add, squared_sum, batch_sum)
+      )
+      example_count += int(batch_count)
+    if squared_sum is None or example_count < 1:
+      raise ValueError("each segment requires at least one public example")
+    return (
+        jax.tree_util.tree_map(lambda value: value / example_count, squared_sum),
+        example_count,
     )
 
-  def update(self, state: PublicVState, params: PyTree, public_batch: Any) -> PublicVState:
-    """Consumes exactly one public batch and increments only ``t_v``."""
-    gradient = jax.grad(self.loss_fn)(params, public_batch)
-    v = jax.tree_util.tree_map(
-        lambda old, value: self.beta2 * old + (1.0 - self.beta2) * jnp.square(value),
-        state.v,
-        gradient,
-    )
-    return PublicVState(v=v, t_v=state.t_v + jnp.array(1, dtype=state.t_v.dtype))
+  def estimate(self, params: PyTree, public_batches: Iterable[Any]) -> PyTree:
+    """Returns the direct public ``mean_i(g_i**2)`` estimate."""
+    v_hat, _ = self.estimate_with_count(params, public_batches)
+    return v_hat
 
-  def update_batches(
-      self, state: PublicVState, params: PyTree, public_batches: Iterable[Any]
-  ) -> PublicVState:
-    for batch in public_batches:
-      state = self.update(state, params, batch)
-    return state
-
-  def bias_corrected_v(self, state: PublicVState) -> PyTree:
-    if not isinstance(state.t_v, jax.core.Tracer) and int(state.t_v) < 1:
-      raise ValueError("at least one public V update is required")
-    correction = 1.0 - jnp.asarray(self.beta2) ** state.t_v
-    return jax.tree_util.tree_map(lambda value: value / correction, state.v)
-
-  def preconditioner(self, state: PublicVState) -> PyTree:
+  def preconditioner(self, v_hat: PyTree) -> PyTree:
     return jax.tree_util.tree_map(
-        lambda value: 1.0 / (jnp.sqrt(value) + self.eps),
-        self.bias_corrected_v(state),
+        lambda value: 1.0 / (jnp.sqrt(value) + self.eps), v_hat
     )
 
 
 def public_preconditioner_rms(v_hat: PyTree, eps: float) -> jax.Array:
-  """Returns the exact parameter-axis RMS scale for a shared temporal strategy.
-
-  With V frozen, every parameter coordinate has the same temporal workload up
-  to a constant diagonal scale.  Mean squared error therefore factors into
-  this RMS scale times the existing two-dimensional temporal objective.
-  """
+  """Returns the parameter-axis RMS scale of the frozen preconditioner."""
   leaves = jax.tree_util.tree_leaves(v_hat)
   if not leaves:
     raise ValueError("v_hat must have at least one leaf")
@@ -97,4 +112,4 @@ def public_preconditioner_rms(v_hat: PyTree, eps: float) -> jax.Array:
   return jnp.sqrt(squared_sum / sum(value.size for value in leaves))
 
 
-__all__ = ["PublicVEstimator", "PublicVState", "public_preconditioner_rms"]
+__all__ = ["PublicVEstimator", "public_preconditioner_rms"]
