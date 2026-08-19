@@ -115,13 +115,15 @@ def public_v_adamw_segment_workload_matrix(
     weight_decay: float,
     *,
     first_moment_start_step: int,
-    preconditioner_rms: float | jax.Array,
 ) -> jax.Array:
-  """Returns the segment workload ``P_lambda D V H``.
+  """Returns the parameter-independent temporal workload ``P_lambda D H``.
 
   ``first_moment_start_step`` keeps Adam's first-moment bias correction global
-  across segments.  ``preconditioner_rms`` is the exact parameter-axis factor
-  for a diagonal V frozen throughout this segment.
+  across segments.  The frozen public preconditioner acts separately on the
+  parameter axis and is not part of this ``segment_length x segment_length``
+  temporal workload:
+
+  ``A_time^(k) = P_lambda,k D_k H_k(s_k)``.
   """
   segment_length, beta = _validate_configuration(segment_length, beta1)
   if not isinstance(first_moment_start_step, Integral) or first_moment_start_step < 0:
@@ -136,13 +138,6 @@ def public_v_adamw_segment_workload_matrix(
       jnp.all(jnp.isfinite(rates) & (rates > 0))
   ):
     raise ValueError("learning_rates must be finite and positive")
-  scale = jnp.asarray(preconditioner_rms, dtype=rates.dtype)
-  if (
-      isinstance(scale, jax.core.Tracer)
-      or scale.ndim != 0
-      or not bool(jnp.isfinite(scale) & (scale > 0))
-  ):
-    raise ValueError("preconditioner_rms must be a finite positive scalar")
 
   index = jnp.arange(segment_length)
   row, column = index[:, None], index[None, :]
@@ -170,7 +165,7 @@ def public_v_adamw_segment_workload_matrix(
       jnp.prod(jnp.where(decay_mask, rho[None, None, :], 1.0), axis=-1),
       0.0,
   )
-  return scale * (propagation @ (rates[:, None] * moment))
+  return propagation @ (rates[:, None] * moment)
 
 
 def fixed_lr_nesterov_decayed_trajectory_workload_coef(

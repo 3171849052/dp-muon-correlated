@@ -141,7 +141,7 @@ def begin_public_v_segment(
     fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
     public_v_update: Callable[[PublicVState, PyTree, Any], PublicVState] | None = None,
 ) -> tuple[PublicVBandInvAdamWState, PublicVSegmentInfo]:
-  """Updates public V, fits A_k, freezes V, and resets correlated noise."""
+  """Updates public V, fits temporal A_time, freezes V, and resets noise."""
   start_step = int(state.step)
   if segment_length < 1 or num_segments < 1 or global_min_sep < 1:
     raise ValueError("segment and participation dimensions must be positive")
@@ -163,6 +163,8 @@ def begin_public_v_segment(
 
   v_hat = estimator.bias_corrected_v(public_v_state)
   optimizer_state = optimizer.set_public_v(state.optimizer_state, v_hat, state.params)
+  # Frozen V acts on the parameter axis; this RMS is diagnostic only and must
+  # not affect the temporal BandInvMF workload or its fitted strategy.
   preconditioner_rms = float(public_preconditioner_rms(v_hat, optimizer.eps))
   workload = public_v_adamw_segment_workload_matrix(
       segment_length,
@@ -170,7 +172,6 @@ def begin_public_v_segment(
       learning_rates,
       optimizer.weight_decay,
       first_moment_start_step=int(optimizer_state.count),
-      preconditioner_rms=preconditioner_rms,
   )
   local_max_participations = 1 + (segment_length - 1) // global_min_sep
   local_bandwidth = min(int(bandwidth), segment_length)

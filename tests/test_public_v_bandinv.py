@@ -359,7 +359,7 @@ def test_frozen_v_segment_transition_and_synthetic_private_chain(tmp_path):
 
 
 def test_segment_workload_matches_explicit_frozen_v_adamw_recurrence():
-  length, beta, start, scale = 3, 0.8, 4, 1.7
+  length, beta, start = 3, 0.8, 4
   rates = np.asarray([0.1, 0.05, 0.02])
   weight_decay = 0.2
   actual = np.asarray(
@@ -369,7 +369,6 @@ def test_segment_workload_matches_explicit_frozen_v_adamw_recurrence():
           rates,
           weight_decay,
           first_moment_start_step=start,
-          preconditioner_rms=scale,
       )
   )
   expected = np.zeros((length, length))
@@ -382,8 +381,63 @@ def test_segment_workload_matches_explicit_frozen_v_adamw_recurrence():
       corrected = moment / (1.0 - beta ** (start + step_index + 1))
       parameter = (
           (1.0 - rates[step_index] * weight_decay) * parameter
-          - rates[step_index] * scale * corrected
+          - rates[step_index] * corrected
       )
       expected[step_index, query] = -parameter
   np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-7)
   np.testing.assert_array_equal(np.triu(actual, k=1), np.zeros((length, length)))
+
+
+def test_public_v_does_not_change_temporal_workload_passed_to_bandinv():
+  params = _params()
+  estimator = PublicVEstimator(_public_loss, beta2=0.8, eps=1e-6)
+  optimizer = PublicVAdamW(
+      learning_rate=0.05, beta1=0.7, eps=1e-6, weight_decay=0.01
+  )
+
+  def begin_with_public_batch(public_batch):
+    initial = init_public_v_bandinv_adamw_state(
+        params,
+        optimizer=optimizer,
+        estimator=estimator,
+        noise_root_key=jax.random.key(11),
+        bandwidth=2,
+    )
+    return begin_public_v_segment(
+        initial,
+        [public_batch],
+        estimator=estimator,
+        optimizer=optimizer,
+        segment_index=0,
+        segment_length=2,
+        global_min_sep=3,
+        bandwidth=2,
+        num_segments=1,
+        global_noise_multiplier=0.0,
+        query_sensitivity=1.0,
+        learning_rates=np.asarray([0.05, 0.025]),
+        reduction="mean",
+        max_optimizer_steps=1,
+        fit_strategy=_fake_fit,
+    )
+
+  first_state, first_info = begin_with_public_batch(_batch())
+  second_state, second_info = begin_with_public_batch(_batch(2.0))
+
+  assert not np.isclose(
+      first_info.preconditioner_rms, second_info.preconditioner_rms
+  )
+  assert any(
+      not np.array_equal(left, right)
+      for left, right in zip(
+          jax.tree_util.tree_leaves(first_state.optimizer_state.public_v_hat),
+          jax.tree_util.tree_leaves(second_state.optimizer_state.public_v_hat),
+          strict=True,
+      )
+  )
+  np.testing.assert_array_equal(
+      first_info.workload_matrix, second_info.workload_matrix
+  )
+  np.testing.assert_array_equal(
+      first_info.strategy.workload_matrix, second_info.strategy.workload_matrix
+  )
