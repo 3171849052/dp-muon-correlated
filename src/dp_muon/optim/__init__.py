@@ -6,7 +6,9 @@ from .linear_workload import (
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     fixed_lr_nesterov_trajectory_workload_coef,
     nesterov_kernel_coef,
+    public_v_adamw_segment_workload_matrix,
 )
+from .public_v_adamw import PublicVAdamW, PublicVAdamWState
 from .muon_nesterov import (
     MuonNesterovState,
     init_muon_nesterov_state,
@@ -48,6 +50,9 @@ __all__ = [
     "is_muon_parameter_path",
     "vit_muon_parameter_labels",
     "nesterov_kernel_coef",
+    "public_v_adamw_segment_workload_matrix",
+    "PublicVAdamW",
+    "PublicVAdamWState",
     "init_sgd_momentum_state",
     "sgd_momentum_step",
 ]

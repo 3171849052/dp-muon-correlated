@@ -13,9 +13,15 @@ import jax.numpy as jnp
 import numpy as np
 from tqdm.auto import tqdm
 
-from dp_muon.bandinvmf import BandInvMFStrategy
-from dp_muon.data import iter_logical_batches, load_cifar10, prepare_cifar10_batch
+from dp_muon.bandinvmf import BandInvMFStrategy, fit_bandinv_strategy
+from dp_muon.data import (
+    iter_logical_batches,
+    load_cifar10,
+    load_public_private_cifar,
+    prepare_cifar10_batch,
+)
 from dp_muon.models import ViTTiny
+from dp_muon.optim import PublicVAdamW
 from dp_muon.privacy import (
     ParticipationSpec,
     calibrate_nonamplified_bandinv,
@@ -55,10 +61,18 @@ from .nonamplified_bandinv_dpadamw import (
     init_nonamplified_bandinv_dpadamw_state,
     make_nonamplified_bandinv_dpadamw_train_step,
 )
+from .nonamplified_public_v_bandinv import (
+    SegmentedBandInvPrivacyAccountant,
+    begin_public_v_segment,
+    init_public_v_bandinv_adamw_state,
+    make_public_v_bandinv_adamw_train_step,
+)
+from .public_v import PublicVEstimator
 
 
 BANDINV_DPMUON_ALGORITHM = "dp-muon-correlated-naive"
 BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-naive"
+PUBLIC_V_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-public-v-bandinv"
 
 
 @dataclass(frozen=True)
@@ -278,6 +292,72 @@ class Cifar10DPAdamWTrainConfig:
       raise ValueError("eval_every must be positive")
 
 
+@dataclass(frozen=True)
+class Cifar10PublicVBandInvDPAdamWTrainConfig:
+  """CIFAR-10 configuration for segmented Public-(V) BandInvMF AdamW."""
+
+  pretrained: str
+  data_dir: str
+  batch_size: int
+  microbatch_size: int | None
+  clip_norm: float
+  epsilon: float
+  delta: float
+  learning_rate: float
+  beta1: float
+  weight_decay: float
+  public_source: str
+  cifar10_public_size: int
+  public_split_seed: int
+  cifar100_public_classes: tuple[int, ...]
+  public_v_beta2: float
+  public_v_eps: float
+  public_v_batches_per_segment: int
+  segment_length: int
+  bandwidth: int
+  reduction: str
+  max_optimizer_steps: int
+  seed: int
+  checkpoint_dir: str
+  eval_every: int
+  horizon: int
+  min_sep: int
+  max_participations: int
+  adjacency: str = "add_remove"
+
+  def __post_init__(self) -> None:
+    positive = (
+        self.batch_size,
+        self.cifar10_public_size,
+        self.public_v_batches_per_segment,
+        self.segment_length,
+        self.bandwidth,
+        self.max_optimizer_steps,
+        self.eval_every,
+        self.horizon,
+        self.min_sep,
+        self.max_participations,
+    )
+    if any(value < 1 for value in positive):
+      raise ValueError("batch, public-V, strategy, and horizon sizes must be positive")
+    if self.microbatch_size is not None and (
+        self.microbatch_size < 1 or self.batch_size % self.microbatch_size
+    ):
+      raise ValueError("microbatch_size must be positive and divide batch_size")
+    if self.public_source not in {"cifar10_split", "cifar100_10class"}:
+      raise ValueError("public_source is invalid")
+    if (
+        len(self.cifar100_public_classes) != 10
+        or len(set(self.cifar100_public_classes)) != 10
+        or any(value < 0 or value >= 100 for value in self.cifar100_public_classes)
+    ):
+      raise ValueError("cifar100_public_classes must contain 10 unique IDs in [0, 99]")
+    if not 0 <= self.beta1 < 1 or not 0 <= self.public_v_beta2 < 1:
+      raise ValueError("Adam beta values must be in [0, 1)")
+    if self.learning_rate <= 0 or self.public_v_eps <= 0 or self.weight_decay < 0:
+      raise ValueError("AdamW scalar configuration is invalid")
+
+
 def build_logical_schedule(
     *, num_examples: int, batch_size: int, strategy: BandInvMFStrategy, seed: int
 ) -> list[np.ndarray]:
@@ -330,6 +410,17 @@ def cross_entropy_loss(params: dict, batch: dict[str, jax.Array], model: ViTTiny
   return -jax.nn.log_softmax(logits)[0, labels[0]]
 
 
+def public_cross_entropy_loss(
+    params: dict, batch: dict[str, jax.Array], model: ViTTiny
+) -> jax.Array:
+  """Returns the mean public-batch loss used only for V estimation."""
+  logits = model.apply(params, batch["image"])
+  log_probabilities = jax.nn.log_softmax(logits, axis=-1)
+  return -jnp.mean(
+      jnp.take_along_axis(log_probabilities, batch["label"][:, None], axis=-1)
+  )
+
+
 def evaluate_classifier_metrics(
     params: dict, model: ViTTiny, images: np.ndarray, labels: np.ndarray, *, batch_size: int
 ) -> dict[str, float]:
@@ -376,6 +467,8 @@ def run_training(
     logical_batch_size: int | None = None,
     metrics_writer: MetricsCSVWriter | None = None,
     privacy_accountant: Callable[[int], float] | None = None,
+    before_step: Callable[[Any, int], Any] | None = None,
+    on_state_ready: Callable[[Any, int], None] | None = None,
 ) -> tuple[Any, list[dict[str, float | int]]]:
   """Runs exactly one private update for each logical batch, with optional resume.
 
@@ -400,6 +493,8 @@ def run_training(
     state, start = saved["state"], int(saved["current_step"])
     if start > horizon:
       raise ValueError("checkpoint current_step exceeds training horizon")
+  if on_state_ready is not None:
+    on_state_ready(state, start)
   compiled_step = jax.jit(train_step)
   history: list[dict[str, float | int]] = []
   started_at = time.monotonic()
@@ -423,6 +518,8 @@ def run_training(
       unit="logical batch",
   ) as progress:
     for logical_step in progress:
+      if before_step is not None:
+        state = before_step(state, logical_step)
       try:
         batch = jax.tree_util.tree_map(jnp.asarray, next(batches))
       except StopIteration as error:
@@ -899,18 +996,203 @@ def train_cifar10_bandinv_dpadamw(
   )
 
 
+def _public_batches_for_segment(
+    images: np.ndarray,
+    labels: np.ndarray,
+    *,
+    batch_size: int,
+    num_batches: int,
+    seed: int,
+    segment_index: int,
+) -> list[dict[str, jax.Array]]:
+  """Creates deterministic public batches without private loader state."""
+  if len(images) < 1:
+    raise ValueError("public dataset must not be empty")
+  permutation = np.random.default_rng([seed, segment_index]).permutation(len(images))
+  batches = []
+  for batch_index in range(num_batches):
+    indices = permutation[
+        (batch_index * batch_size + np.arange(batch_size)) % len(images)
+    ]
+    batches.append(
+        jax.tree_util.tree_map(
+            jnp.asarray,
+            prepare_cifar10_batch(images[indices], labels[indices]),
+        )
+    )
+  return batches
+
+
+def train_dp_public_v_bandinv(
+    config: Cifar10PublicVBandInvDPAdamWTrainConfig,
+    *,
+    resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+):
+  """Runs Public-(V) + Frozen AdamW + independently segmented BandInvMF."""
+  data = load_public_private_cifar(
+      config.data_dir,
+      public_source=config.public_source,  # type: ignore[arg-type]
+      cifar10_public_size=config.cifar10_public_size,
+      public_split_seed=config.public_split_seed,
+      cifar100_public_classes=config.cifar100_public_classes,
+  )
+  test_images, test_labels = load_cifar10(config.data_dir, train=False)
+  schedule = build_fixed_cycle_logical_schedule(
+      num_examples=len(data.private_images),
+      batch_size=config.batch_size,
+      horizon=config.horizon,
+      min_sep=config.min_sep,
+      max_participations=config.max_participations,
+      seed=config.seed,
+  )
+  model = ViTTiny()
+  parameter_key, noise_root_key = jax.random.split(jax.random.key(config.seed))
+  pretrained_snapshot = load_pretrained_snapshot(path=config.pretrained, key=parameter_key)
+  optimizer = PublicVAdamW(
+      learning_rate=config.learning_rate,
+      beta1=config.beta1,
+      eps=config.public_v_eps,
+      weight_decay=config.weight_decay,
+  )
+  estimator = PublicVEstimator(
+      lambda parameters, batch: public_cross_entropy_loss(parameters, batch, model),
+      beta2=config.public_v_beta2,
+      eps=config.public_v_eps,
+  )
+  compiled_public_v_update = jax.jit(estimator.update)
+
+  # The repository's fixed-cycle accountant is non-amplified.  Deriving
+  # horizon/min_sep/max_participations from the private subset is what makes
+  # both its participation contract and any reported sample rate private-size
+  # aware; public examples never enter this calibration.
+  clipping_calibration = calibrate_nonamplified_iid(
+      epsilon=config.epsilon,
+      delta=config.delta,
+      clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size),
+      adjacency=config.adjacency,  # type: ignore[arg-type]
+      max_participations=config.max_participations,
+  )
+  train_step = make_public_v_bandinv_adamw_train_step(
+      lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
+      clipping_calibration,
+      optimizer,
+      microbatch_size=config.microbatch_size,
+  )
+  initial_state = init_public_v_bandinv_adamw_state(
+      pretrained_snapshot.params,
+      optimizer=optimizer,
+      estimator=estimator,
+      noise_root_key=noise_root_key,
+      bandwidth=min(config.bandwidth, config.segment_length, config.horizon),
+  )
+  num_segments = math.ceil(config.horizon / config.segment_length)
+  accountant = SegmentedBandInvPrivacyAccountant(
+      num_segments=num_segments,
+      global_mu=clipping_calibration.mu,
+      delta=config.delta,
+  )
+
+  def start_segment(state: Any, logical_step: int):
+    if logical_step % config.segment_length:
+      return state
+    segment_index = logical_step // config.segment_length
+    length = min(config.segment_length, config.horizon - logical_step)
+    public_batches = _public_batches_for_segment(
+        data.public_images,
+        data.public_labels,
+        batch_size=config.batch_size,
+        num_batches=config.public_v_batches_per_segment,
+        seed=config.public_split_seed,
+        segment_index=segment_index,
+    )
+    state, info = begin_public_v_segment(
+        state,
+        public_batches,
+        estimator=estimator,
+        optimizer=optimizer,
+        segment_index=segment_index,
+        segment_length=length,
+        global_min_sep=config.min_sep,
+        bandwidth=config.bandwidth,
+        num_segments=num_segments,
+        global_noise_multiplier=clipping_calibration.noise_multiplier,
+        query_sensitivity=clipping_calibration.query_sensitivity,
+        learning_rates=config.learning_rate,
+        reduction=config.reduction,
+        max_optimizer_steps=config.max_optimizer_steps,
+        fit_strategy=fit_strategy,
+        public_v_update=compiled_public_v_update,
+    )
+    accountant.set_current_state(state)
+    print(
+        {
+            "segment": info.segment_index,
+            "start_step": info.start_step,
+            "length": info.length,
+            "public_v_updates": int(state.public_v_state.t_v),
+            "preconditioner_rms": info.preconditioner_rms,
+            "strategy_sensitivity_squared": float(info.strategy.sensitivity_squared),
+        },
+        flush=True,
+    )
+    return state
+
+  def register_resumed_state(state: Any, start: int) -> None:
+    if start > 0 and int(state.segment_index) >= 0:
+      accountant.set_current_state(state)
+
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
+  return run_training(
+      initial_state=initial_state,
+      train_step=train_step,
+      logical_batches=iter_logical_batches(
+          data.private_images, data.private_labels, schedule
+      ),
+      horizon=config.horizon,
+      experiment_config=asdict(config),
+      artifact_identifiers={
+          "algorithm": PUBLIC_V_BANDINV_DPADAMW_ALGORITHM,
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
+      },
+      checkpoint_path=actual_checkpoint_path,
+      resume_checkpoint=resume_checkpoint,
+      eval_every=config.eval_every,
+      evaluate=lambda state: evaluate_classifier_metrics(
+          state.params,
+          model,
+          test_images,
+          test_labels,
+          batch_size=config.batch_size,
+      ),
+      num_train_examples=len(data.private_images),
+      logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=accountant.epsilon_spent,
+      before_step=start_segment,
+      on_state_ready=register_resumed_state,
+  )
+
+
 __all__ = [
     "BANDINV_DPMUON_ALGORITHM",
     "BANDINV_DPADAMW_ALGORITHM",
+    "PUBLIC_V_BANDINV_DPADAMW_ALGORITHM",
     "Cifar10TrainConfig",
     "Cifar10DPSGDMomentumTrainConfig",
     "Cifar10DPMuonTrainConfig",
     "Cifar10DPAdamWTrainConfig",
     "Cifar10BandInvDPMuonTrainConfig",
     "Cifar10BandInvDPAdamWTrainConfig",
+    "Cifar10PublicVBandInvDPAdamWTrainConfig",
     "build_fixed_cycle_logical_schedule",
     "build_logical_schedule",
     "cross_entropy_loss",
+    "public_cross_entropy_loss",
     "evaluate_classifier",
     "evaluate_classifier_metrics",
     "run_training",
@@ -920,4 +1202,5 @@ __all__ = [
     "train_cifar10_dpadamw",
     "train_cifar10_bandinv_dpmuon",
     "train_cifar10_bandinv_dpadamw",
+    "train_dp_public_v_bandinv",
 ]

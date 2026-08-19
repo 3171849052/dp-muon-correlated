@@ -15,6 +15,7 @@ from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_dpadamw import NonAmplifiedDPAdamWState
 from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
 from .nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
+from .nonamplified_public_v_bandinv import PublicVBandInvAdamWState
 from .nonamplified_linear import NonAmplifiedBandInvState
 from .file_locking import atomic_replace, atomic_temporary_path, file_lock
 
@@ -29,7 +30,8 @@ def _concrete_step(value: Any, name: str) -> int:
 def _validate_steps(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
-            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState), current_step: int
+            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
+            PublicVBandInvAdamWState), current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -60,6 +62,22 @@ def _validate_steps(
     optimizer_step = _concrete_step(state.step, "step")
     if int(current_step) != optimizer_step:
       raise ValueError("current_step must equal state.step")
+  elif isinstance(state, PublicVBandInvAdamWState):
+    optimizer_step = _concrete_step(state.step, "step")
+    first_moment_step = _concrete_step(
+        state.optimizer_state.count, "optimizer_state.count"
+    )
+    segment_start = _concrete_step(state.segment_start, "segment_start")
+    segment_end = _concrete_step(state.segment_end, "segment_end")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if int(current_step) != optimizer_step or int(current_step) != first_moment_step:
+      raise ValueError(
+          "current_step must equal state.step and optimizer_state.count"
+      )
+    if not segment_start <= int(current_step) <= segment_end:
+      raise ValueError("current_step must lie within the current segment")
+    if noise_step != int(current_step) - segment_start:
+      raise ValueError("noise_state.step must equal the current segment-local step")
   else:
     raise TypeError("state must be a supported non-amplified training state")
 
@@ -69,7 +87,8 @@ def save_checkpoint(
     *,
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
-            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState),
+            NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
+            PublicVBandInvAdamWState),
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],

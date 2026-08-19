@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from numbers import Integral
+from typing import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -107,6 +108,71 @@ def adam_first_moment_workload_matrix(
   return jnp.asarray(learning_rate, dtype=moment.dtype) * (decay @ moment)
 
 
+def public_v_adamw_segment_workload_matrix(
+    segment_length: int,
+    beta1: float,
+    learning_rates: float | Sequence[float] | jax.Array,
+    weight_decay: float,
+    *,
+    first_moment_start_step: int,
+    preconditioner_rms: float | jax.Array,
+) -> jax.Array:
+  """Returns the segment workload ``P_lambda D V H``.
+
+  ``first_moment_start_step`` keeps Adam's first-moment bias correction global
+  across segments.  ``preconditioner_rms`` is the exact parameter-axis factor
+  for a diagonal V frozen throughout this segment.
+  """
+  segment_length, beta = _validate_configuration(segment_length, beta1)
+  if not isinstance(first_moment_start_step, Integral) or first_moment_start_step < 0:
+    raise ValueError("first_moment_start_step must be a non-negative integer")
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+  rates = jnp.asarray(learning_rates)
+  if rates.ndim == 0:
+    rates = jnp.full((segment_length,), rates)
+  if rates.shape != (segment_length,):
+    raise ValueError("learning_rates must be scalar or have shape (segment_length,)")
+  if isinstance(rates, jax.core.Tracer) or not bool(
+      jnp.all(jnp.isfinite(rates) & (rates > 0))
+  ):
+    raise ValueError("learning_rates must be finite and positive")
+  scale = jnp.asarray(preconditioner_rms, dtype=rates.dtype)
+  if (
+      isinstance(scale, jax.core.Tracer)
+      or scale.ndim != 0
+      or not bool(jnp.isfinite(scale) & (scale > 0))
+  ):
+    raise ValueError("preconditioner_rms must be a finite positive scalar")
+
+  index = jnp.arange(segment_length)
+  row, column = index[:, None], index[None, :]
+  causal = row >= column
+  lag = row - column
+  beta_array = jnp.asarray(beta, dtype=rates.dtype)
+  global_row = first_moment_start_step + row
+  moment = jnp.where(
+      causal,
+      (1.0 - beta_array) * beta_array**lag
+      / (1.0 - beta_array ** (global_row + 1)),
+      0.0,
+  )
+
+  # P[t, r] propagates optimizer update r through later decoupled-decay
+  # factors rho[r+1] ... rho[t].  The explicit product also handles rho=0.
+  rho = 1.0 - rates * weight_decay
+  factor_index = index[None, None, :]
+  decay_mask = (
+      (factor_index > column[:, :, None])
+      & (factor_index <= row[:, :, None])
+  )
+  propagation = jnp.where(
+      causal,
+      jnp.prod(jnp.where(decay_mask, rho[None, None, :], 1.0), axis=-1),
+      0.0,
+  )
+  return scale * (propagation @ (rates[:, None] * moment))
+
+
 def fixed_lr_nesterov_decayed_trajectory_workload_coef(
     horizon: int, momentum: float, learning_rate: float, weight_decay: float
 ) -> jax.Array:
@@ -136,4 +202,5 @@ __all__ = [
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "nesterov_kernel_coef",
+    "public_v_adamw_segment_workload_matrix",
 ]
