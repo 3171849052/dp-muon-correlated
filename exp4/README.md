@@ -5,12 +5,20 @@
 summary statistics are written; the previous flattened vector is retained in
 memory solely for `relative_change`.
 
-4B fits one BandInvMF strategy per contiguous block. At a boundary only the FIR
-latent-noise ring buffer is cleared; model parameters, AdamW `count`, `mu`, and
-`nu` continue unchanged. The blocks are one block-diagonal Gaussian transcript,
-so calibration uses `sum_i sensitivity_squared_i` before the single GDP
-calibration to the requested `(epsilon, delta)`. No per-block privacy budget or
-sampling amplification is introduced.
+4B fits the same decayed-prefix workload as the continuous baseline separately
+for every contiguous block. At a boundary only the FIR latent-noise ring buffer
+and its block-local step are cleared; model parameters, the global training
+step, and AdamW `count`, `mu`, and `nu` continue unchanged.
+
+The blocks form one block-diagonal Gaussian transcript. Its sensitivity is
+computed exactly under the original full-horizon `min_sep` and
+`max_participations` contract. Since every Exp4 block is no longer than
+`min_sep`, a record can occur at most once in a block. Dynamic programming over
+blocks retains the last global participation position and participation count,
+tries every legal strategy-matrix column, and maximizes the accumulated squared
+L2 energy. The resulting global maximum is passed once to the existing GDP
+calibration. Blocks do not receive separate privacy budgets and no sampling
+amplification is used.
 
 Validation command:
 

@@ -17,3 +17,12 @@ def plot_comparison(rows: list[dict], output: str | Path) -> None:
   for c in conditions:
     v=np.array([float(r["final_test_accuracy"]) for r in rows if r["condition"]==c]); means.append(v.mean()); stds.append(v.std(ddof=1) if len(v)>1 else 0.)
   fig, ax=plt.subplots(); ax.errorbar(conditions, means, yerr=stds, fmt="o"); ax.set_ylabel("final test accuracy"); fig.tight_layout(); fig.savefig(output, dpi=140); plt.close(fig)
+
+def plot_p_summary(csv_paths: list[tuple[int, Path]], output: str | Path) -> None:
+  fig, ax = plt.subplots()
+  for seed, path in csv_paths:
+    rows = list(csv.DictReader(path.open()))
+    ax.plot([int(row["step"]) for row in rows],
+            [float(row["p_median"]) for row in rows], label=f"seed {seed}")
+  ax.set(xlabel="optimizer step", ylabel="median p_t")
+  ax.legend(); fig.tight_layout(); fig.savefig(output, dpi=140); plt.close(fig)
