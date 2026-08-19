@@ -36,6 +36,11 @@ htmlcov/
 /exp2/**/*.npz
 /exp3/**/*.npz
 
+# Exp4 generated results: keep CSV only
+/exp4/results/**
+!/exp4/results/**/
+!/exp4/results/**/*.csv
+
 # Generated experiment binaries
 *.npz
 *.pkl
