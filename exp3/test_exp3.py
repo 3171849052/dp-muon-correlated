@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from pathlib import Path
+from types import SimpleNamespace
 from jax_privacy.matrix_factorization import toeplitz
 
 from dp_muon.bandinvmf import BandInvMFStrategy
@@ -19,6 +20,7 @@ from exp3.online_shadow import (
     init_online_shadow_state,
     make_online_shadow_train_step,
 )
+from exp3.run import build_schedule_for_seed, paired_seed_aggregation
 
 
 def _setup():
@@ -116,3 +118,44 @@ def test_participation_validation_is_applied():
     make_online_shadow_train_step(
         loss, strategy, calibration, ParticipationSpec(4, 1, 1), learning_rate=.01,
     )
+
+
+def test_paired_multi_seed_aggregation_and_single_seed_std():
+  results = []
+  for seed, naive_r, aware_r, naive_acc, aware_acc, naive_loss, aware_loss in (
+      (0, 1.0, .8, .20, .25, 2.0, 1.5),
+      (1, .6, .9, .30, .28, 1.4, 1.6),
+      (2, .5, .2, .40, .45, 1.2, .9),
+  ):
+    results.extend([
+        {"seed": seed, "strategy": "decayed-prefix", "R_linear": naive_r,
+         "R_adamw": naive_r + .1, "final_accuracy": naive_acc, "final_test_loss": naive_loss},
+        {"seed": seed, "strategy": "adam-m-aware", "R_linear": aware_r,
+         "R_adamw": aware_r + .2, "final_accuracy": aware_acc, "final_test_loss": aware_loss},
+    ])
+  paired, aggregate = paired_seed_aggregation(results)
+  assert [row["seed"] for row in paired] == [0, 1, 2]
+  assert [row["delta_R_linear"] for row in paired] == pytest.approx([-.2, .3, -.3])
+  assert [row["delta_R_adamw"] for row in paired] == pytest.approx([-.1, .4, -.2])
+  assert [row["gamma_R"] for row in paired] == pytest.approx([.1, .1, .1])
+  assert [row["delta_accuracy"] for row in paired] == pytest.approx([.05, -.02, .05])
+  assert [row["delta_test_loss"] for row in paired] == pytest.approx([.5, -.2, .3])
+  assert aggregate["num_seeds"] == 3
+  assert aggregate["delta_R_linear_mean"] == pytest.approx(-.0666666667)
+  assert aggregate["delta_R_linear_std"] == pytest.approx(np.std([-.2, .3, -.3], ddof=1))
+  one_paired, one_aggregate = paired_seed_aggregation(results[:2])
+  assert one_aggregate["num_seeds"] == 1
+  for key, value in one_aggregate.items():
+    if key.endswith("_std"):
+      assert value == 0.0
+
+
+def test_schedule_is_paired_within_seed_and_changes_between_seeds():
+  contract = SimpleNamespace(num_examples=10, batch_size=2, horizon=10, min_sep=5, max_participations=2)
+  schedule_0_naive = build_schedule_for_seed(contract, 0)
+  schedule_0_aware = build_schedule_for_seed(contract, 0)
+  schedule_1 = build_schedule_for_seed(contract, 1)
+  assert all(np.array_equal(a, b) for a, b in zip(schedule_0_naive, schedule_0_aware, strict=True))
+  assert any(not np.array_equal(a, b) for a, b in zip(schedule_0_naive, schedule_1, strict=True))
+  assert len(schedule_0_naive) == len(schedule_1) == contract.horizon
+  assert all(np.unique(np.concatenate(schedule)).size == contract.num_examples for schedule in (schedule_0_naive, schedule_1))

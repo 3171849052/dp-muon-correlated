@@ -23,6 +23,66 @@ from exp2.strategies import ADAM_M_AWARE, DECAYED_PREFIX, StrategySpec, load_or_
 from exp3.online_shadow import init_online_shadow_state, make_online_shadow_train_step
 
 
+def build_schedule_for_seed(contract, seed):
+  """Build one fixed-cycle schedule; both strategies for this seed reuse it."""
+  return build_fixed_cycle_logical_schedule(
+      num_examples=contract.num_examples, batch_size=contract.batch_size,
+      horizon=contract.horizon, min_sep=contract.min_sep,
+      max_participations=contract.max_participations, seed=seed)
+
+
+def _mean_std(values):
+  values = [float(value) for value in values]
+  if len(values) == 1:
+    return values[0], 0.0
+  array = np.asarray(values, dtype=float)
+  return float(np.mean(array)), float(np.std(array, ddof=1))
+
+
+def paired_seed_aggregation(results):
+  """Pair naive and m-aware runs by seed before computing deltas/statistics."""
+  by_seed = {}
+  for result in results:
+    seed = int(result["seed"])
+    strategy = result["strategy"]
+    if strategy not in (DECAYED_PREFIX, ADAM_M_AWARE):
+      raise ValueError(f"unknown strategy {strategy!r}")
+    if seed in by_seed and strategy in by_seed[seed]:
+      raise ValueError(f"duplicate {strategy!r} result for seed {seed}")
+    by_seed.setdefault(seed, {})[strategy] = result
+  paired = []
+  for seed in sorted(by_seed):
+    runs = by_seed[seed]
+    if set(runs) != {DECAYED_PREFIX, ADAM_M_AWARE}:
+      raise ValueError(f"seed {seed} must contain both strategies")
+    naive, aware = runs[DECAYED_PREFIX], runs[ADAM_M_AWARE]
+    delta_linear = float(aware["R_linear"] - naive["R_linear"])
+    delta_adamw = float(aware["R_adamw"] - naive["R_adamw"])
+    paired.append({
+        "seed": seed,
+        "delta_R_linear": delta_linear,
+        "delta_R_adamw": delta_adamw,
+        "gamma_R": delta_adamw - delta_linear,
+        "delta_accuracy": float(aware["final_accuracy"] - naive["final_accuracy"]),
+        "delta_test_loss": float(naive["final_test_loss"] - aware["final_test_loss"]),
+    })
+  fields = ("delta_R_linear", "delta_R_adamw", "gamma_R", "delta_accuracy", "delta_test_loss")
+  aggregate = {"num_seeds": len(paired)}
+  for field in fields:
+    mean, std = _mean_std([row[field] for row in paired])
+    aggregate[f"{field}_mean"] = mean
+    aggregate[f"{field}_std"] = std
+  return paired, aggregate
+
+
+def write_comparison(path, paired):
+  fields = ["seed", "delta_R_linear", "delta_R_adamw", "gamma_R", "delta_accuracy", "delta_test_loss"]
+  with Path(path).open("w", encoding="utf-8", newline="") as stream:
+    writer = csv.DictWriter(stream, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(paired)
+
+
 def _strategy(config, contract, name):
   return load_or_fit_strategy(resolve_repo_path(config.strategy_dir) / (name + ".npz"), StrategySpec(
       name=name, horizon=contract.horizon, bandwidth=config.bandwidth, min_sep=contract.min_sep,
@@ -78,16 +138,16 @@ def run_one(config, contract, name, strategy, seed, train_images, train_labels, 
 def main():
   p = argparse.ArgumentParser(); p.add_argument("--config", default="config/cifar10_bandinv_dpadamw_naive.yaml"); p.add_argument("--output-dir", default="exp3/results"); p.add_argument("--seeds", nargs="+", type=int, default=None)
   a = p.parse_args(); config = load_cifar10_bandinv_dpadamw_config(resolve_repo_path(a.config)); train_x, train_y = load_cifar10(resolve_repo_path(config.data_dir), train=True); test_x, test_y = load_cifar10(resolve_repo_path(config.data_dir), train=False)
-  contract = derive_contract(config, num_examples=len(train_x)); schedule = build_fixed_cycle_logical_schedule(num_examples=contract.num_examples, batch_size=contract.batch_size, horizon=contract.horizon, min_sep=contract.min_sep, max_participations=contract.max_participations, seed=config.seed)
-  output = resolve_repo_path(a.output_dir); results = []
+  contract = derive_contract(config, num_examples=len(train_x))
+  output = resolve_repo_path(a.output_dir); output.mkdir(parents=True, exist_ok=True); results = []
   for seed in a.seeds or [config.seed]:
+    schedule = build_schedule_for_seed(contract, seed)
     for name in (DECAYED_PREFIX, ADAM_M_AWARE):
       results.append(run_one(config, contract, name, _strategy(config, contract, name), seed, train_x, train_y, test_x, test_y, schedule, output))
-  grouped = {name: next(r for r in results if r["strategy"] == name) for name in (DECAYED_PREFIX, ADAM_M_AWARE)}
-  summary = {"contract": asdict(contract), "results": results,
-      "Delta_R_linear": grouped[ADAM_M_AWARE]["R_linear"] - grouped[DECAYED_PREFIX]["R_linear"],
-      "Delta_R_AdamW": grouped[ADAM_M_AWARE]["R_adamw"] - grouped[DECAYED_PREFIX]["R_adamw"]}
-  summary["Gamma_R"] = summary["Delta_R_AdamW"] - summary["Delta_R_linear"]
+  paired, aggregate = paired_seed_aggregation(results)
+  write_comparison(output / "comparison.csv", paired)
+  summary = {"contract": asdict(contract), "per_run": results,
+             "paired_by_seed": paired, "aggregate": aggregate}
   (output / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
 if __name__ == "__main__": main()

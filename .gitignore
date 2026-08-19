@@ -30,3 +30,13 @@ htmlcov/
 .opencode/server.lock.json
 .opencode
 /checkpoints/
+
+# Experiment binary artifacts
+/exp1/**/*.npz
+/exp2/**/*.npz
+/exp3/**/*.npz
+
+# Generated experiment binaries
+*.npz
+*.pkl
+*.pkl.lock
