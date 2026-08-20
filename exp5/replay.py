@@ -2,8 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import numpy as np
+from typing import Any
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
+
+from exp5.hybrid_optimizer import FrozenPAdamW, FrozenPAdamWState
 from exp5.workload import frozen_p_time_workload
 
 
@@ -56,6 +62,108 @@ def gap(actual: np.ndarray, linear: np.ndarray) -> float:
 class ReplayResult:
   g_dynamic: float
   g_frozen: float
+  numerator_dynamic: float | None = None
+  numerator_frozen: float | None = None
+  denominator: float | None = None
+
+
+def _tree_zeros_like(tree):
+  return jax.tree_util.tree_map(jnp.zeros_like, tree)
+
+
+def _tree_sqnorm(tree):
+  leaves = jax.tree_util.tree_leaves(tree)
+  return sum((jnp.sum(jnp.square(leaf)) for leaf in leaves),
+             start=jnp.asarray(0.0))
+
+
+class FullPyTreeReplayAccumulator:
+  """Online full-parameter replay without retaining a gradient trajectory."""
+
+  def __init__(
+      self, *, params: Any, dynamic_optimizer: optax.GradientTransformation,
+      dynamic_state: Any, frozen_state: FrozenPAdamWState,
+      learning_rate: float, beta1: float, weight_decay: float,
+  ):
+    self.dynamic_optimizer = dynamic_optimizer
+    self.frozen_optimizer = FrozenPAdamW(learning_rate, beta1, weight_decay)
+    self.dynamic_clean_params = params
+    self.dynamic_noisy_params = params
+    self.dynamic_clean_state = dynamic_state
+    self.dynamic_noisy_state = dynamic_state
+    self.frozen_clean_params = params
+    self.frozen_noisy_params = params
+    self.frozen_clean_state = frozen_state
+    self.frozen_noisy_state = frozen_state
+    self.p_star = frozen_state.p_star
+    self.learning_rate = learning_rate
+    self.beta1 = beta1
+    self.rho = 1.0 - learning_rate * weight_decay
+    self.delta_m = _tree_zeros_like(params)
+    self.delta_theta = _tree_zeros_like(params)
+    self.numerator_dynamic = jnp.asarray(0.0)
+    self.numerator_frozen = jnp.asarray(0.0)
+    self.denominator = jnp.asarray(0.0)
+
+  @staticmethod
+  def _apply(optimizer, gradients, state, params):
+    updates, state = optimizer.update(gradients, state, params)
+    return optax.apply_updates(params, updates), state
+
+  def update(self, clipped_grad: Any, noise: Any) -> None:
+    """Consume one exogenous clipped-gradient/noise PyTree pair."""
+    private_grad = jax.tree_util.tree_map(
+        lambda gradient, perturbation: gradient + perturbation,
+        clipped_grad, noise)
+    self.dynamic_clean_params, self.dynamic_clean_state = self._apply(
+        self.dynamic_optimizer, clipped_grad, self.dynamic_clean_state,
+        self.dynamic_clean_params)
+    self.dynamic_noisy_params, self.dynamic_noisy_state = self._apply(
+        self.dynamic_optimizer, private_grad, self.dynamic_noisy_state,
+        self.dynamic_noisy_params)
+    self.frozen_clean_params, self.frozen_clean_state = self._apply(
+        self.frozen_optimizer, clipped_grad, self.frozen_clean_state,
+        self.frozen_clean_params)
+    self.frozen_noisy_params, self.frozen_noisy_state = self._apply(
+        self.frozen_optimizer, private_grad, self.frozen_noisy_state,
+        self.frozen_noisy_params)
+
+    self.delta_m = jax.tree_util.tree_map(
+        lambda old, perturbation: self.beta1 * old
+        + (1.0 - self.beta1) * perturbation,
+        self.delta_m, noise)
+    global_t = self.frozen_clean_state.count
+    correction = 1.0 - jnp.asarray(self.beta1) ** global_t
+    self.delta_theta = jax.tree_util.tree_map(
+        lambda old, p, moment: self.rho * old
+        - self.learning_rate * p * moment / correction,
+        self.delta_theta, self.p_star, self.delta_m)
+
+    dynamic_delta = jax.tree_util.tree_map(
+        lambda noisy, clean: noisy - clean,
+        self.dynamic_noisy_params, self.dynamic_clean_params)
+    frozen_delta = jax.tree_util.tree_map(
+        lambda noisy, clean: noisy - clean,
+        self.frozen_noisy_params, self.frozen_clean_params)
+    dynamic_error = jax.tree_util.tree_map(
+        lambda actual, linear: actual - linear,
+        dynamic_delta, self.delta_theta)
+    frozen_error = jax.tree_util.tree_map(
+        lambda actual, linear: actual - linear,
+        frozen_delta, self.delta_theta)
+    self.numerator_dynamic += _tree_sqnorm(dynamic_error)
+    self.numerator_frozen += _tree_sqnorm(frozen_error)
+    self.denominator += _tree_sqnorm(self.delta_theta)
+
+  def result(self) -> ReplayResult:
+    denominator = float(self.denominator)
+    floor = np.finfo(np.float64).tiny
+    numerator_dynamic = float(self.numerator_dynamic)
+    numerator_frozen = float(self.numerator_frozen)
+    return ReplayResult(
+        numerator_dynamic / max(denominator, floor),
+        numerator_frozen / max(denominator, floor),
+        numerator_dynamic, numerator_frozen, denominator)
 
 
 def paired_replay(clean_gradients: np.ndarray, noise: np.ndarray, *, params: np.ndarray,
@@ -78,7 +186,15 @@ def paired_replay(clean_gradients: np.ndarray, noise: np.ndarray, *, params: np.
       len(clean_gradients), tau=count, beta1=beta1,
       learning_rate=learning_rate, weight_decay=weight_decay)
   linear_delta = np.einsum("ts,s...,...->t...", time, noise, p_star)
-  return ReplayResult(gap(dynamic_delta, linear_delta), gap(frozen_delta, linear_delta))
+  denominator = float(np.sum(linear_delta ** 2))
+  numerator_dynamic = float(np.sum((dynamic_delta - linear_delta) ** 2))
+  numerator_frozen = float(np.sum((frozen_delta - linear_delta) ** 2))
+  return ReplayResult(
+      gap(dynamic_delta, linear_delta), gap(frozen_delta, linear_delta),
+      numerator_dynamic, numerator_frozen, denominator)
 
 
-__all__ = ["ReplayResult", "filter_latent_draws", "gap", "paired_replay"]
+__all__ = [
+    "FullPyTreeReplayAccumulator", "ReplayResult", "filter_latent_draws",
+    "gap", "paired_replay",
+]

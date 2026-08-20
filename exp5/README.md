@@ -26,16 +26,24 @@ warmup and phase boundaries do not create new participation contracts. One
 GDP calibration targets the final `(epsilon=3, delta=1e-5, add_remove)`
 transcript; there is no amplification or per-block privacy budget.
 
-For the paired 5B comparison, continuous and segmented plans use the larger
-of their two full-hybrid sensitivities for one shared conservative calibration.
-Consequently all four conditions satisfy the same final privacy bound and the
-IID warmup perturbations are bit-identical, not merely generated from matching
-standard-normal seeds. The lower-sensitivity mechanism may spend less than the
-stated epsilon; it never exceeds it.
+For the paired 5B comparison, continuous and segmented plans each use their
+own exact full-hybrid sensitivity and are independently calibrated to the same
+final `(epsilon=3, delta=1e-5)` target. Dynamic and frozen conditions within a
+mechanism use the same plan, calibration, latent Gaussian base draws, and
+actual noise transcript. Continuous and segmented mechanisms use the same
+standard-normal seed/step-key scheme, but their calibrated scales and noising
+matrices can differ, including during IID warmup. There is no shared
+worst-case calibration.
 
-The frozen replay comparison is deliberately narrower than linearizing neural
-network training. `G_frozen` tests removal of the dynamic AdamW second-moment
-nonlinearity only; it makes no claim that model training dynamics are linear.
+The 5C replay is an online full-model PyTree computation, not a selected-leaf
+approximation. Starting from the real switch parameters, moments, count, and
+`p_star`, it advances dynamic clean/noisy and frozen clean/noisy shadow states
+using each observed clipped gradient as an exogenous input. In parallel it
+advances the exact frozen-p linear perturbation recurrence. At every Phase-II
+step it sums squared norms over every parameter leaf into scalar numerators and
+a denominator, so the full gradient trajectory is never retained. The
+comparison isolates dynamic AdamW second-moment/preconditioner nonlinearity;
+it does not claim that neural-network gradient dynamics are linear.
 
 Smoke (small differentiable optimization, real Optax state, BandInvMF fit,
 hybrid calibration, paired replay):

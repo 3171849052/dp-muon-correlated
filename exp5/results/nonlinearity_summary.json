@@ -14,12 +14,12 @@
     },
     "dynamic_seg97": {
       "final_test_accuracy": {
-        "mean": 0.8900404912490889,
-        "std": 0.03413029355258331
+        "mean": 0.8922427202009481,
+        "std": 0.03303238737984155
       },
       "final_test_loss": {
-        "mean": 0.11697162515424459,
-        "std": 0.03794227843635164
+        "mean": 0.11446775405187422,
+        "std": 0.03664344152206965
       }
     },
     "frozen_cont": {
@@ -34,33 +34,48 @@
     },
     "frozen_seg97": {
       "final_test_accuracy": {
-        "mean": 0.891992828643107,
-        "std": 0.031093849423900262
+        "mean": 0.8958175093428373,
+        "std": 0.028324761636795235
       },
       "final_test_loss": {
-        "mean": 0.11469768832986876,
-        "std": 0.034564231369501056
+        "mean": 0.1103483068728055,
+        "std": 0.03136851685277717
       }
     }
   },
   "segmentation_deltas": [
     {
       "seed": 0,
-      "delta_seg_dynamic": -0.005851772041782888,
-      "delta_seg_frozen": -0.0041029197641737625
+      "delta_seg_dynamic": -0.004910482615382072,
+      "delta_seg_frozen": -0.00334334049226237
     },
     {
       "seed": 1,
-      "delta_seg_dynamic": 0.004898108133467471,
-      "delta_seg_frozen": 0.0011952481234928092
+      "delta_seg_dynamic": 0.007977759812686336,
+      "delta_seg_frozen": 0.005607517430651243
     },
     {
       "seed": 2,
-      "delta_seg_dynamic": -0.005508595504370661,
-      "delta_seg_frozen": -0.022752861961814586
+      "delta_seg_dynamic": -0.002922849754412815,
+      "delta_seg_frozen": -0.016450668441693184
     }
   ],
-  "paired_phase_latent_draws": true,
-  "identical_iid_warmup_draws": true,
-  "shared_worst_case_sensitivity_squared": 4.313868682108048
+  "calibration_statement": "each mechanism independently calibrated to the same final privacy target",
+  "mechanisms": {
+    "cont": {
+      "sensitivity_squared": 4.313868682108048,
+      "iid_noise_std": 1.4441212087094355,
+      "epsilon": 3.0,
+      "delta": 1e-05
+    },
+    "seg97": {
+      "sensitivity_squared": 3.8333938856024936,
+      "iid_noise_std": 1.361325277654104,
+      "epsilon": 3.0,
+      "delta": 1e-05
+    }
+  },
+  "paired_within_mechanism": true,
+  "shared_base_gaussian_seeds_across_mechanisms": true,
+  "exact_equal_final_privacy_target": true
 }

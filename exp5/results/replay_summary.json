@@ -14,14 +14,14 @@
     },
     "seg97": {
       "G_dynamic": {
-        "mean": 0.4228540800340106,
-        "std": 0.3222034419986465
+        "mean": 0.43863058686006745,
+        "std": 0.3128568261006784
       },
       "G_frozen": {
-        "mean": 1.7842158511491593e-15,
-        "std": 1.6431859508639817e-15
+        "mean": 1.990353055144416e-15,
+        "std": 6.69091236012195e-16
       }
     }
   },
-  "meaning": "Only dynamic second-moment/preconditioner nonlinearity is measured."
+  "meaning": "Full-parameter online replay of dynamic and frozen-p optimizer perturbations against the exact frozen-p linear response."
 }

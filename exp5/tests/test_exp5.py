@@ -15,10 +15,11 @@ from exp5.hybrid_optimizer import FrozenPAdamW, freeze_optax_adamw, p_star_from_
 from exp5.hybrid_strategy import (
     block_lengths, hybrid_noising_matrix, hybrid_sensitivity_squared,
     hybrid_strategy_matrix, p_aware_hybrid_objective,
-    share_conservative_calibration,
 )
 from exp5.run import _plans
-from exp5.replay import filter_latent_draws, paired_replay
+from exp5.replay import (
+    FullPyTreeReplayAccumulator, filter_latent_draws, paired_replay,
+)
 from exp5.run import parse_args, run_smoke, select_tau_star
 from exp5.workload import apply_frozen_p_workload, frozen_p_time_workload
 
@@ -107,6 +108,75 @@ def test_frozen_replay_is_linear_dynamic_is_not():
   assert result.g_dynamic > result.g_frozen + 1e-8
 
 
+def test_full_pytree_online_replay_uses_every_leaf():
+  beta1, beta2, eps = .8, .9, 1e-6
+  learning_rate, weight_decay = .03, .02
+  params = {
+      "largest": jnp.array([.2, -.1, .05, .3]),
+      "other": jnp.array([-.4, .15]),
+  }
+  optimizer = make_nonamplified_dpadamw_optimizer(
+      learning_rate=learning_rate, beta1=beta1, beta2=beta2, eps=eps,
+      weight_decay=weight_decay)
+  state = optimizer.init(params)
+  warm_gradients = [
+      {"largest": jnp.array([.2, -.1, .3, .05]),
+       "other": jnp.array([.01, -.5])},
+      {"largest": jnp.array([-.1, .4, .05, -.2]),
+       "other": jnp.array([.6, .02])},
+      {"largest": jnp.array([.3, .1, -.2, .4]),
+       "other": jnp.array([-.4, .3])},
+  ]
+  for gradient in warm_gradients:
+    updates, state = optimizer.update(gradient, state, params)
+    params = optax.apply_updates(params, updates)
+  frozen = freeze_optax_adamw(state, beta2=beta2, eps=eps)
+  accumulator = FullPyTreeReplayAccumulator(
+      params=params, dynamic_optimizer=optimizer, dynamic_state=state,
+      frozen_state=frozen, learning_rate=learning_rate, beta1=beta1,
+      weight_decay=weight_decay)
+  clean = [
+      {"largest": jnp.array([.1, -.2, .05, .3]),
+       "other": jnp.array([.7, -.4])},
+      {"largest": jnp.array([-.3, .1, .2, -.1]),
+       "other": jnp.array([-.5, .8])},
+      {"largest": jnp.array([.2, .05, -.1, .4]),
+       "other": jnp.array([.9, -.6])},
+  ]
+  noise = [
+      {"largest": jnp.array([.01, -.02, .015, -.01]),
+       "other": jnp.array([.2, -.15])},
+      {"largest": jnp.array([-.015, .01, .02, -.005]),
+       "other": jnp.array([-.18, .25])},
+      {"largest": jnp.array([.02, .005, -.01, .015]),
+       "other": jnp.array([.3, -.2])},
+  ]
+  for gradient, perturbation in zip(clean, noise, strict=True):
+    accumulator.update(gradient, perturbation)
+  result = accumulator.result()
+  assert result.g_frozen < 1e-10
+  assert result.g_dynamic > result.g_frozen + 1e-8
+
+  adam = state[0]
+  leaf_results = {}
+  for leaf in params:
+    leaf_results[leaf] = paired_replay(
+        np.asarray([gradient[leaf] for gradient in clean]),
+        np.asarray([perturbation[leaf] for perturbation in noise]),
+        params=np.asarray(params[leaf]), mu=np.asarray(adam.mu[leaf]),
+        nu=np.asarray(adam.nu[leaf]), count=int(adam.count), beta1=beta1,
+        beta2=beta2, eps=eps, learning_rate=learning_rate,
+        weight_decay=weight_decay)
+  assert np.isclose(
+      result.denominator,
+      sum(leaf.denominator for leaf in leaf_results.values()), rtol=2e-5)
+  assert np.isclose(
+      result.numerator_dynamic,
+      sum(leaf.numerator_dynamic for leaf in leaf_results.values()), rtol=2e-4)
+  assert not np.isclose(result.g_dynamic, leaf_results["largest"].g_dynamic,
+                        rtol=1e-2)
+
+
 def test_segment_filter_resets_only_noise():
   latent = np.arange(6., dtype=float)[:, None]
   d1 = np.array([[1., 0., 0.], [.5, 1., 0.], [.2, .5, 1.]])
@@ -172,6 +242,17 @@ def test_smoke_writes_all_outputs(tmp_path: Path):
   with (tmp_path / "replay_results.csv").open() as stream:
     rows = list(csv.DictReader(stream))
   assert all(float(row["G_frozen"]) < 1e-12 for row in rows)
+  assert {"numerator_dynamic", "numerator_frozen", "denominator"}.issubset(rows[0])
+  nonlinear = json.loads((tmp_path / "nonlinearity_summary.json").read_text())
+  assert nonlinear["paired_within_mechanism"] is True
+  assert nonlinear["shared_base_gaussian_seeds_across_mechanisms"] is True
+  assert nonlinear["exact_equal_final_privacy_target"] is True
+  assert set(nonlinear["mechanisms"]) == {"cont", "seg97"}
+  for mechanism in nonlinear["mechanisms"].values():
+    assert mechanism["epsilon"] == 3.0
+    assert mechanism["delta"] == 1e-5
+    assert mechanism["sensitivity_squared"] > 0
+    assert mechanism["iid_noise_std"] > 0
 
 
 def test_smoke_privacy_is_single_final_calibration(tmp_path: Path):
@@ -182,12 +263,15 @@ def test_smoke_privacy_is_single_final_calibration(tmp_path: Path):
       "calibration_scope": "one full hybrid transcript per run"}
 
 
-def test_paired_plans_use_identical_warmup_noise_scale():
-  plans = share_conservative_calibration({
+def test_mechanisms_are_independently_calibrated_to_equal_final_privacy():
+  plans = {
       "cont": _plans(10, 2, segmented=False),
-      "seg": _plans(10, 2, segmented=True)})
-  assert plans["cont"].calibration.iid_noise_std == plans["seg"].calibration.iid_noise_std
+      "seg": _plans(10, 2, segmented=True),
+  }
+  assert plans["cont"].sensitivity_squared != plans["seg"].sensitivity_squared
+  assert plans["cont"].calibration.iid_noise_std != plans["seg"].calibration.iid_noise_std
   assert plans["cont"].calibration.epsilon == plans["seg"].calibration.epsilon == 3.
+  assert plans["cont"].calibration.delta == plans["seg"].calibration.delta == 1e-5
 
 
 def test_complete_objective_is_explicitly_p_weighted():

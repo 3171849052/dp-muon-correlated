@@ -25,7 +25,7 @@ from exp2.common import resolve_repo_path
 from exp5.hybrid_optimizer import FrozenPAdamW, freeze_optax_adamw, p_star_from_optax
 from exp5.hybrid_strategy import (
     HybridPlan, fit_hybrid_plan, hybrid_noising_matrix,
-    p_aware_hybrid_objective, share_conservative_calibration,
+    p_aware_hybrid_objective,
 )
 from exp5.replay import paired_replay
 
@@ -212,9 +212,10 @@ def run_smoke(out: Path, seeds: list[int], tau_candidates: list[int]) -> int:
 
   comparison = []
   replay_rows = []
-  plans = share_conservative_calibration({
+  plans = {
       "cont": _plans(horizon, tau_star, segmented=False),
-      "seg97": _plans(horizon, tau_star, segmented=True)})
+      "seg97": _plans(horizon, tau_star, segmented=True),
+  }
   for seed in seeds:
     latent = np.random.default_rng(seed + 9000).normal(size=(horizon, 3))
     for mechanism, plan in plans.items():
@@ -252,7 +253,11 @@ def run_smoke(out: Path, seeds: list[int], tau_candidates: list[int]) -> int:
           count=tau_star, beta1=.8, beta2=.9, eps=1e-6,
           learning_rate=.04, weight_decay=.02)
       replay_rows.append({"seed": seed, "mechanism": mechanism,
-                          "G_dynamic": result.g_dynamic, "G_frozen": result.g_frozen})
+                          "G_dynamic": result.g_dynamic,
+                          "G_frozen": result.g_frozen,
+                          "numerator_dynamic": result.numerator_dynamic,
+                          "numerator_frozen": result.numerator_frozen,
+                          "denominator": result.denominator})
   _write_csv(out / "nonlinearity_comparison.csv", comparison)
   deltas = []
   for seed in seeds:
@@ -265,10 +270,19 @@ def run_smoke(out: Path, seeds: list[int], tau_candidates: list[int]) -> int:
       "smoke": True, "tau_star": tau_star,
       "aggregate": _aggregate(comparison, "condition", ["final_test_accuracy", "final_test_loss"]),
       "segmentation_deltas": deltas,
-      "paired_phase_latent_draws": True,
-      "identical_iid_warmup_draws": True,
-      "shared_worst_case_sensitivity_squared": max(
-          plan.sensitivity_squared for plan in plans.values()),
+      "calibration_statement": (
+          "each mechanism independently calibrated to the same final privacy target"),
+      "mechanisms": {
+          name: {
+              "sensitivity_squared": plan.sensitivity_squared,
+              "iid_noise_std": plan.calibration.iid_noise_std,
+              "epsilon": plan.calibration.epsilon,
+              "delta": plan.calibration.delta,
+          } for name, plan in plans.items()
+      },
+      "paired_within_mechanism": True,
+      "shared_base_gaussian_seeds_across_mechanisms": True,
+      "exact_equal_final_privacy_target": True,
   }
   (out / "nonlinearity_summary.json").write_text(
       json.dumps(nonlinear_summary, indent=2), encoding="utf-8")
@@ -276,7 +290,9 @@ def run_smoke(out: Path, seeds: list[int], tau_candidates: list[int]) -> int:
   (out / "replay_summary.json").write_text(json.dumps({
       "smoke": True, "tau_star": tau_star,
       "aggregate": _aggregate(replay_rows, "mechanism", ["G_dynamic", "G_frozen"]),
-      "meaning": "Only dynamic second-moment/preconditioner nonlinearity is measured.",
+      "meaning": (
+          "Full-parameter online replay of dynamic and frozen-p optimizer "
+          "perturbations against the exact frozen-p linear response."),
   }, indent=2), encoding="utf-8")
   return tau_star
 

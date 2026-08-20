@@ -29,9 +29,9 @@ from dp_muon.training.pretrained_snapshot import load_pretrained_snapshot
 from exp2.common import derive_contract, resolve_repo_path
 from exp5.hybrid_optimizer import FrozenPAdamW, freeze_optax_adamw, p_star_from_optax
 from exp5.hybrid_strategy import (
-    fit_hybrid_plan, p_aware_hybrid_objective, share_conservative_calibration,
+    fit_hybrid_plan, p_aware_hybrid_objective,
 )
-from exp5.replay import paired_replay
+from exp5.replay import FullPyTreeReplayAccumulator
 from exp5.run import _aggregate, _p_stats, _write_csv, select_tau_star
 
 
@@ -49,12 +49,6 @@ def _result(seed, condition, history):
   return {"seed": seed, "condition": condition,
           "final_test_loss": losses[-1], "final_test_accuracy": accuracies[-1],
           "best_test_loss": min(losses), "best_test_accuracy": max(accuracies)}
-
-
-def _selected_leaf(tree):
-  leaves = jax.tree_util.tree_leaves(tree)
-  index = max(range(len(leaves)), key=lambda i: np.asarray(leaves[i]).size)
-  return np.asarray(leaves[index]).reshape(-1), index
 
 
 def _train(config, contract, plan, seed, *, dynamic, train_x, train_y, test_x,
@@ -78,7 +72,7 @@ def _train(config, contract, plan, seed, *, dynamic, train_x, train_y, test_x,
   block_end = plan.tau + plan.block_lengths[0]
   history, previous_p = [], None
   switch_params = switch_state = None
-  replay_gradients, replay_noise = [], []
+  replay = None
   for step, batch in enumerate(batches):
     batch = jax.tree_util.tree_map(jnp.asarray, batch)
     clipped = query(params, batch)
@@ -109,11 +103,15 @@ def _train(config, contract, plan, seed, *, dynamic, train_x, train_y, test_x,
         frozen_state = freeze_optax_adamw(
             optimizer_state, beta2=config.beta2, eps=config.eps)
         switch_params, switch_state = params, frozen_state
+        if collect_replay:
+          replay = FullPyTreeReplayAccumulator(
+              params=params, dynamic_optimizer=optimizer,
+              dynamic_state=optimizer_state, frozen_state=frozen_state,
+              learning_rate=config.learning_rate, beta1=config.beta1,
+              weight_decay=config.weight_decay)
     elif collect_replay:
-      gradient, leaf_index = _selected_leaf(clipped)
-      noise, _ = _selected_leaf(perturbation)
-      replay_gradients.append(gradient)
-      replay_noise.append(noise)
+      assert replay is not None
+      replay.update(clipped, perturbation)
     current = step + 1
     should_eval = (current == plan.tau or current == contract.horizon or
                    current * config.batch_size // contract.num_examples !=
@@ -128,8 +126,8 @@ def _train(config, contract, plan, seed, *, dynamic, train_x, train_y, test_x,
       plan, switch_state.p_star, beta1=config.beta1,
       learning_rate=config.learning_rate, weight_decay=config.weight_decay,
       reduction=config.reduction)
-  return params, history, diagnostics, switch_params, switch_state, (
-      np.asarray(replay_gradients), np.asarray(replay_noise))
+  replay_result = replay.result() if replay is not None else None
+  return params, history, diagnostics, switch_params, switch_state, replay_result
 
 
 def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
@@ -179,9 +177,10 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
                                                      "switch_relative_change"]),
   }, indent=2), encoding="utf-8")
 
-  plans = share_conservative_calibration({
+  plans = {
       "cont": fit_hybrid_plan(tau=tau_star, block_size=None, **common),
-      "seg97": fit_hybrid_plan(tau=tau_star, block_size=97, **common)})
+      "seg97": fit_hybrid_plan(tau=tau_star, block_size=97, **common),
+  }
   comparison, replay_rows = [], []
   for seed in seeds:
     schedule = build_fixed_cycle_logical_schedule(
@@ -191,24 +190,20 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
     for mechanism, plan in plans.items():
       for dynamic in (True, False):
         condition = ("dynamic_" if dynamic else "frozen_") + mechanism
-        _, history, _, switch_params, switch_state, trajectory = _train(
+        _, history, _, _, _, replay = _train(
             config, contract, plan, seed, dynamic=dynamic, train_x=train_x,
             train_y=train_y, test_x=test_x, test_y=test_y, model=model,
             schedule=schedule, collect_replay=not dynamic)
         _write_csv(out / f"metrics_{condition}_seed{seed}.csv", history)
         comparison.append(_result(seed, condition, history))
         if not dynamic:
-          clean, noise = trajectory
-          params_leaf, leaf_index = _selected_leaf(switch_params)
-          mu_leaf = np.asarray(jax.tree_util.tree_leaves(switch_state.mu)[leaf_index]).reshape(-1)
-          nu_leaf = np.asarray(jax.tree_util.tree_leaves(switch_state.frozen_nu)[leaf_index]).reshape(-1)
-          replay = paired_replay(
-              clean, noise, params=params_leaf, mu=mu_leaf, nu=nu_leaf,
-              count=tau_star, beta1=config.beta1, beta2=config.beta2,
-              eps=config.eps, learning_rate=config.learning_rate,
-              weight_decay=config.weight_decay)
+          assert replay is not None
           replay_rows.append({"seed": seed, "mechanism": mechanism,
-                              "G_dynamic": replay.g_dynamic, "G_frozen": replay.g_frozen})
+                              "G_dynamic": replay.g_dynamic,
+                              "G_frozen": replay.g_frozen,
+                              "numerator_dynamic": replay.numerator_dynamic,
+                              "numerator_frozen": replay.numerator_frozen,
+                              "denominator": replay.denominator})
   _write_csv(out / "nonlinearity_comparison.csv", comparison)
   deltas = []
   for seed in seeds:
@@ -219,14 +214,26 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
   (out / "nonlinearity_summary.json").write_text(json.dumps({
       "smoke": False, "tau_star": tau_star,
       "aggregate": _aggregate(comparison, "condition", ["final_test_accuracy", "final_test_loss"]),
-      "segmentation_deltas": deltas, "paired_phase_latent_draws": True,
-      "identical_iid_warmup_draws": True,
-      "shared_worst_case_sensitivity_squared": max(
-          plan.sensitivity_squared for plan in plans.values()),
+      "segmentation_deltas": deltas,
+      "calibration_statement": (
+          "each mechanism independently calibrated to the same final privacy target"),
+      "mechanisms": {
+          name: {
+              "sensitivity_squared": plan.sensitivity_squared,
+              "iid_noise_std": plan.calibration.iid_noise_std,
+              "epsilon": plan.calibration.epsilon,
+              "delta": plan.calibration.delta,
+          } for name, plan in plans.items()
+      },
+      "paired_within_mechanism": True,
+      "shared_base_gaussian_seeds_across_mechanisms": True,
+      "exact_equal_final_privacy_target": True,
   }, indent=2), encoding="utf-8")
   _write_csv(out / "replay_results.csv", replay_rows)
   (out / "replay_summary.json").write_text(json.dumps({
       "smoke": False, "tau_star": tau_star,
       "aggregate": _aggregate(replay_rows, "mechanism", ["G_dynamic", "G_frozen"]),
-      "meaning": "Only dynamic second-moment/preconditioner nonlinearity is measured.",
+      "meaning": (
+          "Full-model/full-PyTree online replay of dynamic and frozen-p "
+          "optimizer perturbations against the exact frozen-p linear response."),
   }, indent=2), encoding="utf-8")
