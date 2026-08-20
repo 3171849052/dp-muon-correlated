@@ -1,0 +1,46 @@
+{
+  "smoke": true,
+  "tau_candidates": [
+    2,
+    4
+  ],
+  "tau_star": 2,
+  "selection": "highest mean final_test_accuracy; lower mean final_test_loss breaks ties",
+  "empirical_stability_threshold": 0.8152416149775187,
+  "aggregate": {
+    "2": {
+      "final_test_accuracy": {
+        "mean": 0.8804794034695756,
+        "std": 0.05648906522132705
+      },
+      "final_test_loss": {
+        "mean": 0.12863255263207937,
+        "std": 0.0631584022513071
+      },
+      "switch_relative_change": {
+        "mean": 0.8152416149775187,
+        "std": 0.15028700250223723
+      }
+    },
+    "4": {
+      "final_test_accuracy": {
+        "mean": 0.8699799927656785,
+        "std": 0.09720358466792466
+      },
+      "final_test_loss": {
+        "mean": 0.14333312788579142,
+        "std": 0.10942259607755866
+      },
+      "switch_relative_change": {
+        "mean": 0.2826722363630931,
+        "std": 0.2242946250319329
+      }
+    }
+  },
+  "privacy": {
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "adjacency": "add_remove",
+    "calibration_scope": "one full hybrid transcript per run"
+  }
+}

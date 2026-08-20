@@ -1,0 +1,27 @@
+{
+  "smoke": true,
+  "tau_star": 2,
+  "aggregate": {
+    "cont": {
+      "G_dynamic": {
+        "mean": 0.6459622551606244,
+        "std": 0.41618687954266786
+      },
+      "G_frozen": {
+        "mean": 1.678889762726776e-15,
+        "std": 1.441130778161799e-15
+      }
+    },
+    "seg97": {
+      "G_dynamic": {
+        "mean": 0.4228540800340106,
+        "std": 0.3222034419986465
+      },
+      "G_frozen": {
+        "mean": 1.7842158511491593e-15,
+        "std": 1.6431859508639817e-15
+      }
+    }
+  },
+  "meaning": "Only dynamic second-moment/preconditioner nonlinearity is measured."
+}
