@@ -116,6 +116,58 @@ def hybrid_sensitivity_squared(
   return max(states.values())
 
 
+def continuous_hybrid_sensitivity_squared(
+    tau: int, phase_strategy: BandInvMFStrategy, *, min_sep: int,
+    max_participations: int,
+) -> float:
+  """Compute exact sensitivity for an IID warmup plus one Toeplitz block.
+
+  The warmup part of the continuous mechanism is an identity matrix, so a
+  participation in that prefix contributes exactly one to the squared norm.
+  If there are ``k`` warmup participations, placing them as early as possible
+  leaves the largest possible phase suffix.  The first legal phase index is
+  therefore ``max(0, k * min_sep - tau)``.  The remaining phase sensitivity is
+  the ordinary Toeplitz sensitivity of that suffix with the remaining
+  participation cap.
+
+  This is the same global participation contract as
+  :func:`hybrid_sensitivity_squared`, but avoids enumerating combinations in
+  the long continuous Phase-II block.  The jax_privacy helper is evaluated on
+  CPU because this calculation is a small scalar control-plane operation, not
+  part of the GPU training workload.
+  """
+  if tau < 1:
+    raise ValueError("tau must be positive")
+  if min_sep < 1 or max_participations < 1:
+    raise ValueError("participation constraints must be positive")
+  phase_horizon = int(phase_strategy.horizon)
+  if phase_horizon < 1:
+    raise ValueError("phase strategy horizon must be positive")
+
+  max_warmup = min(max_participations, 1 + (tau - 1) // min_sep)
+  sensitivity = 0.0
+  noising_coef = np.asarray(phase_strategy.noising_coef)
+  cpu = jax.devices("cpu")[0]
+  for warmup_count in range(max_warmup + 1):
+    phase_start = max(0, warmup_count * min_sep - tau)
+    suffix_length = phase_horizon - phase_start
+    remaining = max_participations - warmup_count
+    if suffix_length <= 0 or remaining <= 0:
+      phase_sensitivity = 0.0
+    else:
+      with jax.default_device(cpu):
+        phase_sensitivity = float(
+            toeplitz.compute_banded_inverse_sensitivity_squared(
+                n=suffix_length,
+                noising_coef=jnp.asarray(noising_coef),
+                min_sep=min_sep,
+                max_participations=remaining,
+            )
+        )
+    sensitivity = max(sensitivity, float(warmup_count) + phase_sensitivity)
+  return sensitivity
+
+
 @dataclass(frozen=True)
 class HybridPlan:
   tau: int
@@ -245,9 +297,16 @@ def fit_hybrid_plan(
     strategies.append(strategy)
     offset += length
   strategies_tuple = tuple(strategies)
-  sensitivity = hybrid_sensitivity_squared(
-      hybrid_strategy_matrix(tau, strategies_tuple), min_sep=min_sep,
-      max_participations=max_participations, block_sizes=(tau, *lengths))
+  if block_size is None:
+    if len(strategies_tuple) != 1:
+      raise AssertionError("continuous plans must contain one Phase-II block")
+    sensitivity = continuous_hybrid_sensitivity_squared(
+        tau, strategies_tuple[0], min_sep=min_sep,
+        max_participations=max_participations)
+  else:
+    sensitivity = hybrid_sensitivity_squared(
+        hybrid_strategy_matrix(tau, strategies_tuple), min_sep=min_sep,
+        max_participations=max_participations, block_sizes=(tau, *lengths))
   calibration = calibrate_nonamplified_bandinv(
       epsilon=epsilon, delta=delta, clip_norm=clip_norm,
       normalize_by=normalize_by, adjacency=adjacency,
@@ -258,6 +317,7 @@ def fit_hybrid_plan(
 
 __all__ = [
     "HybridPlan", "block_lengths", "fit_hybrid_plan", "hybrid_noising_matrix",
-    "hybrid_sensitivity_squared", "hybrid_strategy_matrix",
+    "continuous_hybrid_sensitivity_squared", "hybrid_sensitivity_squared",
+    "hybrid_strategy_matrix",
     "p_aware_hybrid_objective", "share_conservative_calibration",
 ]

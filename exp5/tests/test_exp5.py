@@ -8,12 +8,15 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 import optax
+import pytest
 
 from dp_muon.bandinvmf import BandInvMFStrategy
 from dp_muon.training.nonamplified_dpadamw import make_nonamplified_dpadamw_optimizer
+from exp5 import full_training
 from exp5.hybrid_optimizer import FrozenPAdamW, freeze_optax_adamw, p_star_from_optax
 from exp5.hybrid_strategy import (
-    block_lengths, hybrid_noising_matrix, hybrid_sensitivity_squared,
+    block_lengths, continuous_hybrid_sensitivity_squared,
+    fit_hybrid_plan, hybrid_noising_matrix, hybrid_sensitivity_squared,
     hybrid_strategy_matrix, p_aware_hybrid_objective,
 )
 from exp5.run import _plans
@@ -201,6 +204,63 @@ def test_hybrid_sensitivity_matches_bruteforce_oracle():
       if all(b - a >= 2 for a, b in zip(positions, positions[1:])):
         oracle = max(oracle, np.sum(np.sum(c[:, positions], axis=1) ** 2))
   assert np.isclose(actual, oracle)
+
+
+@pytest.mark.parametrize("tau,phase_horizon,min_sep,max_participations", [
+    (2, 6, 3, 1),  # tau < min_sep, single participation
+    (3, 6, 3, 2),  # tau == min_sep
+    (5, 6, 2, 3),  # tau > min_sep, multiple warmup participations
+    (4, 7, 3, 4),  # the last warmup choice shortens the phase suffix
+])
+def test_continuous_hybrid_sensitivity_matches_bruteforce(
+    tau, phase_horizon, min_sep, max_participations,
+):
+  phase = _strategy([
+      1., .2, .04, .01, .002, .0004, .00008,
+  ][:phase_horizon])
+  actual = continuous_hybrid_sensitivity_squared(
+      tau, phase, min_sep=min_sep,
+      max_participations=max_participations)
+  oracle = hybrid_sensitivity_squared(
+      hybrid_strategy_matrix(tau, (phase,)), min_sep=min_sep,
+      max_participations=max_participations,
+      block_sizes=(tau, phase_horizon),
+  )
+  np.testing.assert_allclose(actual, oracle, rtol=2e-5, atol=2e-6)
+
+
+def test_continuous_plan_does_not_use_combination_enumeration(monkeypatch):
+  def fail_generic(*args, **kwargs):
+    raise AssertionError("continuous plans must use the fast sensitivity path")
+
+  def fake_fit(horizon, bandwidth, min_sep, **kwargs):
+    del bandwidth, min_sep, kwargs
+    return _strategy([1., .2, .04, .01, .002, .0004][:horizon])
+
+  monkeypatch.setattr("exp5.hybrid_strategy.hybrid_sensitivity_squared", fail_generic)
+  plan = fit_hybrid_plan(
+      horizon=8, tau=2, block_size=None, bandwidth=3, min_sep=3,
+      max_participations=3, learning_rate=.04, beta1=.8, weight_decay=.02,
+      epsilon=3., delta=1e-5, clip_norm=1., normalize_by=2.,
+      adjacency="add_remove", max_optimizer_steps=2, fit_strategy=fake_fit,
+  )
+  assert plan.sensitivity_squared > 0
+
+
+def test_5a_switch_plans_fit_once_and_are_indexed_by_tau(monkeypatch):
+  calls = []
+
+  def fake_fit(*, tau, block_size, **kwargs):
+    del kwargs
+    calls.append((tau, block_size))
+    return object()
+
+  monkeypatch.setattr(full_training, "fit_hybrid_plan", fake_fit)
+  plans = full_training._fit_switch_plans(
+      {"marker": True}, [32, 48, 64, 80, 97])
+  assert calls == [(32, 97), (48, 97), (64, 97), (80, 97), (97, 97)]
+  assert list(plans) == [32, 48, 64, 80, 97]
+  assert plans[32] is not plans[48]
 
 
 def test_global_separation_crosses_hybrid_boundary():

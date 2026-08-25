@@ -29,7 +29,7 @@ from dp_muon.training.pretrained_snapshot import load_pretrained_snapshot
 from exp2.common import derive_contract, resolve_repo_path
 from exp5.hybrid_optimizer import FrozenPAdamW, freeze_optax_adamw, p_star_from_optax
 from exp5.hybrid_strategy import (
-    fit_hybrid_plan, p_aware_hybrid_objective,
+    HybridPlan, fit_hybrid_plan, p_aware_hybrid_objective,
 )
 from exp5.replay import FullPyTreeReplayAccumulator
 from exp5.run import _aggregate, _p_stats, _write_csv, select_tau_star
@@ -49,6 +49,22 @@ def _result(seed, condition, history):
   return {"seed": seed, "condition": condition,
           "final_test_loss": losses[-1], "final_test_accuracy": accuracies[-1],
           "best_test_loss": min(losses), "best_test_accuracy": max(accuracies)}
+
+
+def _log(message: str) -> None:
+  print(f"[Exp5] {message}", flush=True)
+
+
+def _fit_switch_plans(
+    common: dict[str, Any], tau_candidates: list[int]
+) -> dict[int, HybridPlan]:
+  """Fit each deterministic 5A temporal plan once for all seeds."""
+  _log("fitting 5A plans...")
+  plans = {}
+  for tau in tau_candidates:
+    plans[tau] = fit_hybrid_plan(tau=tau, block_size=97, **common)
+    _log(f"fitted tau={tau}")
+  return plans
 
 
 def _train(config, contract, plan, seed, *, dynamic, train_x, train_y, test_x,
@@ -143,6 +159,7 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
       clip_norm=config.clip_norm, normalize_by=float(config.batch_size),
       adjacency=config.adjacency, max_optimizer_steps=config.max_optimizer_steps,
       reduction=config.reduction)
+  switch_plans = _fit_switch_plans(common, tau_candidates)
   switch_rows = []
   for seed in seeds:
     schedule = build_fixed_cycle_logical_schedule(
@@ -150,7 +167,8 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
         horizon=contract.horizon, min_sep=contract.min_sep,
         max_participations=contract.max_participations, seed=seed)
     for tau in tau_candidates:
-      plan = fit_hybrid_plan(tau=tau, block_size=97, **common)
+      _log(f"training 5A seed={seed} tau={tau}")
+      plan = switch_plans[tau]
       _, history, stats, _, _, _ = _train(
           config, contract, plan, seed, dynamic=False, train_x=train_x,
           train_y=train_y, test_x=test_x, test_y=test_y, model=model, schedule=schedule)
@@ -164,6 +182,7 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
                           "post_switch_accuracy_gain": row["final_test_accuracy"] - switch["test_accuracy"]})
   _write_csv(out / "switch_comparison.csv", switch_rows)
   tau_star = select_tau_star(switch_rows)
+  _log(f"selected tau_star={tau_star}")
   threshold = float(np.mean([r["switch_relative_change"] for r in switch_rows if r["tau"] == tau_star]))
   (out / "switch_summary.json").write_text(json.dumps({
       "smoke": False, "tau_star": tau_star, "tau_candidates": tau_candidates,
@@ -177,10 +196,12 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
                                                      "switch_relative_change"]),
   }, indent=2), encoding="utf-8")
 
+  _log("fitting 5B continuous/seg97 plans...")
   plans = {
       "cont": fit_hybrid_plan(tau=tau_star, block_size=None, **common),
       "seg97": fit_hybrid_plan(tau=tau_star, block_size=97, **common),
   }
+  _log("fitted 5B continuous/seg97 plans")
   comparison, replay_rows = [], []
   for seed in seeds:
     schedule = build_fixed_cycle_logical_schedule(
@@ -190,6 +211,7 @@ def run(config, out: Path, seeds: list[int], tau_candidates: list[int]):
     for mechanism, plan in plans.items():
       for dynamic in (True, False):
         condition = ("dynamic_" if dynamic else "frozen_") + mechanism
+        _log(f"training condition={condition} seed={seed}")
         _, history, _, _, _, replay = _train(
             config, contract, plan, seed, dynamic=dynamic, train_x=train_x,
             train_y=train_y, test_x=test_x, test_y=test_y, model=model,
