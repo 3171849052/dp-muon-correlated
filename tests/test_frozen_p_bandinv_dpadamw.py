@@ -94,6 +94,9 @@ def test_yaml_tau_parses_and_dispatches_without_exp5():
   config = load_cifar10_frozen_p_bandinv_dpadamw_config(CONFIG)
   assert config.algorithm == FROZEN_P_BANDINV_DPADAMW_ALGORITHM
   assert config.switch_step == 32
+  assert config.learning_rate > 0
+  assert config.warmup_learning_rate > 0
+  assert config.learning_rate != config.warmup_learning_rate
   assert _config_algorithm(str(CONFIG)) == FROZEN_P_BANDINV_DPADAMW_ALGORITHM
 
 
@@ -195,6 +198,81 @@ def test_formal_trainer_has_iid_warmup_and_one_continuous_phase_stream(monkeypat
   assert int(state.noise_state.step) == horizon - tau
   np.testing.assert_array_equal(state.frozen_state.p_star, p_before)
   np.testing.assert_array_equal(state.frozen_state.frozen_nu, nu_before)
+
+
+def test_warmup_and_frozen_phase_use_separate_learning_rates(monkeypatch):
+  tau, horizon = 1, 2
+  strategy = replace(
+      _strategy(horizon=1, max_participations=1),
+      bandwidth=1,
+      noising_coef=jnp.asarray([1.0], dtype=jnp.float32),
+      strategy_coef=jnp.ones((1,), dtype=jnp.float32),
+  )
+  calibration = _calibration(
+      strategy, horizon=horizon, tau=tau, max_participations=1
+  )
+
+  def zero_iid_noise(key, template, std):
+    del std
+    return jax.tree_util.tree_map(jnp.zeros_like, template), key
+
+  def zero_band_noise(key, noise_state, noising_coef, std):
+    del noising_coef, std
+    noise = jax.tree_util.tree_map(jnp.zeros_like, noise_state.buffer[0])
+    return (
+        noise,
+        replace(
+            noise_state,
+            step=noise_state.step + 1,
+            cursor=(noise_state.cursor + 1) % noise_state.bandwidth,
+        ),
+        key,
+    )
+
+  monkeypatch.setattr(hybrid_train, "_sample_iid_gaussian_noise", zero_iid_noise)
+  monkeypatch.setattr(hybrid_train, "sample_bandinv_noise", zero_band_noise)
+  train_step, optimizer = make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
+      lambda params, batch: jnp.sum(params * batch["x"][0]),
+      strategy,
+      calibration,
+      ParticipationSpec(horizon, 1, 1),
+      switch_step=tau,
+      learning_rate=0.01,
+      warmup_learning_rate=0.1,
+      beta1=0.8,
+      beta2=0.9,
+      eps=1e-6,
+      weight_decay=0.0,
+      microbatch_size=1,
+  )
+  params = jnp.array([1.0, -2.0])
+  state = init_nonamplified_frozen_p_bandinv_dpadamw_state(
+      params, strategy, jax.random.key(0), optimizer, switch_step=tau
+  )
+  batch = {"x": jnp.array([[0.4, -0.2]])}
+
+  warm_state = train_step(state, batch)
+  warm_optimizer = optax.adamw(
+      learning_rate=0.1, b1=0.8, b2=0.9, eps=1e-6, weight_decay=0.0
+  )
+  warm_updates, _ = warm_optimizer.update(
+      batch["x"][0], warm_optimizer.init(params), params
+  )
+  np.testing.assert_allclose(
+      warm_state.params, optax.apply_updates(params, warm_updates), rtol=2e-6
+  )
+
+  phase_state = train_step(warm_state, batch)
+  phase_count = warm_state.frozen_state.count + 1
+  phase_mu = 0.8 * warm_state.frozen_state.mu + 0.2 * batch["x"][0]
+  phase_updates = -0.01 * (
+      warm_state.frozen_state.p_star * phase_mu / (1.0 - 0.8 ** int(phase_count))
+  )
+  np.testing.assert_allclose(
+      phase_state.params,
+      warm_state.params + phase_updates,
+      rtol=2e-6,
+  )
 
 
 def test_full_hybrid_privacy_uses_one_final_calibration():

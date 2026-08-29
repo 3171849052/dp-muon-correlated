@@ -134,6 +134,7 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
     *,
     switch_step: int,
     learning_rate: float,
+    warmup_learning_rate: float | None = None,
     beta1: float = 0.9,
     beta2: float = 0.999,
     eps: float = 1e-8,
@@ -146,14 +147,21 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
     ],
     optax.GradientTransformation,
 ]:
-  """Builds IID warmup -> state-preserving frozen-p -> continuous BandInvMF."""
+  """Builds IID warmup -> state-preserving frozen-p -> continuous BandInvMF.
+
+  ``learning_rate`` controls the post-switch Frozen-p optimizer.  The IID
+  DP-AdamW warmup can use ``warmup_learning_rate`` independently; omitting it
+  keeps the historical behavior for direct callers.
+  """
   if not callable(loss_fn):
     raise TypeError("loss_fn must be callable")
   if not isinstance(calibration, PrivacyCalibration):
     raise TypeError("calibration must be a PrivacyCalibration")
   _validate_strategy(strategy, participation_spec, switch_step)
+  if warmup_learning_rate is None:
+    warmup_learning_rate = learning_rate
   optimizer = make_nonamplified_dpadamw_optimizer(
-      learning_rate=learning_rate,
+      learning_rate=warmup_learning_rate,
       beta1=beta1,
       beta2=beta2,
       eps=eps,

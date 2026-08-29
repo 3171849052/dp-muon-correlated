@@ -20,6 +20,9 @@ from .nonamplified_frozen_p_bandinv_dpadamw import (
 )
 from .nonamplified_public_v_bandinv import PublicVBandInvAdamWState
 from .nonamplified_linear import NonAmplifiedBandInvState
+from .nonamplified_segmented_bandinv_dpadamw import (
+    SegmentedBandInvDPAdamWState,
+)
 from .file_locking import atomic_replace, atomic_temporary_path, file_lock
 
 
@@ -34,7 +37,8 @@ def _validate_steps(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
-            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState), current_step: int
+            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState |
+            SegmentedBandInvDPAdamWState), current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -62,6 +66,19 @@ def _validate_steps(
     if noise_step != expected_noise_step:
       raise ValueError(
           "noise_state.step must equal the post-switch Phase-II step"
+      )
+  elif isinstance(state, SegmentedBandInvDPAdamWState):
+    optimizer_step = _concrete_step(state.step, "step")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    segment_start = _concrete_step(state.segment_start, "segment_start")
+    segment_index = _concrete_step(state.segment_index, "segment_index")
+    if int(current_step) != optimizer_step:
+      raise ValueError("current_step must equal state.step")
+    if segment_index < 0 or segment_start < 0 or segment_start > optimizer_step:
+      raise ValueError("segmented state has an invalid current segment")
+    if noise_step != optimizer_step - segment_start:
+      raise ValueError(
+          "noise_state.step must equal the current segment-local step"
       )
   elif isinstance(state, NonAmplifiedDPSGDState):
     momentum_step = _concrete_step(state.momentum_state.step, "momentum_state.step")
@@ -101,7 +118,8 @@ def save_checkpoint(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
-            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState),
+            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState |
+            SegmentedBandInvDPAdamWState),
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],

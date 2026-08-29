@@ -1,4 +1,4 @@
-"""YAML orchestration for frozen-p continuous BandInvMF DP-AdamW."""
+"""YAML orchestration for segmented correlated DP-AdamW."""
 
 from __future__ import annotations
 
@@ -12,24 +12,20 @@ import yaml
 
 from dp_muon.bandinvmf import BandInvMFStrategy, fit_bandinv_strategy
 from dp_muon.data import load_cifar10
-from dp_muon.privacy import (
-    calibrate_nonamplified_bandinv,
-    continuous_hybrid_sensitivity_squared,
-)
-
 from .bandinvmf_strategy_manager import (
-    FrozenPBandInvMFFitRequest,
     LoadedStrategySnapshot,
-    frozen_p_strategy_artifact_path,
-    get_or_fit_frozen_p_strategy_snapshot,
-    require_compatible_frozen_p_strategy_snapshot,
+    PrefixSumBandInvMFFitRequest,
+    get_or_fit_prefix_sum_strategy_snapshot,
+    prefix_sum_strategy_artifact_path,
+    require_compatible_prefix_sum_strategy_snapshot,
 )
 from .cifar10_driver import (
-    Cifar10FrozenPBandInvDPAdamWTrainConfig,
-    FROZEN_P_BANDINV_DPADAMW_ALGORITHM,
-    train_cifar10_frozen_p_bandinv_dpadamw,
+    SEGMENTED_BANDINV_DPADAMW_ALGORITHM,
+    Cifar10SegmentedBandInvDPAdamWTrainConfig,
+    train_cifar10_segmented_bandinv_dpadamw,
 )
 from .cifar10_experiment import FixedCycleParticipation, derive_fixed_cycle_participation
+from .nonamplified_segmented_bandinv_dpadamw import SegmentedPlan, fit_segmented_plan
 from .run_logging import (
     MetricsCSVWriter,
     config_content_hash,
@@ -44,10 +40,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True)
-class Cifar10FrozenPBandInvDPAdamWExperimentConfig:
-  """YAML-facing configuration for the formal frozen-p algorithm."""
-
-  algorithm: Literal["dp-adamw-correlated-frozen-p"]
+class Cifar10SegmentedBandInvDPAdamWExperimentConfig:
+  algorithm: Literal["dp-adamw-correlated-segmented"]
   name: str
   pretrained: str
   data_dir: str
@@ -58,7 +52,6 @@ class Cifar10FrozenPBandInvDPAdamWExperimentConfig:
   epsilon: float
   delta: float
   learning_rate: float
-  warmup_learning_rate: float
   beta1: float
   beta2: float
   eps: float
@@ -69,13 +62,13 @@ class Cifar10FrozenPBandInvDPAdamWExperimentConfig:
   adjacency: Literal["add_remove", "replace_one"]
   gpu: int
   schedule_mode: Literal["fixed_cycle"]
+  segment_length: int
   bandwidth: int
   reduction: Literal["mean", "max", "last"]
   max_optimizer_steps: int
   force_refit: bool
   strategy_dir: str
   log_dir: str
-  switch_step: int
 
 
 def _section(document: Mapping[str, Any], name: str, keys: set[str]) -> Mapping[str, Any]:
@@ -114,10 +107,10 @@ def _number(
   return result
 
 
-def load_cifar10_frozen_p_bandinv_dpadamw_config(
+def load_cifar10_segmented_bandinv_dpadamw_config(
     path: str | Path,
-) -> Cifar10FrozenPBandInvDPAdamWExperimentConfig:
-  """Loads and strictly validates the frozen-p YAML schema."""
+) -> Cifar10SegmentedBandInvDPAdamWExperimentConfig:
+  """Loads the strict segmented correlated DP-AdamW YAML schema."""
   source = Path(path)
   try:
     document = yaml.safe_load(source.read_text(encoding="utf-8"))
@@ -125,7 +118,7 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
     raise ValueError(f"could not read config {source}") from error
   expected_sections = {
       "algorithm", "experiment", "runtime", "data", "model", "schedule",
-      "strategy", "training", "adamw", "frozen_p", "privacy", "output",
+      "strategy", "training", "adamw", "privacy", "output",
   }
   if not isinstance(document, Mapping) or set(document) != expected_sections:
     raise ValueError(f"config sections must be exactly {sorted(expected_sections)}")
@@ -133,28 +126,26 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
   runtime = _section(document, "runtime", {"gpu"})
   data = _section(document, "data", {"data_dir"})
   model = _section(document, "model", {"pretrained"})
-  schedule = _section(document, "schedule", {"mode"})
-  strategy = _section(
-      document, "strategy",
-      {"bandwidth", "reduction", "max_optimizer_steps", "force_refit"},
-  )
   training = _section(
       document, "training",
       {"epochs", "logical_batch_size", "microbatch_size", "clip_norm", "eval_every"},
   )
-  adamw = _section(
-      document, "adamw",
-      {"learning_rate", "warmup_learning_rate", "beta1", "beta2", "eps", "weight_decay"},
+  schedule = _section(document, "schedule", {"mode"})
+  strategy = _section(
+      document, "strategy",
+      {"segment_length", "bandwidth", "reduction", "max_optimizer_steps", "force_refit"},
   )
-  frozen_p = _section(document, "frozen_p", {"switch_step"})
+  adamw = _section(
+      document, "adamw", {"learning_rate", "beta1", "beta2", "eps", "weight_decay"}
+  )
   privacy = _section(document, "privacy", {"epsilon", "delta", "adjacency"})
   output = _section(document, "output", {"strategy_dir", "checkpoint_dir", "log_dir"})
 
   algorithm = _string(document["algorithm"], "algorithm")
-  if algorithm != FROZEN_P_BANDINV_DPADAMW_ALGORITHM:
+  if algorithm != SEGMENTED_BANDINV_DPADAMW_ALGORITHM:
     raise ValueError(
-        "frozen-p correlated DP-AdamW config requires algorithm: "
-        f"{FROZEN_P_BANDINV_DPADAMW_ALGORITHM}"
+        "segmented correlated DP-AdamW config requires algorithm: "
+        f"{SEGMENTED_BANDINV_DPADAMW_ALGORITHM}"
     )
   mode = _string(schedule["mode"], "schedule.mode")
   if mode != "fixed_cycle":
@@ -169,11 +160,9 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
     raise ValueError("strategy.force_refit must be a boolean")
   beta1 = _number(adamw["beta1"], "adamw.beta1", nonnegative=True)
   beta2 = _number(adamw["beta2"], "adamw.beta2", nonnegative=True)
-  if not 0.0 <= beta1 < 1.0:
-    raise ValueError("adamw.beta1 must be in [0, 1)")
-  if not 0.0 <= beta2 < 1.0:
-    raise ValueError("adamw.beta2 must be in [0, 1)")
-  config = Cifar10FrozenPBandInvDPAdamWExperimentConfig(
+  if not 0 <= beta1 < 1 or not 0 <= beta2 < 1:
+    raise ValueError("adamw.beta1 and adamw.beta2 must be in [0, 1)")
+  config = Cifar10SegmentedBandInvDPAdamWExperimentConfig(
       algorithm=algorithm,  # type: ignore[arg-type]
       name=_string(experiment["name"], "experiment.name"),
       pretrained=_string(model["pretrained"], "model.pretrained"),
@@ -185,9 +174,6 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
       epsilon=_number(privacy["epsilon"], "privacy.epsilon", positive=True),
       delta=_number(privacy["delta"], "privacy.delta", positive=True),
       learning_rate=_number(adamw["learning_rate"], "adamw.learning_rate", positive=True),
-      warmup_learning_rate=_number(
-          adamw["warmup_learning_rate"], "adamw.warmup_learning_rate", positive=True
-      ),
       beta1=beta1,
       beta2=beta2,
       eps=_number(adamw["eps"], "adamw.eps", positive=True),
@@ -198,6 +184,7 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
       adjacency=adjacency,  # type: ignore[arg-type]
       gpu=_integer(runtime["gpu"], "runtime.gpu", positive=False),
       schedule_mode=mode,  # type: ignore[arg-type]
+      segment_length=_integer(strategy["segment_length"], "strategy.segment_length"),
       bandwidth=_integer(strategy["bandwidth"], "strategy.bandwidth"),
       reduction=reduction,  # type: ignore[arg-type]
       max_optimizer_steps=_integer(
@@ -206,7 +193,6 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
       force_refit=strategy["force_refit"],
       strategy_dir=_string(output["strategy_dir"], "output.strategy_dir"),
       log_dir=_string(output["log_dir"], "output.log_dir"),
-      switch_step=_integer(frozen_p["switch_step"], "frozen_p.switch_step"),
   )
   if config.delta >= 1.0:
     raise ValueError("privacy.delta must be less than 1")
@@ -215,19 +201,47 @@ def load_cifar10_frozen_p_bandinv_dpadamw_config(
   return config
 
 
-def _request(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
+def strategy_artifact_path(
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
-) -> FrozenPBandInvMFFitRequest:
-  if not 1 <= config.switch_step < participation.horizon:
-    raise ValueError("frozen_p.switch_step must lie in [1, derived horizon)")
-  return FrozenPBandInvMFFitRequest(
-      horizon=participation.horizon,
-      switch_step=config.switch_step,
-      min_sep=participation.min_sep,
+    length: int,
+) -> Path:
+  """Returns the cached strategy artifact for one segment length."""
+  return prefix_sum_strategy_artifact_path(
+      config.strategy_dir,
+      horizon=length,
+      min_sep=min(participation.min_sep, length),
       max_participations=participation.max_participations,
-      bandwidth=config.bandwidth,
-      beta1=config.beta1,
+      bandwidth=min(config.bandwidth, length),
+      learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
+      reduction=config.reduction,
+      max_optimizer_steps=config.max_optimizer_steps,
+  )
+
+
+def strategy_artifact_paths(
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
+    participation: FixedCycleParticipation,
+) -> tuple[Path, ...]:
+  lengths = []
+  full, remainder = divmod(participation.horizon, config.segment_length)
+  lengths.extend([config.segment_length] * full)
+  if remainder:
+    lengths.append(remainder)
+  return tuple(strategy_artifact_path(config, participation, length) for length in sorted(set(lengths)))
+
+
+def _strategy_request(
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
+    participation: FixedCycleParticipation,
+    length: int,
+) -> PrefixSumBandInvMFFitRequest:
+  return PrefixSumBandInvMFFitRequest(
+      horizon=length,
+      min_sep=min(participation.min_sep, length),
+      max_participations=participation.max_participations,
+      bandwidth=min(config.bandwidth, length),
       learning_rate=config.learning_rate,
       weight_decay=config.weight_decay,
       reduction=config.reduction,
@@ -237,45 +251,52 @@ def _request(
   )
 
 
-def strategy_artifact_path(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
+def get_or_fit_segmented_plan(
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
-) -> Path:
-  request = _request(config, participation)
-  return frozen_p_strategy_artifact_path(
-      request.strategy_dir,
-      horizon=request.horizon,
-      switch_step=request.switch_step,
-      min_sep=request.min_sep,
-      max_participations=request.max_participations,
-      bandwidth=request.bandwidth,
-      beta1=request.beta1,
-      learning_rate=request.learning_rate,
-      weight_decay=request.weight_decay,
-      reduction=request.reduction,
-      max_optimizer_steps=request.max_optimizer_steps,
+    *,
+    require_existing: bool = False,
+) -> tuple[SegmentedPlan, dict[int, LoadedStrategySnapshot], dict[int, str]]:
+  """Loads/fits unique segment lengths, then performs one global calibration."""
+  snapshots: dict[int, LoadedStrategySnapshot] = {}
+  actions: dict[int, str] = {}
+
+  def fit_cached(length: int, bandwidth: int, min_sep: int, **kwargs: Any) -> BandInvMFStrategy:
+    del bandwidth, min_sep, kwargs
+    request = _strategy_request(config, participation, length)
+    if require_existing:
+      snapshot = require_compatible_prefix_sum_strategy_snapshot(request)
+      action = "reuse"
+    else:
+      snapshot, action = get_or_fit_prefix_sum_strategy_snapshot(
+          request, fit_strategy=fit_bandinv_strategy
+      )
+    snapshots[length] = snapshot
+    actions[length] = action
+    return snapshot.strategy
+
+  plan = fit_segmented_plan(
+      horizon=participation.horizon,
+      segment_length=config.segment_length,
+      bandwidth=config.bandwidth,
+      min_sep=participation.min_sep,
+      max_participations=participation.max_participations,
+      max_optimizer_steps=config.max_optimizer_steps,
+      reduction=config.reduction,
+      learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
+      epsilon=config.epsilon,
+      delta=config.delta,
+      clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size),
+      adjacency=config.adjacency,
+      fit_strategy=fit_cached,
   )
-
-
-def get_or_fit_strategy_snapshot(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
-    participation: FixedCycleParticipation,
-) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
-  return get_or_fit_frozen_p_strategy_snapshot(
-      _request(config, participation), fit_strategy=fit_bandinv_strategy
-  )
-
-
-def require_compatible_strategy_snapshot(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
-    participation: FixedCycleParticipation,
-) -> LoadedStrategySnapshot:
-  request = _request(config, participation)
-  return require_compatible_frozen_p_strategy_snapshot(request)
+  return plan, snapshots, actions
 
 
 def resolve_output_log_dir(config_path: str | Path) -> Path:
-  directory = Path(load_cifar10_frozen_p_bandinv_dpadamw_config(config_path).log_dir)
+  directory = Path(load_cifar10_segmented_bandinv_dpadamw_config(config_path).log_dir)
   return directory if directory.is_absolute() else REPOSITORY_ROOT / directory
 
 
@@ -287,18 +308,14 @@ def _run_metadata(paths: Any) -> dict[str, str]:
   }
 
 
-def _create_run(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
-    document: Mapping[str, Any],
-    source_yaml: str,
-):
+def _create_run(config: Cifar10SegmentedBandInvDPAdamWExperimentConfig, document: Mapping[str, Any], source_yaml: str):
   root = Path(config.log_dir)
   if not root.is_absolute():
     root = REPOSITORY_ROOT / root
   paths = create_run_directory(
       root,
       epsilon=config.epsilon,
-      bandwidth="bandinv-frozen-p",
+      bandwidth=f"bandinv-seg{config.segment_length}",
       learning_rate=config.learning_rate,
       clip_norm=config.clip_norm,
       seed=config.seed,
@@ -313,8 +330,8 @@ def _create_run(
   return paths
 
 
-def prepare_cifar10_frozen_p_bandinv_dpadamw_run(config_path: str | Path):
-  config = load_cifar10_frozen_p_bandinv_dpadamw_config(config_path)
+def prepare_cifar10_segmented_bandinv_dpadamw_run(config_path: str | Path):
+  config = load_cifar10_segmented_bandinv_dpadamw_config(config_path)
   source_yaml = Path(config_path).read_text(encoding="utf-8")
   document = yaml.safe_load(source_yaml)
   if not isinstance(document, Mapping):
@@ -323,12 +340,9 @@ def prepare_cifar10_frozen_p_bandinv_dpadamw_run(config_path: str | Path):
 
 
 def _train_config(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
-    strategy_path: str | Path,
-    participation: FixedCycleParticipation,
-) -> Cifar10FrozenPBandInvDPAdamWTrainConfig:
-  return Cifar10FrozenPBandInvDPAdamWTrainConfig(
-      strategy=str(strategy_path),
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
+) -> Cifar10SegmentedBandInvDPAdamWTrainConfig:
+  return Cifar10SegmentedBandInvDPAdamWTrainConfig(
       pretrained=config.pretrained,
       data_dir=config.data_dir,
       batch_size=config.batch_size,
@@ -337,86 +351,64 @@ def _train_config(
       epsilon=config.epsilon,
       delta=config.delta,
       learning_rate=config.learning_rate,
-      warmup_learning_rate=config.warmup_learning_rate,
       beta1=config.beta1,
       beta2=config.beta2,
       eps=config.eps,
       weight_decay=config.weight_decay,
+      segment_length=config.segment_length,
+      bandwidth=config.bandwidth,
+      reduction=config.reduction,
+      max_optimizer_steps=config.max_optimizer_steps,
       seed=config.seed,
       checkpoint_dir=config.checkpoint_dir,
       eval_every=config.eval_every,
-      horizon=participation.horizon,
-      min_sep=participation.min_sep,
-      max_participations=participation.max_participations,
-      switch_step=config.switch_step,
       adjacency=config.adjacency,
-  )
-
-
-def _calibration(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
-    participation: FixedCycleParticipation,
-    strategy: BandInvMFStrategy,
-):
-  sensitivity = continuous_hybrid_sensitivity_squared(
-      config.switch_step,
-      strategy,
-      min_sep=participation.min_sep,
-      max_participations=participation.max_participations,
-  )
-  return calibrate_nonamplified_bandinv(
-      epsilon=config.epsilon,
-      delta=config.delta,
-      clip_norm=config.clip_norm,
-      normalize_by=float(config.batch_size),
-      adjacency=config.adjacency,
-      sensitivity_squared=sensitivity,
   )
 
 
 def _resolved_config(
-    config: Cifar10FrozenPBandInvDPAdamWExperimentConfig,
+    config: Cifar10SegmentedBandInvDPAdamWExperimentConfig,
     participation: FixedCycleParticipation,
-    snapshot: LoadedStrategySnapshot,
-    action: Literal["reuse", "fit"],
-    calibration: Any,
+    plan: SegmentedPlan,
+    snapshots: dict[int, LoadedStrategySnapshot],
+    actions: dict[int, str],
 ) -> dict[str, Any]:
-  strategy = snapshot.strategy
   return {
       "experiment": asdict(config),
       "participation": asdict(participation),
-      "frozen_p": {
-          "switch_step": config.switch_step,
-          "phase_horizon": strategy.horizon,
-          "optimizer": "state-preserving Optax AdamW -> FrozenPAdamW",
-          "hybrid_sensitivity_squared": float(calibration.matrix_sensitivity ** 2),
+      "segmentation": {
+          "segment_length": config.segment_length,
+          "block_lengths": list(plan.block_lengths),
+          "global_sensitivity_squared": plan.sensitivity_squared,
+          "strategies": [
+              {
+                  "length": length,
+                  "artifact": str(snapshots[length].path.resolve()),
+                  "sha256": snapshots[length].sha256,
+                  "action": actions[length],
+                  "workload_type": "decayed-prefix-sum",
+                  "horizon": snapshots[length].strategy.horizon,
+                  "bandwidth": snapshots[length].strategy.bandwidth,
+                  "min_sep": snapshots[length].strategy.min_sep,
+                  "max_participations": snapshots[length].strategy.max_participations,
+                  "learning_rate": config.learning_rate,
+                  "weight_decay": config.weight_decay,
+                  "sensitivity_squared": float(snapshots[length].strategy.sensitivity_squared),
+              }
+              for length in sorted(snapshots)
+          ],
       },
-      "strategy": {
-          "artifact": str(snapshot.path.resolve()),
-          "sha256": snapshot.sha256,
-          "action": action,
-          "workload_type": "frozen-p-continuous",
-          "horizon": strategy.horizon,
-          "bandwidth": strategy.bandwidth,
-          "min_sep": strategy.min_sep,
-          "max_participations": strategy.max_participations,
-          "phase_strategy_sensitivity_squared": float(strategy.sensitivity_squared),
-      },
-      "privacy_calibration": {
-          **asdict(calibration),
-          "scope": "one full hybrid transcript: blockdiag(I_tau, D_phase)",
-          "warmup_and_phase_have_separate_epsilon": False,
-      },
+      "privacy_calibration": asdict(plan.calibration),
   }
 
 
-def run_cifar10_frozen_p_bandinv_dpadamw(
+def run_cifar10_segmented_bandinv_dpadamw(
     config_path: str | Path,
     *,
     resume_checkpoint: str | Path | None = None,
     run_dir: str | Path | None = None,
 ):
-  config = load_cifar10_frozen_p_bandinv_dpadamw_config(config_path)
+  config = load_cifar10_segmented_bandinv_dpadamw_config(config_path)
   source_yaml = Path(config_path).read_text(encoding="utf-8")
   document = yaml.safe_load(source_yaml)
   if not isinstance(document, Mapping):
@@ -435,20 +427,18 @@ def run_cifar10_frozen_p_bandinv_dpadamw(
       len(train_images), config.epochs, config.batch_size
   )
   del train_images
-  if resume_checkpoint is not None:
-    snapshot = require_compatible_strategy_snapshot(config, participation)
-    action: Literal["reuse", "fit"] = "reuse"
-  else:
-    snapshot, action = get_or_fit_strategy_snapshot(config, participation)
-  calibration = _calibration(config, participation, snapshot.strategy)
+  plan, snapshots, actions = get_or_fit_segmented_plan(
+      config, participation, require_existing=resume_checkpoint is not None
+  )
   if resume_checkpoint is None:
-    resolved = _resolved_config(config, participation, snapshot, action, calibration)
+    resolved = _resolved_config(config, participation, plan, snapshots, actions)
     resolved["run"] = _run_metadata(paths)
     write_run_configuration(paths, source_yaml=source_yaml, resolved=resolved)
     MetricsCSVWriter(paths.metrics)
-  return train_cifar10_frozen_p_bandinv_dpadamw(
-      _train_config(config, snapshot.path, participation),
-      strategy_snapshot=snapshot,
+  return train_cifar10_segmented_bandinv_dpadamw(
+      _train_config(config),
+      plan,
+      strategy_snapshots=snapshots,
       resume_checkpoint=resume_checkpoint,
       checkpoint_path=paths.checkpoint,
       metrics_path=paths.metrics,
@@ -456,12 +446,12 @@ def run_cifar10_frozen_p_bandinv_dpadamw(
 
 
 __all__ = [
-    "Cifar10FrozenPBandInvDPAdamWExperimentConfig",
-    "get_or_fit_strategy_snapshot",
-    "load_cifar10_frozen_p_bandinv_dpadamw_config",
-    "prepare_cifar10_frozen_p_bandinv_dpadamw_run",
-    "require_compatible_strategy_snapshot",
+    "Cifar10SegmentedBandInvDPAdamWExperimentConfig",
+    "get_or_fit_segmented_plan",
+    "load_cifar10_segmented_bandinv_dpadamw_config",
+    "prepare_cifar10_segmented_bandinv_dpadamw_run",
     "resolve_output_log_dir",
-    "run_cifar10_frozen_p_bandinv_dpadamw",
+    "run_cifar10_segmented_bandinv_dpadamw",
     "strategy_artifact_path",
+    "strategy_artifact_paths",
 ]
