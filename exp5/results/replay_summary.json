@@ -1,27 +1,27 @@
 {
-  "smoke": true,
-  "tau_star": 2,
+  "smoke": false,
+  "tau_star": 32,
   "aggregate": {
     "cont": {
       "G_dynamic": {
-        "mean": 0.6459622551606244,
-        "std": 0.41618687954266786
+        "mean": 1.5570189028766344,
+        "std": 0.05212778125540683
       },
       "G_frozen": {
-        "mean": 1.678889762726776e-15,
-        "std": 1.441130778161799e-15
+        "mean": 2.793812042791571e-07,
+        "std": 8.095109444464982e-09
       }
     },
     "seg97": {
       "G_dynamic": {
-        "mean": 0.43863058686006745,
-        "std": 0.3128568261006784
+        "mean": 0.1228084616186496,
+        "std": 0.0024638158073275063
       },
       "G_frozen": {
-        "mean": 1.990353055144416e-15,
-        "std": 6.69091236012195e-16
+        "mean": 8.814730056686173e-09,
+        "std": 3.558359956175172e-10
       }
     }
   },
-  "meaning": "Full-parameter online replay of dynamic and frozen-p optimizer perturbations against the exact frozen-p linear response."
+  "meaning": "Full-model/full-PyTree online replay of dynamic and frozen-p optimizer perturbations against the exact frozen-p linear response."
 }

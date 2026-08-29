@@ -1,76 +1,76 @@
 {
-  "smoke": true,
-  "tau_star": 2,
+  "smoke": false,
+  "tau_star": 32,
   "aggregate": {
     "dynamic_cont": {
       "final_test_accuracy": {
-        "mean": 0.8921945777199843,
-        "std": 0.0378265363518962
+        "mean": 0.7815,
+        "std": 0.021828650897387097
       },
       "final_test_loss": {
-        "mean": 0.11466211389051319,
-        "std": 0.041965333452830246
+        "mean": 0.6612760447184245,
+        "std": 0.06299538231766233
       }
     },
     "dynamic_seg97": {
       "final_test_accuracy": {
-        "mean": 0.8922427202009481,
-        "std": 0.03303238737984155
+        "mean": 0.8792333333333332,
+        "std": 0.022585910062101415
       },
       "final_test_loss": {
-        "mean": 0.11446775405187422,
-        "std": 0.03664344152206965
+        "mean": 0.3798549809773763,
+        "std": 0.0677304410144307
       }
     },
     "frozen_cont": {
       "final_test_accuracy": {
-        "mean": 0.900546339843939,
-        "std": 0.02768663311761597
+        "mean": 0.8203666666666667,
+        "std": 0.029526993299916846
       },
       "final_test_loss": {
-        "mean": 0.10506615166469052,
-        "std": 0.030555290505645327
+        "mean": 0.5339264292399089,
+        "std": 0.07917007634245331
       }
     },
     "frozen_seg97": {
       "final_test_accuracy": {
-        "mean": 0.8958175093428373,
-        "std": 0.028324761636795235
+        "mean": 0.8858,
+        "std": 0.01963746419474778
       },
       "final_test_loss": {
-        "mean": 0.1103483068728055,
-        "std": 0.03136851685277717
+        "mean": 0.37051814549764,
+        "std": 0.06187779739270495
       }
     }
   },
   "segmentation_deltas": [
     {
       "seed": 0,
-      "delta_seg_dynamic": -0.004910482615382072,
-      "delta_seg_frozen": -0.00334334049226237
+      "delta_seg_dynamic": 0.10089999999999999,
+      "delta_seg_frozen": 0.05929999999999991
     },
     {
       "seed": 1,
-      "delta_seg_dynamic": 0.007977759812686336,
-      "delta_seg_frozen": 0.005607517430651243
+      "delta_seg_dynamic": 0.0958,
+      "delta_seg_frozen": 0.06010000000000004
     },
     {
       "seed": 2,
-      "delta_seg_dynamic": -0.002922849754412815,
-      "delta_seg_frozen": -0.016450668441693184
+      "delta_seg_dynamic": 0.09649999999999992,
+      "delta_seg_frozen": 0.07689999999999997
     }
   ],
   "calibration_statement": "each mechanism independently calibrated to the same final privacy target",
   "mechanisms": {
     "cont": {
-      "sensitivity_squared": 4.313868682108048,
-      "iid_noise_std": 1.4441212087094355,
+      "sensitivity_squared": 106.21682739257812,
+      "iid_noise_std": 0.02799154584165198,
       "epsilon": 3.0,
       "delta": 1e-05
     },
     "seg97": {
-      "sensitivity_squared": 3.8333938856024936,
-      "iid_noise_std": 1.361325277654104,
+      "sensitivity_squared": 26.67614252977281,
+      "iid_noise_std": 0.014027870084701669,
       "epsilon": 3.0,
       "delta": 1e-05
     }
