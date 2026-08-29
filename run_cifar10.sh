@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # command launched inside tmux.
 # cifar10_nonamplified cifar10_dpsgd_momentum cifar10_dpmuon cifar10_bandinv_dpmuon_naive cifar10_dpadamw cifar10_bandinv_dpadamw_naive cifar10_bandinv_dpadamw_stp cifar10_bandinv_dpadamw_segmented cifar10_bandinv_dpadamw_frozen_p cifar10_public_v_bandinv
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-DEFAULT_CONFIG="$ROOT/config/cifar10_bandinv_dpadamw_segmented.yaml"
+DEFAULT_CONFIG="$ROOT/config/cifar10_bandinv_dpadamw_stp.yaml"
 
 if [[ $# -eq 0 ]]; then
   CONFIG=$DEFAULT_CONFIG

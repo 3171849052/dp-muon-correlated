@@ -82,11 +82,15 @@ def adam_first_moment_workload_matrix(
     learning_rate: float,
     weight_decay: float,
 ) -> jax.Array:
-  """Returns the exact lower-triangular Adam first-moment workload.
+  """Returns the exact lower-triangular full-horizon AdamW workload.
 
   Rows use zero-based Adam steps.  The first-moment kernel includes bias
   correction at the query step, and decoupled weight decay is applied after
   the moment update, so the result is ``learning_rate * P_rho @ H^m``.
+
+  This is the temporal workload of the private gradients themselves.  The
+  Adam second-moment preconditioner (whether changing or frozen) is a
+  parameter-axis operation and is deliberately not represented here.
   """
   horizon, beta = _validate_configuration(horizon, beta1)
   learning_rate = _validated_scalar(

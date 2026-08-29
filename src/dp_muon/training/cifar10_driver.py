@@ -346,7 +346,7 @@ class Cifar10SegmentedBandInvDPAdamWTrainConfig:
 
 @dataclass(frozen=True)
 class Cifar10FrozenPBandInvDPAdamWTrainConfig:
-  """CIFAR-10 config for IID warmup plus continuous frozen-p BandInvMF."""
+  """CIFAR-10 config for IID or full-horizon correlated frozen-p AdamW."""
 
   strategy: str
   pretrained: str
@@ -370,6 +370,7 @@ class Cifar10FrozenPBandInvDPAdamWTrainConfig:
   switch_step: int
   adjacency: str = "add_remove"
   warmup_learning_rate: float | None = None
+  warmup_mode: str = "iid"
 
   def __post_init__(self) -> None:
     if self.batch_size < 1 or self.horizon < 1 or self.min_sep < 1:
@@ -384,6 +385,8 @@ class Cifar10FrozenPBandInvDPAdamWTrainConfig:
       raise ValueError("microbatch_size must be positive and divide batch_size")
     if self.eval_every < 1:
       raise ValueError("eval_every must be positive")
+    if self.warmup_mode not in {"iid", "global_correlated"}:
+      raise ValueError("warmup_mode must be 'iid' or 'global_correlated'")
 
 
 @dataclass(frozen=True)
@@ -589,7 +592,7 @@ def evaluate_classifier(
 
 def run_training(
     *,
-    initial_state: Any,
+    initial_state: Any | None,
     train_step: Callable[[Any, Any], Any],
     logical_batches: Iterable[Any],
     horizon: int,
@@ -630,6 +633,8 @@ def run_training(
     state, start = saved["state"], int(saved["current_step"])
     if start > horizon:
       raise ValueError("checkpoint current_step exceeds training horizon")
+  elif state is None:
+    raise ValueError("initial_state is required when resume_checkpoint is absent")
   if on_state_ready is not None:
     on_state_ready(state, start)
   compiled_step = jax.jit(train_step)
@@ -1284,10 +1289,13 @@ def train_cifar10_frozen_p_bandinv_dpadamw(
     checkpoint_path: str | Path | None = None,
     metrics_path: str | Path | None = None,
 ):
-  """Runs IID DP-AdamW warmup, then one continuous frozen-p BandInvMF stream."""
+  """Runs the configured IID or full-horizon correlated frozen-p algorithm."""
   strategy_snapshot = strategy_snapshot or load_strategy_snapshot(config.strategy)
   strategy = strategy_snapshot.strategy
-  if strategy.horizon != config.horizon - config.switch_step:
+  if config.warmup_mode == "global_correlated":
+    if strategy.horizon != config.horizon:
+      raise ValueError("global strategy horizon must equal the full training horizon")
+  elif strategy.horizon != config.horizon - config.switch_step:
     raise ValueError("strategy horizon must equal the configured Phase-II horizon")
   train_images, train_labels = load_cifar10(config.data_dir, train=True)
   test_images, test_labels = load_cifar10(config.data_dir, train=False)
@@ -1305,19 +1313,22 @@ def train_cifar10_frozen_p_bandinv_dpadamw(
   participation = ParticipationSpec(
       config.horizon, config.min_sep, config.max_participations
   )
-  hybrid_sensitivity_squared = continuous_hybrid_sensitivity_squared(
-      config.switch_step,
-      strategy,
-      min_sep=config.min_sep,
-      max_participations=config.max_participations,
-  )
+  if config.warmup_mode == "global_correlated":
+    sensitivity_squared = float(strategy.sensitivity_squared)
+  else:
+    sensitivity_squared = continuous_hybrid_sensitivity_squared(
+        config.switch_step,
+        strategy,
+        min_sep=config.min_sep,
+        max_participations=config.max_participations,
+    )
   calibration = calibrate_nonamplified_bandinv(
       epsilon=config.epsilon,
       delta=config.delta,
       clip_norm=config.clip_norm,
       normalize_by=float(config.batch_size),
       adjacency=config.adjacency,  # type: ignore[arg-type]
-      sensitivity_squared=hybrid_sensitivity_squared,
+      sensitivity_squared=sensitivity_squared,
   )
   train_step, optimizer = make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
       lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
@@ -1327,19 +1338,23 @@ def train_cifar10_frozen_p_bandinv_dpadamw(
       switch_step=config.switch_step,
       learning_rate=config.learning_rate,
       warmup_learning_rate=config.warmup_learning_rate,
+      warmup_mode=config.warmup_mode,  # type: ignore[arg-type]
       beta1=config.beta1,
       beta2=config.beta2,
       eps=config.eps,
       weight_decay=config.weight_decay,
       microbatch_size=config.microbatch_size,
   )
-  initial_state = init_nonamplified_frozen_p_bandinv_dpadamw_state(
-      pretrained_snapshot.params,
-      strategy,
-      noise_key,
-      optimizer,
-      switch_step=config.switch_step,
-  )
+  initial_state = None
+  if resume_checkpoint is None:
+    initial_state = init_nonamplified_frozen_p_bandinv_dpadamw_state(
+        pretrained_snapshot.params,
+        strategy,
+        noise_key,
+        optimizer,
+        switch_step=config.switch_step,
+        warmup_mode=config.warmup_mode,  # type: ignore[arg-type]
+    )
   actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
   return run_training(
       initial_state=initial_state,
@@ -1363,14 +1378,26 @@ def train_cifar10_frozen_p_bandinv_dpadamw(
       num_train_examples=len(train_images),
       logical_batch_size=config.batch_size,
       metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
-      privacy_accountant=lambda step: epsilon_spent_for_continuous_hybrid_prefix(
-          prefix_steps=step,
-          tau=config.switch_step,
-          phase_strategy=strategy,
-          min_sep=config.min_sep,
-          max_participations=config.max_participations,
-          calibration=calibration,
-          full_sensitivity_squared=hybrid_sensitivity_squared,
+      privacy_accountant=(
+          lambda step: epsilon_spent_for_bandinv_prefix(
+              prefix_steps=step,
+              noising_coef=strategy.noising_coef,
+              horizon=strategy.horizon,
+              min_sep=strategy.min_sep,
+              max_participations=strategy.max_participations,
+              calibration=calibration,
+              full_sensitivity_squared=float(strategy.sensitivity_squared),
+          )
+          if config.warmup_mode == "global_correlated" else
+          lambda step: epsilon_spent_for_continuous_hybrid_prefix(
+              prefix_steps=step,
+              tau=config.switch_step,
+              phase_strategy=strategy,
+              min_sep=config.min_sep,
+              max_participations=config.max_participations,
+              calibration=calibration,
+              full_sensitivity_squared=sensitivity_squared,
+          )
       ),
   )
 

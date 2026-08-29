@@ -31,6 +31,7 @@ adamw:
   weight_decay: 0.01
 frozen_p:
   switch_step: 32
+  warmup_mode: iid
 privacy:
   epsilon: 3.0
   delta: 1.0e-5

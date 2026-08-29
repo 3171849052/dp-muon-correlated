@@ -4,7 +4,7 @@ experiment:
   name: cifar10_bandinv_dpadamw_stp_vit_tiny
   seed: 0
 runtime:
-  gpu: 1
+  gpu: 2
 data:
   data_dir: data
 model:
@@ -25,7 +25,7 @@ strategy:
 stp:
   scale_eps: 1.0e-8
 adamw:
-  learning_rate: 0.005
+  learning_rate: 0.01
   beta1: 0.9
   beta2: 0.999
   eps: 1.0e-8

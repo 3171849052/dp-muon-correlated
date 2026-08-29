@@ -1,9 +1,9 @@
-"""Frozen-p DP-AdamW with one continuous Phase-II BandInvMF mechanism."""
+"""Frozen-p DP-AdamW with IID or full-horizon BandInvMF noising."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import jax
 import jax.numpy as jnp
@@ -36,7 +36,7 @@ PyTree = Any
 @jax.tree_util.register_pytree_node_class
 @dataclass(frozen=True)
 class NonAmplifiedFrozenPBandInvDPAdamWState:
-  """Checkpointable hybrid state with a single post-switch noise stream."""
+  """Checkpointable state for IID or full-horizon correlated frozen-p runs."""
 
   params: PyTree
   optimizer_state: Any
@@ -45,6 +45,7 @@ class NonAmplifiedFrozenPBandInvDPAdamWState:
   rng_key: jax.Array
   step: jax.Array
   switch_step: int
+  warmup_mode: Literal["iid", "global_correlated"] = "iid"
 
   def tree_flatten(self):
     return (
@@ -54,10 +55,17 @@ class NonAmplifiedFrozenPBandInvDPAdamWState:
         self.noise_state,
         self.rng_key,
         self.step,
-    ), self.switch_step
+    ), (self.switch_step, getattr(self, "warmup_mode", "iid"))
 
   @classmethod
-  def tree_unflatten(cls, switch_step, children):
+  def tree_unflatten(cls, aux_data, children):
+    # ``switch_step`` was the only auxiliary field in the original IID
+    # implementation. Accept that form for compatibility with old traced
+    # state representations.
+    if isinstance(aux_data, tuple):
+      switch_step, warmup_mode = aux_data
+    else:
+      switch_step, warmup_mode = aux_data, "iid"
     params, optimizer_state, frozen_state, noise_state, rng_key, step = children
     return cls(
         params=params,
@@ -67,6 +75,7 @@ class NonAmplifiedFrozenPBandInvDPAdamWState:
         rng_key=rng_key,
         step=step,
         switch_step=switch_step,
+        warmup_mode=warmup_mode,
     )
 
 
@@ -88,14 +97,17 @@ def init_nonamplified_frozen_p_bandinv_dpadamw_state(
     optimizer: optax.GradientTransformation,
     *,
     switch_step: int,
+    warmup_mode: Literal["iid", "global_correlated"] = "iid",
 ) -> NonAmplifiedFrozenPBandInvDPAdamWState:
-  """Initializes AdamW and an untouched continuous Phase-II noise buffer."""
+  """Initializes AdamW and one checkpointable BandInvMF noise buffer."""
   if not isinstance(strategy, BandInvMFStrategy):
     raise TypeError("strategy must be a BandInvMFStrategy")
   if not isinstance(optimizer, optax.GradientTransformation):
     raise TypeError("optimizer must be an Optax GradientTransformation")
   if not isinstance(switch_step, int) or isinstance(switch_step, bool) or switch_step < 1:
     raise ValueError("switch_step must be a positive integer")
+  if warmup_mode not in {"iid", "global_correlated"}:
+    raise ValueError("warmup_mode must be 'iid' or 'global_correlated'")
   return NonAmplifiedFrozenPBandInvDPAdamWState(
       params=params,
       optimizer_state=optimizer.init(params),
@@ -104,6 +116,7 @@ def init_nonamplified_frozen_p_bandinv_dpadamw_state(
       rng_key=rng_key,
       step=jnp.array(0, dtype=jnp.int32),
       switch_step=switch_step,
+      warmup_mode=warmup_mode,
   )
 
 
@@ -112,10 +125,19 @@ _sample_iid_gaussian_noise = sample_iid_gaussian_noise
 
 
 def _validate_strategy(
-    strategy: BandInvMFStrategy, participation_spec: ParticipationSpec, switch_step: int
+    strategy: BandInvMFStrategy,
+    participation_spec: ParticipationSpec,
+    switch_step: int,
+    warmup_mode: Literal["iid", "global_correlated"] = "iid",
 ) -> None:
-  if strategy.horizon != participation_spec.horizon - switch_step:
-    raise ValueError("strategy horizon must equal the Phase-II horizon")
+  if warmup_mode == "global_correlated":
+    if strategy.horizon != participation_spec.horizon:
+      raise ValueError("global strategy horizon must equal the full training horizon")
+  elif warmup_mode == "iid":
+    if strategy.horizon != participation_spec.horizon - switch_step:
+      raise ValueError("strategy horizon must equal the Phase-II horizon")
+  else:
+    raise ValueError("warmup_mode must be 'iid' or 'global_correlated'")
   if strategy.max_participations != participation_spec.max_participations:
     raise ValueError("strategy max_participations must match the global contract")
   if strategy.bandwidth < 1 or strategy.bandwidth > strategy.horizon:
@@ -135,6 +157,7 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
     switch_step: int,
     learning_rate: float,
     warmup_learning_rate: float | None = None,
+    warmup_mode: Literal["iid", "global_correlated"] = "iid",
     beta1: float = 0.9,
     beta2: float = 0.999,
     eps: float = 1e-8,
@@ -147,21 +170,27 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
     ],
     optax.GradientTransformation,
 ]:
-  """Builds IID warmup -> state-preserving frozen-p -> continuous BandInvMF.
+  """Builds the configured IID or full-horizon correlated frozen-p trainer.
 
-  ``learning_rate`` controls the post-switch Frozen-p optimizer.  The IID
-  DP-AdamW warmup can use ``warmup_learning_rate`` independently; omitting it
-  keeps the historical behavior for direct callers.
+  In ``iid`` mode, ``learning_rate`` controls FrozenPAdamW and
+  ``warmup_learning_rate`` controls the historical IID AdamW prefix. In
+  ``global_correlated`` mode, one BandInvMF stream is sampled at every step
+  and ``learning_rate`` is used by both optimizer phases; the warmup learning
+  rate is intentionally ignored.
   """
   if not callable(loss_fn):
     raise TypeError("loss_fn must be callable")
   if not isinstance(calibration, PrivacyCalibration):
     raise TypeError("calibration must be a PrivacyCalibration")
-  _validate_strategy(strategy, participation_spec, switch_step)
-  if warmup_learning_rate is None:
-    warmup_learning_rate = learning_rate
+  _validate_strategy(strategy, participation_spec, switch_step, warmup_mode)
+  if warmup_mode == "iid":
+    if warmup_learning_rate is None:
+      warmup_learning_rate = learning_rate
+    optimizer_learning_rate = warmup_learning_rate
+  else:
+    optimizer_learning_rate = learning_rate
   optimizer = make_nonamplified_dpadamw_optimizer(
-      learning_rate=warmup_learning_rate,
+      learning_rate=optimizer_learning_rate,
       beta1=beta1,
       beta2=beta2,
       eps=eps,
@@ -180,6 +209,27 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
       keep_batch_dim=True,
       microbatch_size=microbatch_size,
   )
+
+  def _new_state(
+      state: NonAmplifiedFrozenPBandInvDPAdamWState,
+      *,
+      params: PyTree,
+      optimizer_state: Any,
+      frozen_state: FrozenPAdamWState,
+      noise_state: BandInvMFNoiseState,
+      rng_key: jax.Array,
+      step: jax.Array,
+  ) -> NonAmplifiedFrozenPBandInvDPAdamWState:
+    return NonAmplifiedFrozenPBandInvDPAdamWState(
+        params=params,
+        optimizer_state=optimizer_state,
+        frozen_state=frozen_state,
+        noise_state=noise_state,
+        rng_key=rng_key,
+        step=step,
+        switch_step=state.switch_step,
+        warmup_mode=warmup_mode,
+    )
 
   def warmup_step(
       state: NonAmplifiedFrozenPBandInvDPAdamWState, clipped_grad: PyTree
@@ -246,12 +296,76 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
         switch_step=state.switch_step,
     )
 
+  def global_correlated_step(
+      state: NonAmplifiedFrozenPBandInvDPAdamWState, clipped_grad: PyTree
+  ) -> NonAmplifiedFrozenPBandInvDPAdamWState:
+    # Sampling happens before the optimizer branch, so the private-gradient
+    # transcript is one continuous BandInvMF mechanism across the switch.
+    noising_coef = jnp.asarray(strategy.noising_coef)
+    correlated_noise, new_noise_state, new_key = sample_bandinv_noise(
+        state.rng_key,
+        state.noise_state,
+        noising_coef,
+        jnp.asarray(calibration.iid_noise_std),
+    )
+    private_grad = jax.tree_util.tree_map(
+        lambda gradient, perturbation: gradient + perturbation,
+        clipped_grad,
+        correlated_noise,
+    )
+
+    def adam_update(value):
+      current_state, gradient = value
+      updates, new_optimizer_state = optimizer.update(
+          gradient, current_state.optimizer_state, current_state.params
+      )
+      new_step = current_state.step + jnp.array(1, dtype=current_state.step.dtype)
+      new_frozen_state = jax.lax.cond(
+          new_step == current_state.switch_step,
+          lambda _: freeze_optax_adamw(new_optimizer_state, beta2=beta2, eps=eps),
+          lambda _: current_state.frozen_state,
+          operand=None,
+      )
+      return _new_state(
+          current_state,
+          params=optax.apply_updates(current_state.params, updates),
+          optimizer_state=new_optimizer_state,
+          frozen_state=new_frozen_state,
+          noise_state=new_noise_state,
+          rng_key=new_key,
+          step=new_step,
+      )
+
+    def frozen_update(value):
+      current_state, gradient = value
+      updates, new_frozen_state = frozen_optimizer.update(
+          gradient, current_state.frozen_state, current_state.params
+      )
+      return _new_state(
+          current_state,
+          params=optax.apply_updates(current_state.params, updates),
+          optimizer_state=current_state.optimizer_state,
+          frozen_state=new_frozen_state,
+          noise_state=new_noise_state,
+          rng_key=new_key,
+          step=current_state.step + jnp.array(1, dtype=current_state.step.dtype),
+      )
+
+    return jax.lax.cond(
+        state.step < state.switch_step,
+        adam_update,
+        frozen_update,
+        (state, private_grad),
+    )
+
   def train_step(
       state: NonAmplifiedFrozenPBandInvDPAdamWState, batch: Any
   ) -> NonAmplifiedFrozenPBandInvDPAdamWState:
     if not isinstance(state, NonAmplifiedFrozenPBandInvDPAdamWState):
       raise TypeError("state must be a NonAmplifiedFrozenPBandInvDPAdamWState")
     clipped_grad = clipped_query(state.params, batch)
+    if warmup_mode == "global_correlated":
+      return global_correlated_step(state, clipped_grad)
     return jax.lax.cond(
         state.step < state.switch_step,
         lambda value: warmup_step(value[0], value[1]),

@@ -78,11 +78,20 @@ def _validate_steps(
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
     if int(current_step) != optimizer_step:
       raise ValueError("current_step must equal state.step")
-    expected_noise_step = max(0, int(current_step) - state.switch_step)
-    if noise_step != expected_noise_step:
-      raise ValueError(
-          "noise_state.step must equal the post-switch Phase-II step"
-      )
+    warmup_mode = getattr(state, "warmup_mode", "iid")
+    if warmup_mode == "global_correlated":
+      if noise_step != int(current_step):
+        raise ValueError(
+            "global_correlated noise_state.step must equal state.step"
+        )
+    elif warmup_mode == "iid":
+      expected_noise_step = max(0, int(current_step) - state.switch_step)
+      if noise_step != expected_noise_step:
+        raise ValueError(
+            "noise_state.step must equal the post-switch Phase-II step"
+        )
+    else:
+      raise ValueError("frozen-p state has an invalid warmup_mode")
   elif isinstance(state, SegmentedBandInvDPAdamWState):
     optimizer_step = _concrete_step(state.step, "step")
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
@@ -189,7 +198,15 @@ def validate_resume_identity(
   """Rejects resume when any public trajectory identity has changed."""
   if saved["artifact_identifiers"] != dict(artifact_identifiers):
     raise ValueError("checkpoint artifact identifiers do not match this run")
-  if saved["experiment_config"] != dict(experiment_config):
+  saved_config = dict(saved["experiment_config"])
+  expected_config = dict(experiment_config)
+  # The original frozen-p IID checkpoints did not record the newly optional
+  # mode field. Treat a missing field as the historical default while still
+  # rejecting a checkpoint made for global_correlated.
+  if "warmup_mode" in saved_config or "warmup_mode" in expected_config:
+    saved_config.setdefault("warmup_mode", "iid")
+    expected_config.setdefault("warmup_mode", "iid")
+  if saved_config != expected_config:
     raise ValueError("checkpoint experiment config does not match this run")
 
 

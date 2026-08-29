@@ -13,6 +13,7 @@ import pytest
 
 from dp_muon.bandinvmf import BandInvMFStrategy
 from dp_muon.optim import (
+    adam_first_moment_workload_matrix,
     FrozenPAdamW,
     freeze_optax_adamw,
     frozen_p_time_workload,
@@ -32,6 +33,7 @@ from dp_muon.training.checkpoint import load_checkpoint, save_checkpoint
 from dp_muon.training import nonamplified_frozen_p_bandinv_dpadamw as hybrid_train
 from dp_muon.training.bandinvmf_strategy_manager import (
     FrozenPBandInvMFFitRequest,
+    GlobalCorrelatedBandInvMFFitRequest,
     get_or_fit_frozen_p_strategy_snapshot,
 )
 from dp_muon.training.cifar10_driver import (
@@ -39,8 +41,12 @@ from dp_muon.training.cifar10_driver import (
     FROZEN_P_BANDINV_DPADAMW_ALGORITHM,
 )
 from dp_muon.training.cifar10_frozen_p_bandinv_dpadamw_experiment import (
+    _request,
+    _calibration as experiment_calibration,
     load_cifar10_frozen_p_bandinv_dpadamw_config,
+    strategy_artifact_path as experiment_strategy_artifact_path,
 )
+from dp_muon.training.cifar10_experiment import FixedCycleParticipation
 from scripts.run_cifar10 import _config_algorithm
 
 
@@ -90,14 +96,37 @@ def _calibration(strategy, *, horizon=5, tau=2, min_sep=1, max_participations=3)
   )
 
 
-def test_yaml_tau_parses_and_dispatches_without_exp5():
+def test_yaml_tau_parses_and_dispatches_without_exp5(tmp_path):
   config = load_cifar10_frozen_p_bandinv_dpadamw_config(CONFIG)
   assert config.algorithm == FROZEN_P_BANDINV_DPADAMW_ALGORITHM
   assert config.switch_step == 32
   assert config.learning_rate > 0
   assert config.warmup_learning_rate > 0
   assert config.learning_rate != config.warmup_learning_rate
+  legacy = CONFIG.read_text(encoding="utf-8").replace("  warmup_mode: iid\n", "")
+  legacy_path = tmp_path / "legacy-frozen-p.yaml"
+  legacy_path.write_text(legacy, encoding="utf-8")
+  assert load_cifar10_frozen_p_bandinv_dpadamw_config(legacy_path).warmup_mode == "iid"
   assert _config_algorithm(str(CONFIG)) == FROZEN_P_BANDINV_DPADAMW_ALGORITHM
+
+
+def test_yaml_global_correlated_mode_parses_and_dispatches(tmp_path):
+  source = CONFIG.read_text(encoding="utf-8").replace(
+      "warmup_mode: iid", "warmup_mode: global_correlated"
+  )
+  path = tmp_path / "global.yaml"
+  path.write_text(source, encoding="utf-8")
+  config = load_cifar10_frozen_p_bandinv_dpadamw_config(path)
+  assert config.warmup_mode == "global_correlated"
+  participation = FixedCycleParticipation(64, 3, 1, 1.0)
+  request = _request(config, participation)
+  assert isinstance(request, GlobalCorrelatedBandInvMFFitRequest)
+  assert not hasattr(request, "switch_step")
+  assert experiment_strategy_artifact_path(
+      config, participation
+  ) == experiment_strategy_artifact_path(
+      replace(config, switch_step=config.switch_step + 1), participation
+  )
 
 
 def test_train_config_validates_tau_against_horizon():
@@ -273,6 +302,188 @@ def test_warmup_and_frozen_phase_use_separate_learning_rates(monkeypatch):
       warm_state.params + phase_updates,
       rtol=2e-6,
   )
+
+
+def test_global_correlated_uses_one_stream_and_switches_from_real_adamw(
+    monkeypatch,
+):
+  horizon, tau = 5, 2
+  strategy = _strategy(horizon=horizon, max_participations=3)
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=1.0,
+      adjacency="add_remove", sensitivity_squared=1.0,
+  )
+  participation = ParticipationSpec(horizon, 1, 3)
+  calls = {"iid": 0, "band": 0}
+
+  def forbidden_iid(*args, **kwargs):
+    del args, kwargs
+    calls["iid"] += 1
+    raise AssertionError("global_correlated must not sample IID warmup noise")
+
+  def band_noise(key, state, coef, std):
+    del coef, std
+    calls["band"] += 1
+    noise = jax.tree_util.tree_map(lambda leaf: jnp.zeros_like(leaf), state.buffer[0])
+    return (
+        noise,
+        replace(
+            state,
+            step=state.step + 1,
+            cursor=(state.cursor + 1) % state.bandwidth,
+        ),
+        key,
+    )
+
+  monkeypatch.setattr(hybrid_train, "_sample_iid_gaussian_noise", forbidden_iid)
+  monkeypatch.setattr(hybrid_train, "sample_bandinv_noise", band_noise)
+  train_step, optimizer = make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
+      lambda params, batch: jnp.sum(params * batch["x"][0]),
+      strategy, calibration, participation,
+      switch_step=tau, learning_rate=.05, warmup_learning_rate=.5,
+      warmup_mode="global_correlated", beta1=.8, beta2=.9, eps=1e-6,
+      weight_decay=.01, microbatch_size=1,
+  )
+  params = jnp.array([1., -2.])
+  state = init_nonamplified_frozen_p_bandinv_dpadamw_state(
+      params, strategy, jax.random.key(0), optimizer,
+      switch_step=tau, warmup_mode="global_correlated",
+  )
+  assert int(state.noise_state.step) == int(state.step) == 0
+  compiled_step = jax.jit(train_step)
+  frozen_snapshot = None
+  optimizer_state_at_switch = None
+  initial_nu = state.optimizer_state[0].nu
+  previous_nu = None
+  batch = {"x": jnp.array([[.4, -.2]])}
+  for current in range(1, horizon + 1):
+    state = compiled_step(state, batch)
+    assert int(state.noise_state.step) == int(state.step) == current
+    if current < tau:
+      nu = state.optimizer_state[0].nu
+      if current == 1:
+        assert not np.array_equal(nu, initial_nu)
+      if previous_nu is not None:
+        assert not np.array_equal(nu, previous_nu)
+      previous_nu = nu
+    if current == tau:
+      frozen_snapshot = state.frozen_state
+      optimizer_state_at_switch = state.optimizer_state
+      expected = freeze_optax_adamw(optimizer_state_at_switch, beta2=.9, eps=1e-6)
+      np.testing.assert_array_equal(frozen_snapshot.mu, expected.mu)
+      np.testing.assert_array_equal(frozen_snapshot.frozen_nu, expected.frozen_nu)
+      np.testing.assert_array_equal(frozen_snapshot.p_star, expected.p_star)
+      assert int(frozen_snapshot.count) == tau
+    else:
+      assert frozen_snapshot is None or np.array_equal(
+          state.frozen_state.p_star, frozen_snapshot.p_star
+      )
+      assert frozen_snapshot is None or np.array_equal(
+          state.frozen_state.frozen_nu, frozen_snapshot.frozen_nu
+      )
+  assert calls == {"iid": 0, "band": 1}
+  assert int(state.frozen_state.count) == horizon
+  assert int(state.noise_state.step) == horizon
+
+
+def test_global_correlated_ignores_warmup_learning_rate(monkeypatch):
+  strategy = replace(
+      _strategy(horizon=2, max_participations=1),
+      bandwidth=1,
+      noising_coef=jnp.asarray([1.0], dtype=jnp.float32),
+      strategy_coef=jnp.ones((2,), dtype=jnp.float32),
+  )
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=1.0,
+      adjacency="add_remove", sensitivity_squared=1.0,
+  )
+
+  def zero_band_noise(key, state, noising_coef, std):
+    del noising_coef, std
+    return (
+        jax.tree_util.tree_map(jnp.zeros_like, state.buffer[0]),
+        replace(state, step=state.step + 1, cursor=jnp.array(0, dtype=state.cursor.dtype)),
+        key,
+    )
+
+  monkeypatch.setattr(hybrid_train, "sample_bandinv_noise", zero_band_noise)
+  train_step, optimizer = make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
+      lambda params, batch: jnp.sum(params * batch["x"][0]),
+      strategy, calibration, ParticipationSpec(2, 1, 1), switch_step=1,
+      learning_rate=.01, warmup_learning_rate=.1,
+      warmup_mode="global_correlated", beta1=.8, beta2=.9, eps=1e-6,
+      microbatch_size=1,
+  )
+  params = jnp.array([1., -2.])
+  state = init_nonamplified_frozen_p_bandinv_dpadamw_state(
+      params, strategy, jax.random.key(0), optimizer, switch_step=1,
+      warmup_mode="global_correlated",
+  )
+  batch = {"x": jnp.array([[.4, -.2]])}
+  actual = train_step(state, batch)
+  expected_optimizer = optax.adamw(
+      learning_rate=.01, b1=.8, b2=.9, eps=1e-6, weight_decay=0.0
+  )
+  updates, _ = expected_optimizer.update(batch["x"][0], expected_optimizer.init(params), params)
+  np.testing.assert_allclose(actual.params, optax.apply_updates(params, updates), rtol=2e-6)
+
+
+def test_global_correlated_checkpoint_resume_matches_uninterrupted(tmp_path):
+  horizon, tau = 5, 2
+  strategy = _strategy(horizon=horizon, max_participations=2)
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=1.0,
+      adjacency="add_remove", sensitivity_squared=1.0,
+  )
+  train_step, optimizer = make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
+      lambda params, batch: jnp.sum(params * batch["x"][0]),
+      strategy, calibration, ParticipationSpec(horizon, 1, 2), switch_step=tau,
+      learning_rate=.05, warmup_learning_rate=.5,
+      warmup_mode="global_correlated", beta1=.8, beta2=.9, eps=1e-6,
+      weight_decay=.01, microbatch_size=1,
+  )
+  def initial():
+    return init_nonamplified_frozen_p_bandinv_dpadamw_state(
+        jnp.array([1., -2.]), strategy, jax.random.key(9), optimizer,
+        switch_step=tau, warmup_mode="global_correlated",
+    )
+  batches = [{"x": jnp.array([[.4 + .1 * i, -.2]])} for i in range(horizon)]
+  uninterrupted = initial()
+  for batch in batches:
+    uninterrupted = train_step(uninterrupted, batch)
+
+  for checkpoint_step in (1, tau + 1):
+    partial = initial()
+    for batch in batches[:checkpoint_step]:
+      partial = train_step(partial, batch)
+    checkpoint = tmp_path / f"global-{checkpoint_step}.pkl"
+    save_checkpoint(
+        checkpoint, state=partial, current_step=checkpoint_step,
+        experiment_config={"warmup_mode": "global_correlated", "switch_step": tau},
+        artifact_identifiers={"algorithm": FROZEN_P_BANDINV_DPADAMW_ALGORITHM},
+    )
+    resumed = load_checkpoint(checkpoint)["state"]
+    for batch in batches[checkpoint_step:]:
+      resumed = train_step(resumed, batch)
+    for actual, expected in zip(
+        jax.tree_util.tree_leaves(resumed),
+        jax.tree_util.tree_leaves(uninterrupted),
+        strict=True,
+    ):
+      if jnp.issubdtype(jnp.asarray(actual).dtype, jax.dtypes.prng_key):
+        np.testing.assert_array_equal(jax.random.key_data(actual), jax.random.key_data(expected))
+      else:
+        np.testing.assert_array_equal(actual, expected)
+
+
+def test_global_calibration_uses_full_strategy_sensitivity():
+  config = load_cifar10_frozen_p_bandinv_dpadamw_config(CONFIG)
+  config = replace(config, warmup_mode="global_correlated")
+  strategy = replace(_strategy(horizon=5, max_participations=3), sensitivity_squared=jnp.asarray(7.0))
+  calibration = experiment_calibration(
+      config, FixedCycleParticipation(5, 3, 1, 1.0), strategy
+  )
+  assert calibration.matrix_sensitivity ** 2 == pytest.approx(7.0)
 
 
 def test_full_hybrid_privacy_uses_one_final_calibration():

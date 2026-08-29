@@ -16,6 +16,7 @@ from dp_muon.bandinvmf import (
     save_bandinv_strategy,
 )
 from dp_muon.optim import (
+    adam_first_moment_workload_matrix,
     decayed_prefix_sum_workload_coef,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     frozen_p_time_workload,
@@ -75,6 +76,23 @@ class FrozenPBandInvMFFitRequest:
 
   horizon: int
   switch_step: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  beta1: float
+  learning_rate: float
+  weight_decay: float
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+  strategy_dir: str | Path
+  force_refit: bool
+
+
+@dataclass(frozen=True)
+class GlobalCorrelatedBandInvMFFitRequest:
+  """All public values determining one full-horizon correlated AdamW artifact."""
+
+  horizon: int
   min_sep: int
   max_participations: int
   bandwidth: int
@@ -163,6 +181,30 @@ def frozen_p_strategy_artifact_path(
     directory = REPOSITORY_ROOT / directory
   return directory / (
       f"frozen-p-continuous_n{horizon}_tau{switch_step}_p{bandwidth}"
+      f"_b{min_sep}_k{max_participations}_b1{beta1}_lr{learning_rate}"
+      f"_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
+  )
+
+
+def global_correlated_strategy_artifact_path(
+    strategy_dir: str | Path,
+    *,
+    horizon: int,
+    min_sep: int,
+    max_participations: int,
+    bandwidth: int,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+    reduction: str,
+    max_optimizer_steps: int,
+) -> Path:
+  """Returns a switch-independent path for a full-horizon AdamW strategy."""
+  directory = Path(strategy_dir)
+  if not directory.is_absolute():
+    directory = REPOSITORY_ROOT / directory
+  return directory / (
+      f"global-correlated-adam-first-moment_n{horizon}_p{bandwidth}"
       f"_b{min_sep}_k{max_participations}_b1{beta1}_lr{learning_rate}"
       f"_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
   )
@@ -600,10 +642,154 @@ def get_or_fit_frozen_p_strategy_snapshot(
     return snapshot, "fit"
 
 
+def _global_correlated_strategy_is_compatible(
+    strategy: BandInvMFStrategy, request: GlobalCorrelatedBandInvMFFitRequest
+) -> bool:
+  expected_workload = np.asarray(adam_first_moment_workload_matrix(
+      request.horizon,
+      request.beta1,
+      request.learning_rate,
+      request.weight_decay,
+  ))
+  return (
+      strategy.horizon == request.horizon
+      and strategy.bandwidth == request.bandwidth
+      and strategy.min_sep == request.min_sep
+      and strategy.max_participations == request.max_participations
+      and strategy.workload_matrix is not None
+      and np.allclose(
+          np.asarray(strategy.workload_matrix), expected_workload,
+          rtol=1e-6, atol=1e-8,
+      )
+  )
+
+
+def _global_correlated_metadata_is_compatible(
+    path: Path, request: GlobalCorrelatedBandInvMFFitRequest
+) -> bool:
+  metadata = load_bandinv_strategy_metadata(path)
+  return (
+      metadata.workload_type == "adam-first-moment"
+      and metadata.momentum == request.beta1
+      and metadata.learning_rate == request.learning_rate
+      and metadata.weight_decay == request.weight_decay
+      and metadata.reduction == request.reduction
+      and metadata.max_optimizer_steps == request.max_optimizer_steps
+  )
+
+
+def _load_compatible_global_correlated_snapshot_unlocked(
+    path: Path, request: GlobalCorrelatedBandInvMFFitRequest
+) -> LoadedStrategySnapshot | None:
+  try:
+    strategy = load_bandinv_strategy(path)
+    if (
+        _global_correlated_strategy_is_compatible(strategy, request)
+        and _global_correlated_metadata_is_compatible(path, request)
+    ):
+      return LoadedStrategySnapshot(path, strategy, file_fingerprint(path))
+  except ValueError:
+    pass
+  return None
+
+
+def require_compatible_global_correlated_strategy_snapshot(
+    request: GlobalCorrelatedBandInvMFFitRequest,
+) -> LoadedStrategySnapshot:
+  """Loads the full-horizon global strategy without refitting it."""
+  path = global_correlated_strategy_artifact_path(
+      request.strategy_dir,
+      horizon=request.horizon,
+      min_sep=request.min_sep,
+      max_participations=request.max_participations,
+      bandwidth=request.bandwidth,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+      reduction=request.reduction,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  with file_lock(path):
+    snapshot = _load_compatible_global_correlated_snapshot_unlocked(path, request)
+  if snapshot is None:
+    raise ValueError(
+        "required compatible global correlated BandInvMF strategy artifact "
+        "is missing or invalid"
+    )
+  return snapshot
+
+
+def get_or_fit_global_correlated_strategy_snapshot(
+    request: GlobalCorrelatedBandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  """Fits/reuses exactly one full-horizon AdamW-aware strategy."""
+  if request.horizon < 1:
+    raise ValueError("horizon must be positive")
+  if request.bandwidth > request.horizon:
+    raise ValueError("strategy.bandwidth must not exceed the full horizon")
+  path = global_correlated_strategy_artifact_path(
+      request.strategy_dir,
+      horizon=request.horizon,
+      min_sep=request.min_sep,
+      max_participations=request.max_participations,
+      bandwidth=request.bandwidth,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+      reduction=request.reduction,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  initial_fingerprint = _artifact_fingerprint(path)
+  with file_lock(path):
+    existing = _load_compatible_global_correlated_snapshot_unlocked(path, request)
+    if existing is not None and (
+        not request.force_refit or existing.sha256 != initial_fingerprint
+    ):
+      return existing, "reuse"
+    workload_matrix = np.asarray(adam_first_moment_workload_matrix(
+        request.horizon,
+        request.beta1,
+        request.learning_rate,
+        request.weight_decay,
+    ))
+    fitted = fit_strategy(
+        request.horizon,
+        request.bandwidth,
+        request.min_sep,
+        max_participations=request.max_participations,
+        workload_matrix=workload_matrix,
+        max_optimizer_steps=request.max_optimizer_steps,
+        reduction=request.reduction,
+    )
+    with atomic_temporary_path(path) as temporary:
+      save_bandinv_strategy(
+          temporary,
+          fitted,
+          reduction=request.reduction,
+          workload_type="adam-first-moment",
+          # ``momentum`` is the historical metadata field for the one
+          # temporal EMA coefficient; for this workload it is Adam beta1.
+          momentum=request.beta1,
+          learning_rate=request.learning_rate,
+          weight_decay=request.weight_decay,
+          max_optimizer_steps=request.max_optimizer_steps,
+      )
+      if _load_compatible_global_correlated_snapshot_unlocked(temporary, request) is None:
+        raise ValueError("fitted global correlated BandInvMF artifact failed validation")
+      atomic_replace(temporary, path)
+    snapshot = _load_compatible_global_correlated_snapshot_unlocked(path, request)
+    if snapshot is None:
+      raise ValueError("published global correlated BandInvMF artifact failed validation")
+    return snapshot, "fit"
+
+
 __all__ = [
     "BandInvMFFitRequest",
     "PrefixSumBandInvMFFitRequest",
     "FrozenPBandInvMFFitRequest",
+    "GlobalCorrelatedBandInvMFFitRequest",
     "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
@@ -616,6 +802,9 @@ __all__ = [
     "strategy_artifact_path",
     "prefix_sum_strategy_artifact_path",
     "frozen_p_strategy_artifact_path",
+    "global_correlated_strategy_artifact_path",
     "get_or_fit_frozen_p_strategy_snapshot",
     "require_compatible_frozen_p_strategy_snapshot",
+    "get_or_fit_global_correlated_strategy_snapshot",
+    "require_compatible_global_correlated_strategy_snapshot",
 ]
