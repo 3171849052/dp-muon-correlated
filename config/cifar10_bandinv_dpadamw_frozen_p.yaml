@@ -29,7 +29,7 @@ adamw:
   eps: 1.0e-8
   weight_decay: 0.01
 frozen_p:
-  switch_step: 32
+  switch_step: 97
 privacy:
   epsilon: 3.0
   delta: 1.0e-5
