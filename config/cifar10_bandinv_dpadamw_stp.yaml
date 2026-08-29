@@ -1,10 +1,10 @@
-algorithm: dp-adamw-correlated-frozen-p
+algorithm: dp-adamw-correlated-stp
 
 experiment:
-  name: cifar10_bandinv_dpadamw_frozen_p_vit_tiny
+  name: cifar10_bandinv_dpadamw_stp_vit_tiny
   seed: 0
 runtime:
-  gpu: 0
+  gpu: 1
 data:
   data_dir: data
 model:
@@ -22,15 +22,14 @@ strategy:
   reduction: mean
   max_optimizer_steps: 1000
   force_refit: false
+stp:
+  scale_eps: 1.0e-8
 adamw:
   learning_rate: 0.005
-  warmup_learning_rate: 0.0005
   beta1: 0.9
   beta2: 0.999
   eps: 1.0e-8
   weight_decay: 0.01
-frozen_p:
-  switch_step: 32
 privacy:
   epsilon: 3.0
   delta: 1.0e-5

@@ -38,6 +38,12 @@ from dp_muon.training.cifar10_bandinv_dpadamw_experiment import (
     resolve_output_log_dir as resolve_bandinv_dpadamw_log_dir,
     run_cifar10_bandinv_dpadamw,
 )
+from dp_muon.training.cifar10_bandinv_stp_dpadamw_experiment import (
+    load_cifar10_bandinv_stp_dpadamw_config,
+    prepare_cifar10_bandinv_stp_dpadamw_run,
+    resolve_output_log_dir as resolve_bandinv_stp_dpadamw_log_dir,
+    run_cifar10_bandinv_stp_dpadamw,
+)
 from dp_muon.training.cifar10_segmented_bandinv_dpadamw_experiment import (
     load_cifar10_segmented_bandinv_dpadamw_config,
     prepare_cifar10_segmented_bandinv_dpadamw_run,
@@ -80,18 +86,20 @@ def _config_algorithm(path: str) -> str:
         "config.algorithm is required and must be one of: bandinv, dpsgd, "
         "dpmuon, dpadamw, dp-muon-correlated-naive, dp-adamw-correlated-naive, "
         "dp-adamw-correlated-segmented, dp-adamw-correlated-frozen-p, "
-        "dp-adamw-public-v-bandinv"
+        "dp-adamw-public-v-bandinv, dp-adamw-correlated-stp"
     )
   if algorithm not in {
       "bandinv", "dpsgd", "dpmuon", "dpadamw", "dp-muon-correlated-naive",
       "dp-adamw-correlated-naive", "dp-adamw-correlated-segmented",
       "dp-adamw-correlated-frozen-p",
       "dp-adamw-public-v-bandinv",
+      "dp-adamw-correlated-stp",
   }:
     raise ValueError(
         f"unknown config.algorithm {algorithm!r}; expected: bandinv, dpsgd, "
         "dpmuon, dpadamw, dp-muon-correlated-naive, dp-adamw-correlated-naive, "
-        "dp-adamw-correlated-frozen-p, dp-adamw-public-v-bandinv"
+        "dp-adamw-correlated-frozen-p, dp-adamw-public-v-bandinv, "
+        "dp-adamw-correlated-stp"
     )
   return algorithm
 
@@ -111,6 +119,8 @@ def main() -> None:
     print(
         resolve_public_v_bandinv_log_dir(args.config)
         if algorithm == "dp-adamw-public-v-bandinv"
+        else resolve_bandinv_stp_dpadamw_log_dir(args.config)
+        if algorithm == "dp-adamw-correlated-stp"
         else resolve_segmented_bandinv_log_dir(args.config)
         if algorithm == "dp-adamw-correlated-segmented"
         else resolve_frozen_p_bandinv_log_dir(args.config)
@@ -129,6 +139,8 @@ def main() -> None:
     config = (
         load_cifar10_public_v_bandinv_config(args.config)
         if algorithm == "dp-adamw-public-v-bandinv"
+        else load_cifar10_bandinv_stp_dpadamw_config(args.config)
+        if algorithm == "dp-adamw-correlated-stp"
         else load_cifar10_segmented_bandinv_dpadamw_config(args.config)
         if algorithm == "dp-adamw-correlated-segmented"
         else load_cifar10_frozen_p_bandinv_dpadamw_config(args.config)
@@ -148,6 +160,8 @@ def main() -> None:
     paths = (
         prepare_cifar10_public_v_bandinv_run(args.config)
         if algorithm == "dp-adamw-public-v-bandinv"
+        else prepare_cifar10_bandinv_stp_dpadamw_run(args.config)
+        if algorithm == "dp-adamw-correlated-stp"
         else prepare_cifar10_segmented_bandinv_dpadamw_run(args.config)
         if algorithm == "dp-adamw-correlated-segmented"
         else prepare_cifar10_frozen_p_bandinv_dpadamw_run(args.config)
@@ -168,6 +182,13 @@ def main() -> None:
       run_cifar10_public_v_bandinv(args.config)
     else:
       run_cifar10_public_v_bandinv(
+          args.config, resume_checkpoint=args.resume_checkpoint, run_dir=args.run_dir
+      )
+  elif algorithm == "dp-adamw-correlated-stp":
+    if args.resume_checkpoint is None and args.run_dir is None:
+      run_cifar10_bandinv_stp_dpadamw(args.config)
+    else:
+      run_cifar10_bandinv_stp_dpadamw(
           args.config, resume_checkpoint=args.resume_checkpoint, run_dir=args.run_dir
       )
   elif algorithm == "dp-adamw-correlated-segmented":

@@ -17,6 +17,11 @@ from .nonamplified_bandinv_dpadamw import (
     init_nonamplified_bandinv_dpadamw_state,
     make_nonamplified_bandinv_dpadamw_train_step,
 )
+from .nonamplified_bandinv_stp_dpadamw import (
+    NonAmplifiedBandInvSTPDPAdamWState,
+    init_nonamplified_bandinv_stp_dpadamw_state,
+    make_nonamplified_bandinv_stp_dpadamw_train_step,
+)
 from .nonamplified_segmented_bandinv_dpadamw import (
     NonAmplifiedSegmentedBandInvDPAdamWState,
     SegmentedBandInvDPAdamWState,
@@ -65,6 +70,7 @@ __all__ = [
     "NonAmplifiedBandInvState",
     "NonAmplifiedBandInvDPMuonState",
     "NonAmplifiedBandInvDPAdamWState",
+    "NonAmplifiedBandInvSTPDPAdamWState",
     "SegmentedBandInvDPAdamWState",
     "NonAmplifiedSegmentedBandInvDPAdamWState",
     "SegmentedPlan",
@@ -83,6 +89,8 @@ __all__ = [
     "make_nonamplified_bandinv_train_step",
     "make_nonamplified_bandinv_dpmuon_train_step",
     "make_nonamplified_bandinv_dpadamw_train_step",
+    "init_nonamplified_bandinv_stp_dpadamw_state",
+    "make_nonamplified_bandinv_stp_dpadamw_train_step",
     "begin_segment",
     "epsilon_spent_for_segmented_prefix",
     "fit_segmented_plan",

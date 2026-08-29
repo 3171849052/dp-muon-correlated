@@ -16,6 +16,7 @@ from .frozen_p_adamw import (
     p_star_from_optax,
 )
 from .public_v_adamw import PublicVAdamW, PublicVAdamWState
+from .stp_adamw import STPAdamW, STPAdamWState
 from .muon_nesterov import (
     MuonNesterovState,
     init_muon_nesterov_state,
@@ -61,6 +62,8 @@ __all__ = [
     "public_v_adamw_segment_workload_matrix",
     "PublicVAdamW",
     "PublicVAdamWState",
+    "STPAdamW",
+    "STPAdamWState",
     "FrozenPAdamW",
     "FrozenPAdamWState",
     "freeze_optax_adamw",

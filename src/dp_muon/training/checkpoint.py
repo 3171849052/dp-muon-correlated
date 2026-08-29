@@ -15,6 +15,9 @@ from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_dpadamw import NonAmplifiedDPAdamWState
 from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
 from .nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
+from .nonamplified_bandinv_stp_dpadamw import (
+    NonAmplifiedBandInvSTPDPAdamWState,
+)
 from .nonamplified_frozen_p_bandinv_dpadamw import (
     NonAmplifiedFrozenPBandInvDPAdamWState,
 )
@@ -37,6 +40,7 @@ def _validate_steps(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
+            NonAmplifiedBandInvSTPDPAdamWState |
             PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState |
             SegmentedBandInvDPAdamWState), current_step: int
 ) -> None:
@@ -57,6 +61,18 @@ def _validate_steps(
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
     if int(current_step) != optimizer_step or int(current_step) != noise_step:
       raise ValueError("current_step must equal state.step and noise_state.step")
+  elif isinstance(state, NonAmplifiedBandInvSTPDPAdamWState):
+    optimizer_step = _concrete_step(state.step, "step")
+    adam_step = _concrete_step(state.optimizer_state.count, "optimizer_state.count")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if (
+        int(current_step) != optimizer_step
+        or int(current_step) != adam_step
+        or int(current_step) != noise_step
+    ):
+      raise ValueError(
+          "current_step must equal state.step, optimizer_state.count, and noise_state.step"
+      )
   elif isinstance(state, NonAmplifiedFrozenPBandInvDPAdamWState):
     optimizer_step = _concrete_step(state.step, "step")
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
@@ -118,6 +134,7 @@ def save_checkpoint(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
+            NonAmplifiedBandInvSTPDPAdamWState |
             PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState |
             SegmentedBandInvDPAdamWState),
     current_step: int,

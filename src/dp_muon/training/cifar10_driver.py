@@ -63,6 +63,10 @@ from .nonamplified_bandinv_dpadamw import (
     init_nonamplified_bandinv_dpadamw_state,
     make_nonamplified_bandinv_dpadamw_train_step,
 )
+from .nonamplified_bandinv_stp_dpadamw import (
+    init_nonamplified_bandinv_stp_dpadamw_state,
+    make_nonamplified_bandinv_stp_dpadamw_train_step,
+)
 from .nonamplified_segmented_bandinv_dpadamw import (
     SegmentedPlan,
     epsilon_spent_for_segmented_prefix,
@@ -84,6 +88,7 @@ from .public_v import PublicVEstimator
 
 BANDINV_DPMUON_ALGORITHM = "dp-muon-correlated-naive"
 BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-naive"
+STP_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-stp"
 SEGMENTED_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-segmented"
 FROZEN_P_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-frozen-p"
 PUBLIC_V_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-public-v-bandinv"
@@ -252,6 +257,40 @@ class Cifar10BandInvDPAdamWTrainConfig:
   beta1: float
   beta2: float
   eps: float
+  weight_decay: float
+  seed: int
+  checkpoint_dir: str
+  eval_every: int
+  adjacency: str = "add_remove"
+
+  def __post_init__(self) -> None:
+    if self.batch_size < 1:
+      raise ValueError("batch_size must be positive")
+    if self.microbatch_size is not None and (
+        self.microbatch_size < 1 or self.batch_size % self.microbatch_size
+    ):
+      raise ValueError("microbatch_size must be positive and divide batch_size")
+    if self.eval_every < 1:
+      raise ValueError("eval_every must be positive")
+
+
+@dataclass(frozen=True)
+class Cifar10BandInvSTPDPAdamWTrainConfig:
+  """CIFAR-10 config for STP BandInvMF-private AdamW."""
+
+  strategy: str
+  pretrained: str
+  data_dir: str
+  batch_size: int
+  microbatch_size: int | None
+  clip_norm: float
+  epsilon: float
+  delta: float
+  learning_rate: float
+  beta1: float
+  beta2: float
+  eps: float
+  scale_eps: float
   weight_decay: float
   seed: int
   checkpoint_dir: str
@@ -1096,6 +1135,75 @@ def train_cifar10_bandinv_dpadamw(
   )
 
 
+def train_cifar10_bandinv_stp_dpadamw(
+    config: Cifar10BandInvSTPDPAdamWTrainConfig,
+    *,
+    strategy_snapshot: LoadedStrategySnapshot | None = None,
+    resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+):
+  """Fine-tunes CIFAR-10 with STP and the naive BandInvMF transcript."""
+  strategy_snapshot = strategy_snapshot or load_strategy_snapshot(config.strategy)
+  strategy = strategy_snapshot.strategy
+  train_images, train_labels = load_cifar10(config.data_dir, train=True)
+  test_images, test_labels = load_cifar10(config.data_dir, train=False)
+  schedule = build_logical_schedule(
+      num_examples=len(train_images), batch_size=config.batch_size,
+      strategy=strategy, seed=config.seed,
+  )
+  model = ViTTiny()
+  parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
+  pretrained_snapshot = load_pretrained_snapshot(config.pretrained, key=parameter_key)
+  params = pretrained_snapshot.params
+  participation = ParticipationSpec(
+      strategy.horizon, strategy.min_sep, strategy.max_participations
+  )
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=config.epsilon, delta=config.delta, clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size), adjacency=config.adjacency,  # type: ignore[arg-type]
+      sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+  train_step, optimizer = make_nonamplified_bandinv_stp_dpadamw_train_step(
+      lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
+      strategy, calibration, participation,
+      learning_rate=config.learning_rate,
+      beta1=config.beta1, beta2=config.beta2,
+      eps=config.eps, scale_eps=config.scale_eps,
+      weight_decay=config.weight_decay,
+      microbatch_size=config.microbatch_size,
+  )
+  initial_state = init_nonamplified_bandinv_stp_dpadamw_state(
+      params, strategy, noise_key, optimizer
+  )
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
+  return run_training(
+      initial_state=initial_state, train_step=train_step,
+      logical_batches=iter_logical_batches(train_images, train_labels, schedule),
+      horizon=strategy.horizon, experiment_config=asdict(config),
+      artifact_identifiers={
+          "algorithm": STP_BANDINV_DPADAMW_ALGORITHM,
+          "strategy_path": str(strategy_snapshot.path),
+          "strategy_sha256": strategy_snapshot.sha256,
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
+      },
+      checkpoint_path=actual_checkpoint_path, resume_checkpoint=resume_checkpoint,
+      eval_every=config.eval_every,
+      evaluate=lambda state: evaluate_classifier_metrics(
+          state.params, model, test_images, test_labels, batch_size=config.batch_size
+      ),
+      num_train_examples=len(train_images), logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=lambda step: epsilon_spent_for_bandinv_prefix(
+          prefix_steps=step, noising_coef=strategy.noising_coef,
+          horizon=strategy.horizon, min_sep=strategy.min_sep,
+          max_participations=strategy.max_participations, calibration=calibration,
+          full_sensitivity_squared=float(strategy.sensitivity_squared),
+      ),
+  )
+
+
 def train_cifar10_segmented_bandinv_dpadamw(
     config: Cifar10SegmentedBandInvDPAdamWTrainConfig,
     plan: SegmentedPlan,
@@ -1452,6 +1560,7 @@ def train_dp_public_v_bandinv(
 __all__ = [
     "BANDINV_DPMUON_ALGORITHM",
     "BANDINV_DPADAMW_ALGORITHM",
+    "STP_BANDINV_DPADAMW_ALGORITHM",
     "SEGMENTED_BANDINV_DPADAMW_ALGORITHM",
     "FROZEN_P_BANDINV_DPADAMW_ALGORITHM",
     "PUBLIC_V_BANDINV_DPADAMW_ALGORITHM",
@@ -1461,6 +1570,7 @@ __all__ = [
     "Cifar10DPAdamWTrainConfig",
     "Cifar10BandInvDPMuonTrainConfig",
     "Cifar10BandInvDPAdamWTrainConfig",
+    "Cifar10BandInvSTPDPAdamWTrainConfig",
     "Cifar10SegmentedBandInvDPAdamWTrainConfig",
     "Cifar10FrozenPBandInvDPAdamWTrainConfig",
     "Cifar10PublicVBandInvDPAdamWTrainConfig",
@@ -1477,6 +1587,7 @@ __all__ = [
     "train_cifar10_dpadamw",
     "train_cifar10_bandinv_dpmuon",
     "train_cifar10_bandinv_dpadamw",
+    "train_cifar10_bandinv_stp_dpadamw",
     "train_cifar10_segmented_bandinv_dpadamw",
     "train_cifar10_frozen_p_bandinv_dpadamw",
     "train_dp_public_v_bandinv",
