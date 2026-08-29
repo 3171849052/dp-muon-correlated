@@ -1,0 +1,40 @@
+algorithm: dp-adamw-correlated-frozen-p
+
+experiment:
+  name: cifar10_bandinv_dpadamw_frozen_p_vit_tiny
+  seed: 0
+runtime:
+  gpu: 0
+data:
+  data_dir: data
+model:
+  pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz
+training:
+  epochs: 5
+  logical_batch_size: 512
+  microbatch_size: 16
+  clip_norm: 1.0
+  eval_every: 1
+schedule:
+  mode: fixed_cycle
+strategy:
+  bandwidth: 4
+  reduction: mean
+  max_optimizer_steps: 1000
+  force_refit: false
+adamw:
+  learning_rate: 0.0005
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  weight_decay: 0.01
+frozen_p:
+  switch_step: 32
+privacy:
+  epsilon: 3.0
+  delta: 1.0e-5
+  adjacency: add_remove
+output:
+  strategy_dir: artifacts/strategies
+  checkpoint_dir: checkpoints
+  log_dir: logs

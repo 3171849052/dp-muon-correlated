@@ -18,6 +18,7 @@ from dp_muon.bandinvmf import (
 from dp_muon.optim import (
     decayed_prefix_sum_workload_coef,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
+    frozen_p_time_workload,
 )
 
 from .file_locking import (
@@ -66,6 +67,24 @@ class PrefixSumBandInvMFFitRequest:
   force_refit: bool
   learning_rate: float = 1.0
   weight_decay: float = 0.0
+
+
+@dataclass(frozen=True)
+class FrozenPBandInvMFFitRequest:
+  """All public values determining one continuous frozen-p Phase-II artifact."""
+
+  horizon: int
+  switch_step: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  beta1: float
+  learning_rate: float
+  weight_decay: float
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+  strategy_dir: str | Path
+  force_refit: bool
 
 
 @dataclass(frozen=True)
@@ -124,6 +143,31 @@ def prefix_sum_strategy_artifact_path(
   )
 
 
+def frozen_p_strategy_artifact_path(
+    strategy_dir: str | Path,
+    *,
+    horizon: int,
+    switch_step: int,
+    min_sep: int,
+    max_participations: int,
+    bandwidth: int,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+    reduction: str,
+    max_optimizer_steps: int,
+) -> Path:
+  """Returns a deterministic path for the single continuous Phase-II plan."""
+  directory = Path(strategy_dir)
+  if not directory.is_absolute():
+    directory = REPOSITORY_ROOT / directory
+  return directory / (
+      f"frozen-p-continuous_n{horizon}_tau{switch_step}_p{bandwidth}"
+      f"_b{min_sep}_k{max_participations}_b1{beta1}_lr{learning_rate}"
+      f"_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
+  )
+
+
 def _strategy_is_compatible(
     strategy: BandInvMFStrategy, request: BandInvMFFitRequest
 ) -> bool:
@@ -177,6 +221,41 @@ def _prefix_sum_metadata_is_compatible(
   metadata = load_bandinv_strategy_metadata(path)
   return (
       metadata.workload_type == "decayed-prefix-sum"
+      and metadata.momentum is None
+      and metadata.learning_rate == request.learning_rate
+      and metadata.weight_decay == request.weight_decay
+      and metadata.reduction == request.reduction
+      and metadata.max_optimizer_steps == request.max_optimizer_steps
+  )
+
+
+def _frozen_p_strategy_is_compatible(
+    strategy: BandInvMFStrategy, request: FrozenPBandInvMFFitRequest
+) -> bool:
+  expected_workload = np.abs(np.asarray(frozen_p_time_workload(
+      request.horizon - request.switch_step,
+      tau=request.switch_step,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+  )))
+  return (
+      strategy.horizon == request.horizon - request.switch_step
+      and strategy.bandwidth == min(request.bandwidth, strategy.horizon)
+      and strategy.min_sep == min(request.min_sep, strategy.horizon)
+      and strategy.max_participations == request.max_participations
+      and strategy.workload_matrix is not None
+      and np.allclose(np.asarray(strategy.workload_matrix), expected_workload,
+                      rtol=1e-6, atol=1e-8)
+  )
+
+
+def _frozen_p_metadata_is_compatible(
+    path: Path, request: FrozenPBandInvMFFitRequest
+) -> bool:
+  metadata = load_bandinv_strategy_metadata(path)
+  return (
+      metadata.workload_type == "frozen-p-continuous"
       and metadata.momentum is None
       and metadata.learning_rate == request.learning_rate
       and metadata.weight_decay == request.weight_decay
@@ -416,9 +495,115 @@ def get_or_fit_prefix_sum_strategy_snapshot(
     return snapshot, "fit"
 
 
+def _load_compatible_frozen_p_snapshot_unlocked(
+    path: Path, request: FrozenPBandInvMFFitRequest
+) -> LoadedStrategySnapshot | None:
+  try:
+    strategy = load_bandinv_strategy(path)
+    if _frozen_p_strategy_is_compatible(strategy, request) and _frozen_p_metadata_is_compatible(
+        path, request
+    ):
+      return LoadedStrategySnapshot(path, strategy, file_fingerprint(path))
+  except ValueError:
+    pass
+  return None
+
+
+def require_compatible_frozen_p_strategy_snapshot(
+    request: FrozenPBandInvMFFitRequest,
+) -> LoadedStrategySnapshot:
+  """Loads the existing continuous frozen-p artifact without refitting."""
+  path = frozen_p_strategy_artifact_path(
+      request.strategy_dir,
+      horizon=request.horizon,
+      switch_step=request.switch_step,
+      min_sep=request.min_sep,
+      max_participations=request.max_participations,
+      bandwidth=request.bandwidth,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+      reduction=request.reduction,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  with file_lock(path):
+    snapshot = _load_compatible_frozen_p_snapshot_unlocked(path, request)
+  if snapshot is None:
+    raise ValueError("required compatible frozen-p strategy artifact is missing or invalid")
+  return snapshot
+
+
+def get_or_fit_frozen_p_strategy_snapshot(
+    request: FrozenPBandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> tuple[LoadedStrategySnapshot, Literal["reuse", "fit"]]:
+  """Fits/reuses one continuous Phase-II BandInvMF strategy."""
+  if not 1 <= request.switch_step < request.horizon:
+    raise ValueError("switch_step must lie in [1, horizon)")
+  phase_horizon = request.horizon - request.switch_step
+  if request.bandwidth > phase_horizon:
+    raise ValueError("strategy.bandwidth must not exceed the Phase-II horizon")
+  path = frozen_p_strategy_artifact_path(
+      request.strategy_dir,
+      horizon=request.horizon,
+      switch_step=request.switch_step,
+      min_sep=request.min_sep,
+      max_participations=request.max_participations,
+      bandwidth=request.bandwidth,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+      reduction=request.reduction,
+      max_optimizer_steps=request.max_optimizer_steps,
+  )
+  initial_fingerprint = _artifact_fingerprint(path)
+  with file_lock(path):
+    existing = _load_compatible_frozen_p_snapshot_unlocked(path, request)
+    if existing is not None and (
+        not request.force_refit or existing.sha256 != initial_fingerprint
+    ):
+      return existing, "reuse"
+    workload_matrix = np.abs(np.asarray(frozen_p_time_workload(
+        phase_horizon,
+        tau=request.switch_step,
+        beta1=request.beta1,
+        learning_rate=request.learning_rate,
+        weight_decay=request.weight_decay,
+    )))
+    fitted = fit_strategy(
+        phase_horizon,
+        min(request.bandwidth, phase_horizon),
+        min(request.min_sep, phase_horizon),
+        max_participations=request.max_participations,
+        workload_matrix=workload_matrix,
+        max_optimizer_steps=request.max_optimizer_steps,
+        reduction=request.reduction,
+    )
+    with atomic_temporary_path(path) as temporary:
+      save_bandinv_strategy(
+          temporary,
+          fitted,
+          reduction=request.reduction,
+          workload_type="frozen-p-continuous",
+          momentum=None,
+          learning_rate=request.learning_rate,
+          weight_decay=request.weight_decay,
+          max_optimizer_steps=request.max_optimizer_steps,
+      )
+      if _load_compatible_frozen_p_snapshot_unlocked(temporary, request) is None:
+        raise ValueError("fitted frozen-p strategy artifact failed validation")
+      atomic_replace(temporary, path)
+    snapshot = _load_compatible_frozen_p_snapshot_unlocked(path, request)
+    if snapshot is None:
+      raise ValueError("published frozen-p strategy artifact failed validation")
+    return snapshot, "fit"
+
+
 __all__ = [
     "BandInvMFFitRequest",
     "PrefixSumBandInvMFFitRequest",
+    "FrozenPBandInvMFFitRequest",
     "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
@@ -430,4 +615,7 @@ __all__ = [
     "require_compatible_prefix_sum_strategy_snapshot",
     "strategy_artifact_path",
     "prefix_sum_strategy_artifact_path",
+    "frozen_p_strategy_artifact_path",
+    "get_or_fit_frozen_p_strategy_snapshot",
+    "require_compatible_frozen_p_strategy_snapshot",
 ]

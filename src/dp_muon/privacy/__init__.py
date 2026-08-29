@@ -21,6 +21,11 @@ from .nonamplified import (
     epsilon_spent_for_bandinv_prefix,
     epsilon_spent_for_iid_prefix,
 )
+from .hybrid import (
+    continuous_hybrid_prefix_sensitivity_squared,
+    continuous_hybrid_sensitivity_squared,
+    epsilon_spent_for_continuous_hybrid_prefix,
+)
 
 __all__ = [
     "PrivacyCalibration",
@@ -32,6 +37,9 @@ __all__ = [
     "compute_query_sensitivity",
     "epsilon_spent_for_bandinv_prefix",
     "epsilon_spent_for_iid_prefix",
+    "continuous_hybrid_prefix_sensitivity_squared",
+    "continuous_hybrid_sensitivity_squared",
+    "epsilon_spent_for_continuous_hybrid_prefix",
     "certify_participation_schedule",
     "make_fixed_cycle_selection",
     "make_clipped_gradient_query",

@@ -7,6 +7,7 @@ from typing import Sequence
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
 def _validated_scalar(value: float, name: str, *, lower: float, strict_lower: bool = False) -> float:
@@ -108,6 +109,48 @@ def adam_first_moment_workload_matrix(
   return jnp.asarray(learning_rate, dtype=moment.dtype) * (decay @ moment)
 
 
+def frozen_p_time_workload(
+    horizon: int,
+    *,
+    tau: int,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+) -> np.ndarray:
+  """Returns the complete post-switch frozen-p temporal workload.
+
+  ``horizon`` is the number of Phase-II steps.  The Adam first-moment bias
+  correction uses the global count ``tau + step + 1``; no Phase-II restart is
+  represented by this matrix.  The parameter-axis ``p_star`` is applied later
+  by the frozen optimizer and is intentionally separate from this temporal
+  workload.
+  """
+  if not isinstance(horizon, Integral) or horizon < 1:
+    raise ValueError("horizon must be a positive integer")
+  if not isinstance(tau, Integral) or tau < 1:
+    raise ValueError("tau must be a positive integer")
+  beta1 = _validated_scalar(beta1, "beta1", lower=0.0)
+  if beta1 >= 1.0:
+    raise ValueError("beta1 must be finite and in [0, 1)")
+  learning_rate = _validated_scalar(
+      learning_rate, "learning_rate", lower=0.0, strict_lower=True
+  )
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+
+  result = np.zeros((int(horizon), int(horizon)), dtype=np.float64)
+  rho = 1.0 - learning_rate * weight_decay
+  for source in range(int(horizon)):
+    dm = 0.0
+    dtheta = 0.0
+    for step in range(int(horizon)):
+      dm = beta1 * dm + ((1.0 - beta1) if step == source else 0.0)
+      dtheta = rho * dtheta - learning_rate * dm / (
+          1.0 - beta1 ** (int(tau) + step + 1)
+      )
+      result[step, source] = dtheta
+  return result
+
+
 def public_v_adamw_segment_workload_matrix(
     segment_length: int,
     beta1: float,
@@ -194,6 +237,7 @@ def fixed_lr_nesterov_decayed_trajectory_workload_coef(
 __all__ = [
     "adam_first_moment_workload_matrix",
     "decayed_prefix_sum_workload_coef",
+    "frozen_p_time_workload",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "nesterov_kernel_coef",

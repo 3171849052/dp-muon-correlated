@@ -15,6 +15,9 @@ from .nonamplified_dpmuon import NonAmplifiedDPMuonState
 from .nonamplified_dpadamw import NonAmplifiedDPAdamWState
 from .nonamplified_bandinv_dpmuon import NonAmplifiedBandInvDPMuonState
 from .nonamplified_bandinv_dpadamw import NonAmplifiedBandInvDPAdamWState
+from .nonamplified_frozen_p_bandinv_dpadamw import (
+    NonAmplifiedFrozenPBandInvDPAdamWState,
+)
 from .nonamplified_public_v_bandinv import PublicVBandInvAdamWState
 from .nonamplified_linear import NonAmplifiedBandInvState
 from .file_locking import atomic_replace, atomic_temporary_path, file_lock
@@ -31,7 +34,7 @@ def _validate_steps(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
-            PublicVBandInvAdamWState), current_step: int
+            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState), current_step: int
 ) -> None:
   if not isinstance(current_step, (int, np.integer)) or current_step < 0:
     raise ValueError("current_step must be a non-negative integer")
@@ -50,6 +53,16 @@ def _validate_steps(
     noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
     if int(current_step) != optimizer_step or int(current_step) != noise_step:
       raise ValueError("current_step must equal state.step and noise_state.step")
+  elif isinstance(state, NonAmplifiedFrozenPBandInvDPAdamWState):
+    optimizer_step = _concrete_step(state.step, "step")
+    noise_step = _concrete_step(state.noise_state.step, "noise_state.step")
+    if int(current_step) != optimizer_step:
+      raise ValueError("current_step must equal state.step")
+    expected_noise_step = max(0, int(current_step) - state.switch_step)
+    if noise_step != expected_noise_step:
+      raise ValueError(
+          "noise_state.step must equal the post-switch Phase-II step"
+      )
   elif isinstance(state, NonAmplifiedDPSGDState):
     momentum_step = _concrete_step(state.momentum_state.step, "momentum_state.step")
     if int(current_step) != momentum_step:
@@ -88,7 +101,7 @@ def save_checkpoint(
     state: (NonAmplifiedBandInvState | NonAmplifiedBandInvDPMuonState |
             NonAmplifiedBandInvDPAdamWState | NonAmplifiedDPSGDState |
             NonAmplifiedDPMuonState | NonAmplifiedDPAdamWState |
-            PublicVBandInvAdamWState),
+            PublicVBandInvAdamWState | NonAmplifiedFrozenPBandInvDPAdamWState),
     current_step: int,
     experiment_config: dict[str, Any],
     artifact_identifiers: dict[str, str],
