@@ -31,6 +31,7 @@ from dp_muon.privacy import (
     epsilon_spent_for_iid_prefix,
     continuous_hybrid_sensitivity_squared,
     epsilon_spent_for_continuous_hybrid_prefix,
+    epsilon_spent_for_shadow_jme_prefix,
 )
 
 from .checkpoint import load_checkpoint, save_checkpoint, validate_resume_identity
@@ -77,6 +78,13 @@ from .nonamplified_frozen_p_bandinv_dpadamw import (
     init_nonamplified_frozen_p_bandinv_dpadamw_state,
     make_nonamplified_frozen_p_bandinv_dpadamw_train_step,
 )
+from .nonamplified_shadow_jme_bandinv_dpadamw import (
+    ShadowJMEPlan,
+    begin_shadow_jme_segment,
+    fit_shadow_jme_segment_strategies,
+    init_nonamplified_shadow_jme_bandinv_dpadamw_state,
+    make_nonamplified_shadow_jme_bandinv_dpadamw_train_step,
+)
 from .nonamplified_public_v_bandinv import (
     SegmentedBandInvPrivacyAccountant,
     begin_public_v_segment,
@@ -91,6 +99,7 @@ BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-naive"
 STP_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-stp"
 SEGMENTED_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-segmented"
 FROZEN_P_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-frozen-p"
+SHADOW_JME_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-correlated-shadow-jme"
 PUBLIC_V_BANDINV_DPADAMW_ALGORITHM = "dp-adamw-public-v-bandinv"
 
 
@@ -342,6 +351,46 @@ class Cifar10SegmentedBandInvDPAdamWTrainConfig:
       raise ValueError("microbatch_size must be positive and divide batch_size")
     if self.max_optimizer_steps < 1 or self.eval_every < 1:
       raise ValueError("max_optimizer_steps and eval_every must be positive")
+
+
+@dataclass(frozen=True)
+class Cifar10ShadowJMEBandInvDPAdamWTrainConfig:
+  """CIFAR-10 configuration for correlated warmup plus shadow JME."""
+
+  pretrained: str
+  data_dir: str
+  batch_size: int
+  microbatch_size: int | None
+  clip_norm: float
+  epsilon: float
+  delta: float
+  learning_rate: float
+  beta1: float
+  beta2: float
+  eps: float
+  weight_decay: float
+  warmup_steps: int
+  segment_length: int
+  bandwidth: int
+  reduction: str
+  max_optimizer_steps: int
+  v_floor: float
+  seed: int
+  checkpoint_dir: str
+  eval_every: int
+  adjacency: str = "add_remove"
+
+  def __post_init__(self) -> None:
+    if self.batch_size < 1 or self.warmup_steps < 1 or self.segment_length < 1:
+      raise ValueError("batch_size, warmup_steps, and segment_length must be positive")
+    if self.microbatch_size is not None and (
+        self.microbatch_size < 1 or self.batch_size % self.microbatch_size
+    ):
+      raise ValueError("microbatch_size must be positive and divide batch_size")
+    if self.max_optimizer_steps < 1 or self.eval_every < 1:
+      raise ValueError("max_optimizer_steps and eval_every must be positive")
+    if self.v_floor < 0:
+      raise ValueError("v_floor must be non-negative")
 
 
 @dataclass(frozen=True)
@@ -1281,6 +1330,106 @@ def train_cifar10_segmented_bandinv_dpadamw(
   )
 
 
+def train_cifar10_shadow_jme_bandinv_dpadamw(
+    config: Cifar10ShadowJMEBandInvDPAdamWTrainConfig,
+    plan: ShadowJMEPlan,
+    *,
+    resume_checkpoint: str | Path | None = None,
+    checkpoint_path: str | Path | None = None,
+    metrics_path: str | Path | None = None,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+):
+  """Runs shadow-JME AdamW and refits each segment on the host boundary."""
+  if plan.horizon < 1 or plan.min_sep is None or plan.max_participations is None:
+    raise ValueError("shadow JME plan must contain global participation metadata")
+  if plan.warmup_steps > plan.min_sep or max(plan.segment_lengths) > plan.min_sep:
+    raise ValueError("warmup_steps and segment_length must be <= min_sep")
+  train_images, train_labels = load_cifar10(config.data_dir, train=True)
+  test_images, test_labels = load_cifar10(config.data_dir, train=False)
+  schedule = build_fixed_cycle_logical_schedule(
+      num_examples=len(train_images),
+      batch_size=config.batch_size,
+      horizon=plan.horizon,
+      min_sep=plan.min_sep,
+      max_participations=plan.max_participations,
+      seed=config.seed,
+  )
+  model = ViTTiny()
+  parameter_key, noise_key = jax.random.split(jax.random.key(config.seed))
+  pretrained_snapshot = load_pretrained_snapshot(path=config.pretrained, key=parameter_key)
+  train_step, optimizer = make_nonamplified_shadow_jme_bandinv_dpadamw_train_step(
+      lambda parameters, batch: cross_entropy_loss(parameters, batch, model),
+      plan,
+      learning_rate=config.learning_rate,
+      beta1=config.beta1,
+      beta2=config.beta2,
+      eps=config.eps,
+      weight_decay=config.weight_decay,
+      microbatch_size=config.microbatch_size,
+  )
+  initial_state = None
+  if resume_checkpoint is None:
+    initial_state = init_nonamplified_shadow_jme_bandinv_dpadamw_state(
+        pretrained_snapshot.params, plan, noise_key, optimizer
+    )
+
+  def start_segment(state: Any, logical_step: int):
+    if logical_step < plan.warmup_steps:
+      return state
+    post_step = logical_step - plan.warmup_steps
+    if post_step < 0:
+      return state
+    starts = []
+    total = plan.warmup_steps
+    for length in plan.segment_lengths:
+      starts.append(total)
+      total += length
+    if logical_step not in starts:
+      return state
+    segment_index = starts.index(logical_step)
+    first, second = fit_shadow_jme_segment_strategies(
+        state, plan, segment_index=segment_index, fit_strategy=fit_strategy
+    )
+    return begin_shadow_jme_segment(
+        state,
+        plan,
+        segment_index=segment_index,
+        first_strategy=first,
+        second_strategy=second,
+    )
+
+  actual_checkpoint_path = checkpoint_path or Path(config.checkpoint_dir) / "latest.pkl"
+  return run_training(
+      initial_state=initial_state,
+      train_step=train_step,
+      logical_batches=iter_logical_batches(train_images, train_labels, schedule),
+      horizon=plan.horizon,
+      experiment_config=asdict(config),
+      artifact_identifiers={
+          "algorithm": SHADOW_JME_BANDINV_DPADAMW_ALGORITHM,
+          "pretrained_path": str(pretrained_snapshot.path),
+          "pretrained_sha256": pretrained_snapshot.sha256,
+          "plan_condition": plan.condition,
+      },
+      checkpoint_path=actual_checkpoint_path,
+      resume_checkpoint=resume_checkpoint,
+      eval_every=config.eval_every,
+      evaluate=lambda state: evaluate_classifier_metrics(
+          state.params, model, test_images, test_labels, batch_size=config.batch_size
+      ),
+      num_train_examples=len(train_images),
+      logical_batch_size=config.batch_size,
+      metrics_writer=MetricsCSVWriter(metrics_path) if metrics_path is not None else None,
+      privacy_accountant=lambda step: epsilon_spent_for_shadow_jme_prefix(
+          prefix_steps=step,
+          warmup_steps=plan.warmup_steps,
+          segment_lengths=plan.segment_lengths,
+          calibration=plan.calibration,
+      ),
+      before_step=start_segment,
+  )
+
+
 def train_cifar10_frozen_p_bandinv_dpadamw(
     config: Cifar10FrozenPBandInvDPAdamWTrainConfig,
     *,
@@ -1590,6 +1739,7 @@ __all__ = [
     "STP_BANDINV_DPADAMW_ALGORITHM",
     "SEGMENTED_BANDINV_DPADAMW_ALGORITHM",
     "FROZEN_P_BANDINV_DPADAMW_ALGORITHM",
+    "SHADOW_JME_BANDINV_DPADAMW_ALGORITHM",
     "PUBLIC_V_BANDINV_DPADAMW_ALGORITHM",
     "Cifar10TrainConfig",
     "Cifar10DPSGDMomentumTrainConfig",
@@ -1600,6 +1750,7 @@ __all__ = [
     "Cifar10BandInvSTPDPAdamWTrainConfig",
     "Cifar10SegmentedBandInvDPAdamWTrainConfig",
     "Cifar10FrozenPBandInvDPAdamWTrainConfig",
+    "Cifar10ShadowJMEBandInvDPAdamWTrainConfig",
     "Cifar10PublicVBandInvDPAdamWTrainConfig",
     "build_fixed_cycle_logical_schedule",
     "build_logical_schedule",
@@ -1617,5 +1768,6 @@ __all__ = [
     "train_cifar10_bandinv_stp_dpadamw",
     "train_cifar10_segmented_bandinv_dpadamw",
     "train_cifar10_frozen_p_bandinv_dpadamw",
+    "train_cifar10_shadow_jme_bandinv_dpadamw",
     "train_dp_public_v_bandinv",
 ]

@@ -302,10 +302,14 @@ def make_nonamplified_frozen_p_bandinv_dpadamw_train_step(
     # Sampling happens before the optimizer branch, so the private-gradient
     # transcript is one continuous BandInvMF mechanism across the switch.
     noising_coef = jnp.asarray(strategy.noising_coef)
+    runtime_noising_coef = noising_coef + (
+        jnp.asarray(state.step, dtype=noising_coef.dtype)
+        * jnp.zeros_like(noising_coef)
+    )
     correlated_noise, new_noise_state, new_key = sample_bandinv_noise(
         state.rng_key,
         state.noise_state,
-        noising_coef,
+        runtime_noising_coef,
         jnp.asarray(calibration.iid_noise_std),
     )
     private_grad = jax.tree_util.tree_map(

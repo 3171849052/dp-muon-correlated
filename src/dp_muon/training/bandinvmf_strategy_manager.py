@@ -18,8 +18,10 @@ from dp_muon.bandinvmf import (
 from dp_muon.optim import (
     adam_first_moment_workload_matrix,
     decayed_prefix_sum_workload_coef,
+    frozen_p_adamw_segment_workload_matrix,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     frozen_p_time_workload,
+    shadow_jme_second_moment_endpoint_workload_coef,
 )
 
 from .file_locking import (
@@ -103,6 +105,36 @@ class GlobalCorrelatedBandInvMFFitRequest:
   max_optimizer_steps: int
   strategy_dir: str | Path
   force_refit: bool
+
+
+@dataclass(frozen=True)
+class ShadowJMEFirstBandInvMFFitRequest:
+  """Public inputs for one fixed-``P`` JME first-channel fit."""
+
+  segment_length: int
+  segment_start_step: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  beta1: float
+  learning_rate: float
+  weight_decay: float
+  frozen_preconditioner: float
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
+
+
+@dataclass(frozen=True)
+class ShadowJMESecondBandInvMFFitRequest:
+  """Public inputs for one endpoint-only JME second-channel fit."""
+
+  segment_length: int
+  min_sep: int
+  max_participations: int
+  bandwidth: int
+  beta2: float
+  reduction: Literal["mean", "max", "last"]
+  max_optimizer_steps: int
 
 
 @dataclass(frozen=True)
@@ -208,6 +240,102 @@ def global_correlated_strategy_artifact_path(
       f"_b{min_sep}_k{max_participations}_b1{beta1}_lr{learning_rate}"
       f"_wd{weight_decay}_r{reduction}_opt{max_optimizer_steps}.npz"
   )
+
+
+def shadow_jme_strategy_artifact_path(
+    strategy_dir: str | Path,
+    *,
+    channel: Literal["first", "second"],
+    segment_length: int,
+    segment_start_step: int = 0,
+    min_sep: int,
+    max_participations: int,
+    bandwidth: int,
+    beta: float,
+    learning_rate: float | None = None,
+    weight_decay: float | None = None,
+    frozen_preconditioner: float | None = None,
+    reduction: str,
+    max_optimizer_steps: int,
+) -> Path:
+  """Returns a collision-free path for a JME channel artifact.
+
+  The first-channel path includes the boundary and frozen-preconditioner
+  scalar because its workload includes the actual fixed ``P``.  The second
+  channel path is endpoint-only and depends only on ``beta2`` and length.
+  """
+  if channel not in {"first", "second"}:
+    raise ValueError("channel must be 'first' or 'second'")
+  directory = Path(strategy_dir)
+  if not directory.is_absolute():
+    directory = REPOSITORY_ROOT / directory
+  if channel == "first":
+    return directory / (
+        f"shadow-jme-first_n{segment_length}_s{segment_start_step}"
+        f"_p{bandwidth}_b{min_sep}_k{max_participations}_b1{beta}"
+        f"_lr{learning_rate}_wd{weight_decay}_P{frozen_preconditioner}"
+        f"_r{reduction}_opt{max_optimizer_steps}.npz"
+    )
+  return directory / (
+      f"shadow-jme-second-endpoint_n{segment_length}_p{bandwidth}"
+      f"_b{min_sep}_k{max_participations}_b2{beta}"
+      f"_r{reduction}_opt{max_optimizer_steps}.npz"
+  )
+
+
+def fit_shadow_jme_first_strategy(
+    request: ShadowJMEFirstBandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> BandInvMFStrategy:
+  """Fits ``C_m`` from the real fixed-``P`` AdamW trajectory workload."""
+  if not isinstance(request, ShadowJMEFirstBandInvMFFitRequest):
+    raise TypeError("request must be a ShadowJMEFirstBandInvMFFitRequest")
+  workload = frozen_p_adamw_segment_workload_matrix(
+      request.segment_length,
+      beta1=request.beta1,
+      learning_rate=request.learning_rate,
+      weight_decay=request.weight_decay,
+      frozen_preconditioner=request.frozen_preconditioner,
+      first_moment_start_step=request.segment_start_step,
+  )
+  strategy = fit_strategy(
+      request.segment_length,
+      min(request.bandwidth, request.segment_length),
+      min(request.min_sep, request.segment_length),
+      max_participations=request.max_participations,
+      workload_matrix=np.abs(workload),
+      max_optimizer_steps=request.max_optimizer_steps,
+      reduction=request.reduction,
+  )
+  if not isinstance(strategy, BandInvMFStrategy):
+    raise TypeError("fit_strategy must return a BandInvMFStrategy")
+  return strategy
+
+
+def fit_shadow_jme_second_strategy(
+    request: ShadowJMESecondBandInvMFFitRequest,
+    *,
+    fit_strategy: Callable[..., BandInvMFStrategy] = fit_bandinv_strategy,
+) -> BandInvMFStrategy:
+  """Fits ``C_v`` against only the segment-end beta2 EMA workload."""
+  if not isinstance(request, ShadowJMESecondBandInvMFFitRequest):
+    raise TypeError("request must be a ShadowJMESecondBandInvMFFitRequest")
+  workload = shadow_jme_second_moment_endpoint_workload_coef(
+      request.segment_length, request.beta2
+  )
+  strategy = fit_strategy(
+      request.segment_length,
+      min(request.bandwidth, request.segment_length),
+      min(request.min_sep, request.segment_length),
+      max_participations=request.max_participations,
+      workload_coef=workload,
+      max_optimizer_steps=request.max_optimizer_steps,
+      reduction=request.reduction,
+  )
+  if not isinstance(strategy, BandInvMFStrategy):
+    raise TypeError("fit_strategy must return a BandInvMFStrategy")
+  return strategy
 
 
 def _strategy_is_compatible(
@@ -790,6 +918,8 @@ __all__ = [
     "PrefixSumBandInvMFFitRequest",
     "FrozenPBandInvMFFitRequest",
     "GlobalCorrelatedBandInvMFFitRequest",
+    "ShadowJMEFirstBandInvMFFitRequest",
+    "ShadowJMESecondBandInvMFFitRequest",
     "LoadedStrategySnapshot",
     "REPOSITORY_ROOT",
     "get_or_fit_strategy",
@@ -803,6 +933,9 @@ __all__ = [
     "prefix_sum_strategy_artifact_path",
     "frozen_p_strategy_artifact_path",
     "global_correlated_strategy_artifact_path",
+    "shadow_jme_strategy_artifact_path",
+    "fit_shadow_jme_first_strategy",
+    "fit_shadow_jme_second_strategy",
     "get_or_fit_frozen_p_strategy_snapshot",
     "require_compatible_frozen_p_strategy_snapshot",
     "get_or_fit_global_correlated_strategy_snapshot",

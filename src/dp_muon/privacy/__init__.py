@@ -26,6 +26,13 @@ from .hybrid import (
     continuous_hybrid_sensitivity_squared,
     epsilon_spent_for_continuous_hybrid_prefix,
 )
+from .jme import (
+    ShadowJMEPrivacyCalibration,
+    bandinv_operator_norm_1_to_2_squared,
+    calibrate_shadow_jme,
+    epsilon_spent_for_shadow_jme_prefix,
+    jme_gamma_and_joint_sensitivity,
+)
 
 __all__ = [
     "PrivacyCalibration",
@@ -40,6 +47,11 @@ __all__ = [
     "continuous_hybrid_prefix_sensitivity_squared",
     "continuous_hybrid_sensitivity_squared",
     "epsilon_spent_for_continuous_hybrid_prefix",
+    "ShadowJMEPrivacyCalibration",
+    "bandinv_operator_norm_1_to_2_squared",
+    "calibrate_shadow_jme",
+    "epsilon_spent_for_shadow_jme_prefix",
+    "jme_gamma_and_joint_sensitivity",
     "certify_participation_schedule",
     "make_fixed_cycle_selection",
     "make_clipped_gradient_query",

@@ -155,6 +155,76 @@ def frozen_p_time_workload(
   return result
 
 
+def frozen_p_adamw_segment_workload_matrix(
+    segment_length: int,
+    *,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+    frozen_preconditioner: float = 1.0,
+    first_moment_start_step: int = 0,
+) -> np.ndarray:
+  """Returns a fixed-``P`` AdamW trajectory workload for one segment.
+
+  The scalar ``frozen_preconditioner`` is the parameter-axis coordinate used
+  for fitting a shared temporal BandInvMF factor.  The trainer applies the
+  actual PyTree-valued ``P`` after the factor has been sampled.  Keeping this
+  scalar explicit is important: it makes the workload contract include the
+  frozen preconditioner instead of silently reverting to the prefix-sum
+  workload used by the older segmented baseline.
+
+  ``first_moment_start_step`` is the global number of Adam first-moment
+  updates before this segment.  Consequently the bias correction does not
+  restart at a segment boundary.
+  """
+  if not isinstance(segment_length, Integral) or isinstance(segment_length, bool) or segment_length < 1:
+    raise ValueError("segment_length must be a positive integer")
+  if not isinstance(first_moment_start_step, Integral) or isinstance(first_moment_start_step, bool) or first_moment_start_step < 0:
+    raise ValueError("first_moment_start_step must be a non-negative integer")
+  beta1 = _validated_scalar(beta1, "beta1", lower=0.0)
+  if beta1 >= 1.0:
+    raise ValueError("beta1 must be finite and in [0, 1)")
+  learning_rate = _validated_scalar(learning_rate, "learning_rate", lower=0.0, strict_lower=True)
+  weight_decay = _validated_scalar(weight_decay, "weight_decay", lower=0.0)
+  frozen_preconditioner = _validated_scalar(
+      frozen_preconditioner, "frozen_preconditioner", lower=0.0, strict_lower=True
+  )
+
+  length = int(segment_length)
+  rho = 1.0 - learning_rate * weight_decay
+  result = np.zeros((length, length), dtype=np.float64)
+  for source in range(length):
+    moment = 0.0
+    trajectory = 0.0
+    for step in range(length):
+      moment = beta1 * moment + ((1.0 - beta1) if step == source else 0.0)
+      trajectory = rho * trajectory - learning_rate * frozen_preconditioner * moment / (
+          1.0 - beta1 ** (int(first_moment_start_step) + step + 1)
+      )
+      result[step, source] = trajectory
+  return result
+
+
+def shadow_jme_second_moment_endpoint_workload_coef(
+    segment_length: int, beta2: float
+) -> jax.Array:
+  """Returns the endpoint-only beta2 EMA workload ``B_k``.
+
+  Entry ``r`` is exactly ``(1-beta2) * beta2**(L-1-r)``.  This deliberately
+  models only the segment-end shadow value, rather than the full second
+  moment trajectory.
+  """
+  if not isinstance(segment_length, Integral) or isinstance(segment_length, bool) or segment_length < 1:
+    raise ValueError("segment_length must be a positive integer")
+  beta2 = _validated_scalar(beta2, "beta2", lower=0.0)
+  if beta2 >= 1.0:
+    raise ValueError("beta2 must be finite and in [0, 1)")
+  length = int(segment_length)
+  return (1.0 - jnp.asarray(beta2)) * jnp.asarray(beta2) ** jnp.arange(
+      length - 1, -1, -1
+  )
+
+
 def public_v_adamw_segment_workload_matrix(
     segment_length: int,
     beta1: float,
@@ -242,6 +312,8 @@ __all__ = [
     "adam_first_moment_workload_matrix",
     "decayed_prefix_sum_workload_coef",
     "frozen_p_time_workload",
+    "frozen_p_adamw_segment_workload_matrix",
+    "shadow_jme_second_moment_endpoint_workload_coef",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "nesterov_kernel_coef",

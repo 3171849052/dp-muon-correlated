@@ -3,11 +3,13 @@
 from .linear_workload import (
     adam_first_moment_workload_matrix,
     decayed_prefix_sum_workload_coef,
+    frozen_p_adamw_segment_workload_matrix,
     frozen_p_time_workload,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     fixed_lr_nesterov_trajectory_workload_coef,
     nesterov_kernel_coef,
     public_v_adamw_segment_workload_matrix,
+    shadow_jme_second_moment_endpoint_workload_coef,
 )
 from .frozen_p_adamw import (
     FrozenPAdamW,
@@ -43,6 +45,8 @@ __all__ = [
     "SGDMomentumState",
     "decayed_prefix_sum_workload_coef",
     "frozen_p_time_workload",
+    "frozen_p_adamw_segment_workload_matrix",
+    "shadow_jme_second_moment_endpoint_workload_coef",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "init_muon_nesterov_state",

@@ -38,6 +38,18 @@ from .nonamplified_frozen_p_bandinv_dpadamw import (
     init_nonamplified_frozen_p_bandinv_dpadamw_state,
     make_nonamplified_frozen_p_bandinv_dpadamw_train_step,
 )
+from .nonamplified_shadow_jme_bandinv_dpadamw import (
+    ShadowJMEPlan,
+    ShadowJMEBandInvDPAdamWState,
+    NonAmplifiedShadowJMEBandInvDPAdamWState,
+    begin_shadow_jme_segment,
+    fit_shadow_jme_plan,
+    fit_shadow_jme_segment_strategies,
+    init_nonamplified_shadow_jme_bandinv_dpadamw_state,
+    make_nonamplified_shadow_jme_bandinv_dpadamw_train_step,
+    init_shadow_jme_bandinv_dpadamw_state,
+    make_shadow_jme_bandinv_dpadamw_train_step,
+)
 from .checkpoint import load_checkpoint, save_checkpoint
 from .nonamplified_dpadamw import (
     NonAmplifiedDPAdamWState,
@@ -75,6 +87,9 @@ __all__ = [
     "NonAmplifiedSegmentedBandInvDPAdamWState",
     "SegmentedPlan",
     "NonAmplifiedFrozenPBandInvDPAdamWState",
+    "ShadowJMEPlan",
+    "ShadowJMEBandInvDPAdamWState",
+    "NonAmplifiedShadowJMEBandInvDPAdamWState",
     "NonAmplifiedDPAdamWState",
     "NonAmplifiedDPSGDState",
     "NonAmplifiedDPMuonState",
@@ -99,6 +114,13 @@ __all__ = [
     "make_segmented_bandinv_dpadamw_train_step",
     "init_nonamplified_frozen_p_bandinv_dpadamw_state",
     "make_nonamplified_frozen_p_bandinv_dpadamw_train_step",
+    "begin_shadow_jme_segment",
+    "fit_shadow_jme_plan",
+    "fit_shadow_jme_segment_strategies",
+    "init_nonamplified_shadow_jme_bandinv_dpadamw_state",
+    "make_nonamplified_shadow_jme_bandinv_dpadamw_train_step",
+    "init_shadow_jme_bandinv_dpadamw_state",
+    "make_shadow_jme_bandinv_dpadamw_train_step",
     "init_nonamplified_dpadamw_state",
     "make_nonamplified_dpadamw_optimizer",
     "make_nonamplified_dpadamw_train_step",
