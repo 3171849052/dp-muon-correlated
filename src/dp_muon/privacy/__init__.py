@@ -28,6 +28,7 @@ from .hybrid import (
 )
 from .jme import (
     ShadowJMEPrivacyCalibration,
+    aggregate_square_sensitivities,
     bandinv_operator_norm_1_to_2_squared,
     calibrate_shadow_jme,
     epsilon_spent_for_shadow_jme_prefix,
@@ -48,6 +49,7 @@ __all__ = [
     "continuous_hybrid_sensitivity_squared",
     "epsilon_spent_for_continuous_hybrid_prefix",
     "ShadowJMEPrivacyCalibration",
+    "aggregate_square_sensitivities",
     "bandinv_operator_norm_1_to_2_squared",
     "calibrate_shadow_jme",
     "epsilon_spent_for_shadow_jme_prefix",

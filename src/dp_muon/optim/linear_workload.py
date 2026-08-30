@@ -225,6 +225,23 @@ def shadow_jme_second_moment_endpoint_workload_coef(
   )
 
 
+def shadow_jme_second_moment_endpoint_workload_matrix(
+    segment_length: int, beta2: float
+) -> jax.Array:
+  """Returns the endpoint-only beta2 EMA workload as an ``L x L`` matrix.
+
+  The endpoint query is the final row of the segment's causal workload.  All
+  earlier output rows are zero, so the matrix contract passed to the general
+  BandInvMF fitter is explicit and cannot be confused with a Toeplitz
+  ``workload_coef``.
+  """
+  coefficients = shadow_jme_second_moment_endpoint_workload_coef(
+      segment_length, beta2
+  )
+  matrix = jnp.zeros((int(segment_length), int(segment_length)), dtype=coefficients.dtype)
+  return matrix.at[-1].set(coefficients)
+
+
 def public_v_adamw_segment_workload_matrix(
     segment_length: int,
     beta1: float,
@@ -314,6 +331,7 @@ __all__ = [
     "frozen_p_time_workload",
     "frozen_p_adamw_segment_workload_matrix",
     "shadow_jme_second_moment_endpoint_workload_coef",
+    "shadow_jme_second_moment_endpoint_workload_matrix",
     "fixed_lr_nesterov_decayed_trajectory_workload_coef",
     "fixed_lr_nesterov_trajectory_workload_coef",
     "nesterov_kernel_coef",

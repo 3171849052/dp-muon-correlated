@@ -27,7 +27,15 @@ Adjacency = Literal["add_remove", "replace_one"]
 
 @dataclass(frozen=True)
 class ShadowJMEPrivacyCalibration:
-  """One global GDP calibration for warmup plus all JME segments."""
+  """One conservative aggregate-square GDP calibration.
+
+  ``query_sensitivity`` is the record-level sensitivity ``Delta_1`` of the
+  clean aggregate ``x``.  The second channel uses the conservative
+  ``Delta_2`` bound for ``x * x``; ``segment_sensitivity_squared`` stores the
+  resulting joint bounds after the two BandInvMF operators.  These fields are
+  deliberately named as bounds rather than exact sensitivities of an
+  unbounded optimizer trajectory.
+  """
 
   epsilon: float
   delta: float
@@ -41,12 +49,19 @@ class ShadowJMEPrivacyCalibration:
   mu: float
   noise_multiplier: float
   iid_noise_std: float
-  accounting: str = "gdp-composition"
+  accounting: str = "conservative-aggregate-square-gdp-composition"
+  aggregate_delta1: float = 0.0
+  aggregate_delta2: float = 0.0
 
   @property
   def noise_std(self) -> float:
     """Alias used by the mechanism equations."""
     return self.iid_noise_std
+
+  @property
+  def calibrated_segment_sensitivity_squared(self) -> tuple[float, ...]:
+    """Explicit alias for the per-segment conservative calibration bounds."""
+    return self.segment_sensitivity_squared
 
 
 def _positive(name: str, value: float) -> float:
@@ -75,30 +90,57 @@ def bandinv_operator_norm_1_to_2_squared(strategy: BandInvMFStrategy) -> float:
   return result
 
 
+def aggregate_square_sensitivities(
+    *, clip_norm: float, normalize_by: float, adjacency: Adjacency
+) -> tuple[float, float]:
+  """Returns conservative record-level bounds for ``x`` and ``x*x``.
+
+  For ``x = sum_i clip(g_i, C) / B``, every released aggregate is in the
+  radius-``C`` ball and an add/remove neighboring pair differs by at most
+  ``C/B``.  The squared aggregate therefore has the conservative bound
+  ``2*C*C/B`` from ``||x*x - x'*x'||_2 <= (||x||_2+||x'||_2)||x-x'||_2``.
+  ``replace_one`` follows the repository's existing factor-two adjacency
+  convention for both bounds.
+  """
+  clip_norm = _positive("clip_norm", clip_norm)
+  normalize_by = _positive("normalize_by", normalize_by)
+  if adjacency not in {"add_remove", "replace_one"}:
+    raise ValueError("adjacency must be 'add_remove' or 'replace_one'")
+  adjacency_factor = 1.0 if adjacency == "add_remove" else 2.0
+  delta1 = adjacency_factor * clip_norm / normalize_by
+  delta2 = adjacency_factor * 2.0 * clip_norm * clip_norm / normalize_by
+  return float(delta1), float(delta2)
+
+
 def jme_gamma_and_joint_sensitivity(
     first_strategy: BandInvMFStrategy,
     second_strategy: BandInvMFStrategy,
     *,
-    zeta: float,
+    clip_norm: float,
+    normalize_by: float,
     adjacency: Adjacency = "add_remove",
 ) -> tuple[float, float]:
-  """Returns the prescribed JME ``gamma`` and joint sensitivity ``s``.
+  """Returns ``gamma`` and the conservative joint sensitivity bound.
 
-  ``zeta`` is the already-normalized query radius, namely
-  ``clip_norm / normalize_by``.  No additional clip or batch-size factor is
-  applied here.  The supplied JME construction uses
+  The first query is ``x`` and the second is ``x*x``.  With
+  ``Delta_1 = C/B`` and ``Delta_2 = 2*C*C/B`` (up to the adjacency factor),
+  the two independent channels are balanced by
 
-  ``gamma = ||C_m||^2 / (2 zeta^2 ||C_v||^2)`` and
-  ``s = 2 zeta ||C_m||``.
+  ``gamma = Delta_1**2 * ||C_m||_{1->2}**2 /
+            (Delta_2**2 * ||C_v||_{1->2}**2)``.
+
+  Hence the joint conservative bound is
+  ``s_joint**2 = 2 * Delta_1**2 * ||C_m||_{1->2}**2``.  This is an
+  aggregate-square bound; it is not the exact sensitivity of a private-first
+  square or a claim that the nonlinear optimizer trajectory is free.
   """
-  zeta = _positive("zeta", zeta)
-  if adjacency not in {"add_remove", "replace_one"}:
-    raise ValueError("adjacency must be 'add_remove' or 'replace_one'")
+  delta1, delta2 = aggregate_square_sensitivities(
+      clip_norm=clip_norm, normalize_by=normalize_by, adjacency=adjacency
+  )
   first_norm = bandinv_operator_norm_1_to_2_squared(first_strategy)
   second_norm = bandinv_operator_norm_1_to_2_squared(second_strategy)
-  gamma = first_norm / (2.0 * zeta * zeta * second_norm)
-  adjacency_factor = 1.0 if adjacency == "add_remove" else 2.0
-  sensitivity = 2.0 * adjacency_factor * zeta * math.sqrt(first_norm)
+  gamma = (delta1 * delta1 * first_norm) / (delta2 * delta2 * second_norm)
+  sensitivity = math.sqrt(2.0 * delta1 * delta1 * first_norm)
   return float(gamma), float(sensitivity)
 
 
@@ -112,8 +154,15 @@ def calibrate_shadow_jme(
     warmup_strategy: BandInvMFStrategy,
     first_strategies: Sequence[BandInvMFStrategy],
     second_strategies: Sequence[BandInvMFStrategy],
+    segment_sensitivity_upper_bounds: Sequence[float] | None = None,
 ) -> ShadowJMEPrivacyCalibration:
-  """Calibrates one latent Gaussian scale for the whole hybrid transcript."""
+  """Calibrates one latent Gaussian scale for the whole hybrid transcript.
+
+  ``segment_sensitivity_upper_bounds`` can reserve an explicit operational
+  envelope above the initial surrogate fits.  Every bound is checked against
+  the exact conservative aggregate-square formula for that fitted pair, and
+  host-side refits must pass the same bound before being installed.
+  """
   epsilon = _positive("epsilon", epsilon)
   delta = float(delta)
   if not math.isfinite(delta) or not 0.0 < delta < 1.0:
@@ -127,16 +176,36 @@ def calibrate_shadow_jme(
   if not first_strategies:
     raise ValueError("at least one post-warmup segment is required")
 
-  zeta = clip_norm / normalize_by
-  adjacency_factor = 1.0 if adjacency == "add_remove" else 2.0
+  delta1, delta2 = aggregate_square_sensitivities(
+      clip_norm=clip_norm, normalize_by=normalize_by, adjacency=adjacency
+  )
   warmup_norm = bandinv_operator_norm_1_to_2_squared(warmup_strategy)
-  warmup_sensitivity_squared = (adjacency_factor * zeta) ** 2 * warmup_norm
+  warmup_sensitivity_squared = delta1**2 * warmup_norm
   segment_sensitivities = tuple(
       jme_gamma_and_joint_sensitivity(
-          first, second, zeta=zeta, adjacency=adjacency
+          first,
+          second,
+          clip_norm=clip_norm,
+          normalize_by=normalize_by,
+          adjacency=adjacency,
       )[1] ** 2
       for first, second in zip(first_strategies, second_strategies, strict=True)
   )
+  if segment_sensitivity_upper_bounds is not None:
+    supplied_bounds = tuple(float(value) for value in segment_sensitivity_upper_bounds)
+    if len(supplied_bounds) != len(segment_sensitivities):
+      raise ValueError(
+          "segment_sensitivity_upper_bounds must match the number of segments"
+      )
+    for index, (bound, fitted) in enumerate(
+        zip(supplied_bounds, segment_sensitivities, strict=True)
+    ):
+      if not math.isfinite(bound) or bound <= 0 or bound < fitted:
+        raise ValueError(
+            "segment_sensitivity_upper_bounds must be finite, positive, "
+            f"and no smaller than fitted bound at segment {index}"
+        )
+    segment_sensitivities = supplied_bounds
   total = warmup_sensitivity_squared + sum(segment_sensitivities)
   if not math.isfinite(total) or total <= 0:
     raise ValueError("global JME sensitivity must be finite and positive")
@@ -153,13 +222,16 @@ def calibrate_shadow_jme(
       adjacency=adjacency,
       clip_norm=clip_norm,
       normalize_by=normalize_by,
-      query_sensitivity=adjacency_factor * zeta,
+      query_sensitivity=delta1,
       warmup_sensitivity_squared=float(warmup_sensitivity_squared),
       segment_sensitivity_squared=tuple(float(value) for value in segment_sensitivities),
       total_sensitivity_squared=float(total),
       mu=mu,
       noise_multiplier=noise_multiplier,
       iid_noise_std=noise_multiplier * math.sqrt(total),
+      accounting="conservative-aggregate-square-gdp-composition",
+      aggregate_delta1=delta1,
+      aggregate_delta2=delta2,
   )
 
 
@@ -219,9 +291,10 @@ def epsilon_spent_for_shadow_jme_prefix(
 
 
 __all__ = [
-    "ShadowJMEPrivacyCalibration",
-    "bandinv_operator_norm_1_to_2_squared",
-    "calibrate_shadow_jme",
-    "epsilon_spent_for_shadow_jme_prefix",
-    "jme_gamma_and_joint_sensitivity",
+  "ShadowJMEPrivacyCalibration",
+  "aggregate_square_sensitivities",
+  "bandinv_operator_norm_1_to_2_squared",
+  "calibrate_shadow_jme",
+  "epsilon_spent_for_shadow_jme_prefix",
+  "jme_gamma_and_joint_sensitivity",
 ]

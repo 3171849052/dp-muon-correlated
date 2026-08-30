@@ -50,6 +50,8 @@ from .nonamplified_dpadamw import make_nonamplified_dpadamw_optimizer
 
 PyTree = Any
 _JME_STREAM_TAG = 0x534A4D45
+_JME_SENSITIVITY_REL_TOL = 1e-6
+_JME_SURROGATE_SENSITIVITY_BOUND_FACTOR = 1.25
 
 
 def _block_lengths(post_horizon: int, segment_length: int) -> tuple[int, ...]:
@@ -170,7 +172,8 @@ def _strategy_schedule(
   gammas = jnp.asarray([
       jme_gamma_and_joint_sensitivity(
           first_strategy, second_strategy,
-          zeta=plan.calibration.clip_norm / plan.calibration.normalize_by,
+          clip_norm=plan.calibration.clip_norm,
+          normalize_by=plan.calibration.normalize_by,
           adjacency=plan.calibration.adjacency,
       )[0]
       for first_strategy, second_strategy in zip(
@@ -286,6 +289,48 @@ def _validated_state(state: ShadowJMEBandInvDPAdamWState, plan: ShadowJMEPlan) -
     step = int(state.step)
     if not 0 <= step <= plan.horizon:
       raise ValueError("state.step is outside the JME horizon")
+
+
+def _guard_shadow_jme_segment_sensitivity(
+    plan: ShadowJMEPlan,
+    segment_index: int,
+    first_strategy: BandInvMFStrategy,
+    second_strategy: BandInvMFStrategy,
+) -> float:
+  """Checks a host-fitted pair against its pre-calibrated bound.
+
+  A dynamic refit may change the actual BandInvMF operator norms.  The
+  calibrated Gaussian standard deviation is intentionally never reduced or
+  silently adjusted here: an over-bound pair is rejected before it can be
+  installed in the mechanism.
+  """
+  gamma, sensitivity = jme_gamma_and_joint_sensitivity(
+      first_strategy,
+      second_strategy,
+      clip_norm=plan.calibration.clip_norm,
+      normalize_by=plan.calibration.normalize_by,
+      adjacency=plan.calibration.adjacency,
+  )
+  actual_squared = float(sensitivity * sensitivity)
+  calibrated_squared = float(
+      plan.calibration.calibrated_segment_sensitivity_squared[segment_index]
+  )
+  if not math.isfinite(gamma) or gamma <= 0 or not math.isfinite(actual_squared):
+    raise RuntimeError(
+        f"shadow-JME segment {segment_index} has a non-finite sensitivity or gamma"
+    )
+  if not math.isfinite(calibrated_squared) or calibrated_squared <= 0:
+    raise RuntimeError(
+        f"shadow-JME segment {segment_index} has no finite positive calibrated bound"
+    )
+  if actual_squared > calibrated_squared * (1.0 + _JME_SENSITIVITY_REL_TOL):
+    raise RuntimeError(
+        "shadow-JME refit sensitivity exceeds its calibrated conservative "
+        f"bound at segment {segment_index}: actual_squared={actual_squared:.9g}, "
+        f"calibrated_squared={calibrated_squared:.9g}, "
+        f"relative_tolerance={_JME_SENSITIVITY_REL_TOL:.3g}"
+    )
+  return actual_squared
 
 
 def make_nonamplified_shadow_jme_bandinv_dpadamw_train_step(
@@ -551,6 +596,9 @@ def begin_shadow_jme_segment(
   length = plan.segment_lengths[index]
   if first_strategy.horizon != length or second_strategy.horizon != length:
     raise ValueError("strategy horizons must match the target segment")
+  _guard_shadow_jme_segment_sensitivity(
+      plan, index, first_strategy, second_strategy
+  )
   expected_start = _segment_start(plan, index)
   if not isinstance(state.step, jax.core.Tracer) and int(state.step) != expected_start:
     raise ValueError("segment can only begin at its planned global boundary")
@@ -567,7 +615,8 @@ def begin_shadow_jme_segment(
   gamma, _ = jme_gamma_and_joint_sensitivity(
       first_strategy,
       second_strategy,
-      zeta=plan.calibration.clip_norm / plan.calibration.normalize_by,
+      clip_norm=plan.calibration.clip_norm,
+      normalize_by=plan.calibration.normalize_by,
       adjacency=plan.calibration.adjacency,
   )
   noise_m = init_bandinv_noise_state(state.params, plan.runtime_bandwidth)
@@ -648,6 +697,7 @@ def fit_shadow_jme_segment_strategies(
       ),
       fit_strategy=fit_strategy,
   )
+  _guard_shadow_jme_segment_sensitivity(plan, index, first, second)
   return first, second
 
 
@@ -728,6 +778,24 @@ def fit_shadow_jme_plan(
     second_strategies.append(second)
   from dp_muon.privacy import calibrate_shadow_jme
 
+  # Unit-P fitting is a surrogate for the later DP-P refits.  Reserve an
+  # explicit per-segment sensitivity envelope and still check every accepted
+  # refit against it at the host boundary.  This keeps calibration tied to a
+  # finite upper bound instead of assuming numerical scale invariance alone.
+  surrogate_calibration = calibrate_shadow_jme(
+      epsilon=epsilon,
+      delta=delta,
+      clip_norm=clip_norm,
+      normalize_by=normalize_by,
+      adjacency=adjacency,  # type: ignore[arg-type]
+      warmup_strategy=warmup,
+      first_strategies=first_strategies,
+      second_strategies=second_strategies,
+  )
+  safe_segment_bounds = tuple(
+      _JME_SURROGATE_SENSITIVITY_BOUND_FACTOR * value
+      for value in surrogate_calibration.segment_sensitivity_squared
+  )
   calibration = calibrate_shadow_jme(
       epsilon=epsilon,
       delta=delta,
@@ -737,6 +805,7 @@ def fit_shadow_jme_plan(
       warmup_strategy=warmup,
       first_strategies=first_strategies,
       second_strategies=second_strategies,
+      segment_sensitivity_upper_bounds=safe_segment_bounds,
   )
   runtime_bandwidth = max(
       bandwidth,

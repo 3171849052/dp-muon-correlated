@@ -6,16 +6,20 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+import pytest
 
 from dp_muon.bandinvmf import BandInvMFStrategy
 from dp_muon.optim import (
     frozen_p_adamw_segment_workload_matrix,
     freeze_optax_adamw,
     shadow_jme_second_moment_endpoint_workload_coef,
+    shadow_jme_second_moment_endpoint_workload_matrix,
 )
 from dp_muon.privacy import (
+    aggregate_square_sensitivities,
     calibrate_shadow_jme,
     epsilon_spent_for_shadow_jme_prefix,
+    jme_gamma_and_joint_sensitivity,
 )
 from dp_muon.training import nonamplified_shadow_jme_bandinv_dpadamw as shadow_train
 from dp_muon.training.checkpoint import load_checkpoint, save_checkpoint
@@ -145,6 +149,100 @@ def test_frozen_p_and_shadow_change_independently_inside_a_segment(monkeypatch):
   assert calls
 
 
+def test_aggregate_first_sensitivity_is_clip_over_normalization():
+  delta1, delta2 = aggregate_square_sensitivities(
+      clip_norm=3.0, normalize_by=12.0, adjacency="add_remove"
+  )
+  assert delta1 == pytest.approx(3.0 / 12.0)
+  assert _plan().calibration.query_sensitivity == pytest.approx(1.0)
+
+
+def test_aggregate_square_sensitivity_uses_c_squared_over_b_not_b_squared():
+  delta1, delta2 = aggregate_square_sensitivities(
+      clip_norm=3.0, normalize_by=12.0, adjacency="add_remove"
+  )
+  assert delta2 == pytest.approx(2.0 * 3.0**2 / 12.0)
+  assert delta2 != pytest.approx(2.0 * 3.0**2 / 12.0**2)
+  assert delta2 == pytest.approx(2.0 * 3.0 * delta1)
+
+
+def test_replace_one_scales_both_aggregate_query_bounds_by_existing_factor_two():
+  add_remove = aggregate_square_sensitivities(
+      clip_norm=3.0, normalize_by=12.0, adjacency="add_remove"
+  )
+  replace_one = aggregate_square_sensitivities(
+      clip_norm=3.0, normalize_by=12.0, adjacency="replace_one"
+  )
+  np.testing.assert_allclose(replace_one, 2.0 * np.asarray(add_remove))
+
+
+def test_calibration_can_reserve_an_explicit_segment_sensitivity_envelope():
+  baseline = _plan().calibration
+  reserved = calibrate_shadow_jme(
+      epsilon=baseline.epsilon,
+      delta=baseline.delta,
+      clip_norm=baseline.clip_norm,
+      normalize_by=baseline.normalize_by,
+      adjacency=baseline.adjacency,
+      warmup_strategy=_strategy(2, 3.0),
+      first_strategies=(_strategy(2), _strategy(2)),
+      second_strategies=(_strategy(2, 2.0), _strategy(2, 2.0)),
+      segment_sensitivity_upper_bounds=(5.0, 6.0),
+  )
+  assert reserved.segment_sensitivity_squared == (5.0, 6.0)
+  assert reserved.aggregate_delta1 == pytest.approx(1.0)
+  assert reserved.aggregate_delta2 == pytest.approx(2.0)
+
+
+def test_plan_construction_calibrates_with_explicit_surrogate_envelope():
+  def fake_fit(horizon, bandwidth, min_sep, **kwargs):
+    del bandwidth, min_sep, kwargs
+    return _strategy(horizon)
+
+  plan = shadow_train.fit_shadow_jme_plan(
+      horizon=4,
+      warmup_steps=2,
+      segment_length=2,
+      min_sep=2,
+      max_participations=1,
+      bandwidth=1,
+      reduction="mean",
+      max_optimizer_steps=1,
+      learning_rate=0.01,
+      beta1=0.8,
+      beta2=0.9,
+      eps=1e-6,
+      weight_decay=0.01,
+      epsilon=2.0,
+      delta=1e-5,
+      clip_norm=1.0,
+      normalize_by=1.0,
+      adjacency="add_remove",
+      fit_strategy=fake_fit,
+  )
+  # A unit-coefficient length-2 strategy has ||C||_{1->2}^2 = 2, hence the
+  # raw joint bound is 4 and the plan reserves the 1.25 operational envelope.
+  assert plan.calibration.segment_sensitivity_squared == pytest.approx((5.0,))
+
+
+def test_joint_bound_and_gamma_use_both_record_level_query_sensitivities():
+  first = replace(_strategy(2), strategy_coef=jnp.asarray([2.0, 0.5]))
+  second = replace(_strategy(2), strategy_coef=jnp.asarray([1.0, 0.25]))
+  gamma, sensitivity = jme_gamma_and_joint_sensitivity(
+      first,
+      second,
+      clip_norm=4.0,
+      normalize_by=8.0,
+      adjacency="add_remove",
+  )
+  first_norm = 2.0**2 + 0.5**2
+  second_norm = 1.0**2 + 0.25**2
+  delta1 = 4.0 / 8.0
+  delta2 = 2.0 * 4.0**2 / 8.0
+  assert gamma == pytest.approx(delta1**2 * first_norm / (delta2**2 * second_norm))
+  assert sensitivity**2 == pytest.approx(2.0 * delta1**2 * first_norm)
+
+
 def test_boundary_uses_bias_corrected_shadow_p_and_resets_both_streams(monkeypatch):
   plan, step, state = _make()
   fake_noise, _ = _fake_noise_factory()
@@ -166,6 +264,14 @@ def test_endpoint_workload_is_exact_beta2_weighting():
   actual = shadow_jme_second_moment_endpoint_workload_coef(4, 0.9)
   expected = (1 - 0.9) * 0.9 ** np.arange(3, -1, -1)
   np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-7)
+
+
+def test_endpoint_workload_matrix_has_only_the_final_query_row():
+  actual = np.asarray(shadow_jme_second_moment_endpoint_workload_matrix(4, 0.9))
+  expected = (1 - 0.9) * 0.9 ** np.arange(3, -1, -1)
+  assert actual.shape == (4, 4)
+  np.testing.assert_array_equal(actual[:-1], np.zeros((3, 4)))
+  np.testing.assert_allclose(actual[-1], expected, rtol=1e-6, atol=1e-7)
 
 
 def test_strategy_helpers_use_fixed_p_and_endpoint_workloads():
@@ -211,9 +317,53 @@ def test_strategy_helpers_use_fixed_p_and_endpoint_workloads():
   )
   fit_shadow_jme_second_strategy(second_request, fit_strategy=fake_fit)
   np.testing.assert_allclose(
-      captured[1][3]["workload_coef"],
-      shadow_jme_second_moment_endpoint_workload_coef(3, 0.9),
+      captured[1][3]["workload_matrix"],
+      shadow_jme_second_moment_endpoint_workload_matrix(3, 0.9),
   )
+  assert "workload_coef" not in captured[1][3]
+
+
+def test_runtime_refit_guard_rejects_a_pair_above_calibrated_bound():
+  plan, _, state = _make()
+  step, _ = shadow_train.make_nonamplified_shadow_jme_bandinv_dpadamw_train_step(
+      _loss, plan
+  )
+  for _ in range(plan.warmup_steps):
+    state = step(state, {"x": jnp.array([0.4])})
+  too_sensitive = replace(
+      plan.first_strategies[0],
+      strategy_coef=2.0 * plan.first_strategies[0].strategy_coef,
+  )
+  with pytest.raises(RuntimeError, match="exceeds its calibrated"):
+    shadow_train.begin_shadow_jme_segment(
+        state,
+        plan,
+        segment_index=0,
+        first_strategy=too_sensitive,
+        second_strategy=plan.second_strategies[0],
+    )
+
+
+def test_runtime_refit_guard_accepts_a_pair_at_or_below_calibrated_bound():
+  plan, _, state = _make()
+  step, _ = shadow_train.make_nonamplified_shadow_jme_bandinv_dpadamw_train_step(
+      _loss, plan
+  )
+  for _ in range(plan.warmup_steps):
+    state = step(state, {"x": jnp.array([0.4])})
+  smaller = replace(
+      plan.first_strategies[0],
+      strategy_coef=0.5 * plan.first_strategies[0].strategy_coef,
+  )
+  installed = shadow_train.begin_shadow_jme_segment(
+      state,
+      plan,
+      segment_index=0,
+      first_strategy=smaller,
+      second_strategy=plan.second_strategies[0],
+  )
+  assert int(installed.phase) == 1
+  np.testing.assert_allclose(installed.first_noising_coef[:2], smaller.noising_coef)
 
 
 def test_jme_checkpoint_resume_matches_uninterrupted(tmp_path):

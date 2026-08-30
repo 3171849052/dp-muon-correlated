@@ -21,7 +21,7 @@ from dp_muon.optim import (
     frozen_p_adamw_segment_workload_matrix,
     fixed_lr_nesterov_decayed_trajectory_workload_coef,
     frozen_p_time_workload,
-    shadow_jme_second_moment_endpoint_workload_coef,
+    shadow_jme_second_moment_endpoint_workload_matrix,
 )
 
 from .file_locking import (
@@ -321,7 +321,7 @@ def fit_shadow_jme_second_strategy(
   """Fits ``C_v`` against only the segment-end beta2 EMA workload."""
   if not isinstance(request, ShadowJMESecondBandInvMFFitRequest):
     raise TypeError("request must be a ShadowJMESecondBandInvMFFitRequest")
-  workload = shadow_jme_second_moment_endpoint_workload_coef(
+  workload = shadow_jme_second_moment_endpoint_workload_matrix(
       request.segment_length, request.beta2
   )
   strategy = fit_strategy(
@@ -329,7 +329,7 @@ def fit_shadow_jme_second_strategy(
       min(request.bandwidth, request.segment_length),
       min(request.min_sep, request.segment_length),
       max_participations=request.max_participations,
-      workload_coef=workload,
+      workload_matrix=workload,
       max_optimizer_steps=request.max_optimizer_steps,
       reduction=request.reduction,
   )
