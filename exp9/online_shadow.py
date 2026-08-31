@@ -10,7 +10,7 @@ import numpy as np
 from exp9.core import BRANCHES, PATHS, PRIMARY_STAGES, STAGES, Exp9DiagnosticStep
 from exp9.diagnostics import (
     BIAS_FIELDS, DECOMP_FIELDS, cancellation_metrics_from_jd, make_window_row,
-    paired_gains,
+    paired_gains, safe_ratio,
 )
 
 
@@ -89,6 +89,7 @@ class _Bucket:
   raw_response_sum: dict[str, float]
   probe_disagreement_norm_sum: dict[str, float]
   probe_disagreement_sq_sum: dict[str, float]
+  probe_error_energy: dict[str, float]
   global_ratio_sum: dict[str, float]
   block_ratio_mean_sum: dict[str, float]
   block_ratio_max_sum: dict[str, float]
@@ -115,6 +116,7 @@ def _new_bucket(template: dict[str, np.ndarray]) -> _Bucket:
       raw_response_sum={branch: 0.0 for branch in BRANCHES},
       probe_disagreement_norm_sum={branch: 0.0 for branch in BRANCHES},
       probe_disagreement_sq_sum={branch: 0.0 for branch in BRANCHES},
+      probe_error_energy={branch: 0.0 for branch in BRANCHES},
       global_ratio_sum={branch: 0.0 for branch in BRANCHES},
       block_ratio_mean_sum={branch: 0.0 for branch in BRANCHES},
       block_ratio_max_sum={branch: 0.0 for branch in BRANCHES},
@@ -162,6 +164,11 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
     bucket.raw_response_sum[branch] += float(np.sqrt(_norm_sq(raw)))
     bucket.probe_disagreement_norm_sum[branch] += float(np.sqrt(_norm_sq(probe)))
     bucket.probe_disagreement_sq_sum[branch] += _norm_sq(probe)
+    # The standard error of B_hat=(B_A+B_B)/2 is half the A/B
+    # disagreement.  This is the corresponding optimizer-space energy.
+    bucket.probe_error_energy[branch] += (
+        .25 * float(learning_rate) ** 2 * _norm_sq(probe)
+    )
     for stage in STAGES:
       values = {key: _array(value, f"stage/{branch}/{stage}/{key}")
                 for key, value in step.stage_odd[branch][stage].items()}
@@ -214,6 +221,7 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
       *bucket.bias_sum.values(), *bucket.bias_sq_sum.values(),
       *bucket.raw_response_sum.values(), *bucket.probe_disagreement_norm_sum.values(),
       *bucket.probe_disagreement_sq_sum.values(), *bucket.global_ratio_sum.values(),
+      *bucket.probe_error_energy.values(),
       *bucket.block_ratio_mean_sum.values(), *bucket.block_ratio_max_sum.values(),
   ]
   if not np.all(np.isfinite(np.asarray(scalar_values, dtype=np.float64))):
@@ -227,13 +235,42 @@ def _bucket_bias(bucket: _Bucket) -> dict[str, object]:
         for field in BIAS_FIELDS
     }
   count = bucket.ratio_count
+  p3_metrics = _metrics(bucket)
   relative = {
-      branch: float(np.sqrt(bucket.probe_disagreement_sq_sum[branch]) / (
-          np.sqrt(bucket.bias_sq_sum[branch]) + _EPS
-      )) for branch in BRANCHES
+      # Auxiliary only: preserve the requested +eps convention.  This value
+      # never participates in the P3 reliability decision below.
+      branch: float(
+          np.sqrt(bucket.probe_disagreement_sq_sum[branch])
+          / (np.sqrt(bucket.bias_sq_sum[branch]) + _EPS)
+      ) for branch in BRANCHES
   }
-  reliable = {branch: bucket.ratio_count > 0 and relative[branch] <= .1
-              for branch in BRANCHES}
+  probe_error_to_d = {
+      branch: safe_ratio(
+          bucket.probe_error_energy[branch],
+          float(p3_metrics[branch]["P3"]["D"]), eps=_EPS,
+      ) for branch in BRANCHES
+  }
+  probe_error_endpoint_est = {
+      branch: .5 * float(np.sqrt(_norm_sq(bucket.probe_disagreement_d[branch])))
+      for branch in BRANCHES
+  }
+  p3_endpoint = {
+      branch: float(np.sqrt(p3_metrics[branch]["P3"]["J"]))
+      for branch in BRANCHES
+  }
+  probe_error_to_endpoint = {
+      branch: safe_ratio(
+          probe_error_endpoint_est[branch], p3_endpoint[branch], eps=_EPS
+      ) for branch in BRANCHES
+  }
+  reliable = {
+      branch: (
+          probe_error_to_d[branch] is not None
+          and probe_error_to_endpoint[branch] is not None
+          and probe_error_to_d[branch] <= .1
+          and probe_error_to_endpoint[branch] <= .1
+      ) for branch in BRANCHES
+  }
   clean_min = bucket.clean_norm_min if np.isfinite(bucket.clean_norm_min) else None
   return {
       "output_bias_norm_corr": bucket.bias_sum["corr"],
@@ -246,14 +283,18 @@ def _bucket_bias(bucket: _Bucket) -> dict[str, object]:
       "raw_private_clean_response_norm_iid": bucket.raw_response_sum["iid"],
       "probe_disagreement_norm_corr": bucket.probe_disagreement_norm_sum["corr"] / count,
       "probe_disagreement_norm_iid": bucket.probe_disagreement_norm_sum["iid"] / count,
-      "probe_disagreement_relative_corr": relative["corr"],
-      "probe_disagreement_relative_iid": relative["iid"],
+      "probe_disagreement_relative_to_bias_corr": relative["corr"],
+      "probe_disagreement_relative_to_bias_iid": relative["iid"],
       "probe_disagreement_endpoint_corr": float(
           np.sqrt(_norm_sq(bucket.probe_disagreement_d["corr"]))
       ),
       "probe_disagreement_endpoint_iid": float(
           np.sqrt(_norm_sq(bucket.probe_disagreement_d["iid"]))
       ),
+      "probe_error_to_P3_D_corr": probe_error_to_d["corr"],
+      "probe_error_to_P3_D_iid": probe_error_to_d["iid"],
+      "probe_error_to_P3_endpoint_corr": probe_error_to_endpoint["corr"],
+      "probe_error_to_P3_endpoint_iid": probe_error_to_endpoint["iid"],
       "P3_reliable_corr": reliable["corr"],
       "P3_reliable_iid": reliable["iid"],
       "clean_pre_q_norm_min": clean_min,

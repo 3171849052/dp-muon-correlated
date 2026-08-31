@@ -250,6 +250,15 @@ def _smooth_muon_q(
     ns_steps: int,
     consistent_rms: float,
 ) -> jax.Array:
+  return smooth_muon_q(matrix, ns_steps=ns_steps, consistent_rms=consistent_rms)
+
+
+def smooth_muon_q(
+    matrix: jax.Array,
+    ns_steps: int = 5,
+    consistent_rms: float = 0.2,
+) -> jax.Array:
+  """Primary analysis Muon Q: float32 throughout, with no BF16 NS cast."""
   # Primary diagnostics intentionally never inherit production BF16 casts.
   return muon_q(
       jnp.asarray(matrix, jnp.float32), ns_steps=ns_steps,
@@ -424,7 +433,7 @@ class Exp9DiagnosticStep:
   bias_B: dict[str, dict[str, jax.Array]]
   probe_disagreement: dict[str, dict[str, jax.Array]]
   probe_disagreement_norm: dict[str, jax.Array]
-  probe_disagreement_relative: dict[str, jax.Array]
+  probe_disagreement_relative_to_bias: dict[str, jax.Array]
   even_response: dict[str, dict[str, jax.Array]]
   stage_odd: dict[str, dict[str, dict[str, jax.Array]]]
   secondary_stage_odd: dict[str, dict[str, dict[str, jax.Array]]]
@@ -442,7 +451,7 @@ class Exp9DiagnosticStep:
     return (
         self.x, self.clean_pre_q, self.noise_pre_q, self.raw_response, self.bias,
         self.bias_A, self.bias_B, self.probe_disagreement,
-        self.probe_disagreement_norm, self.probe_disagreement_relative,
+        self.probe_disagreement_norm, self.probe_disagreement_relative_to_bias,
         self.even_response,
         self.stage_odd, self.secondary_stage_odd, self.block_ratio_mean,
         self.block_ratio_max, self.global_noise_signal_ratio,
@@ -507,7 +516,9 @@ def _zero_step(params: PyTree, muon_blocks: Mapping[str, jax.Array]) -> Exp9Diag
       raw_response=zero_branch, bias=zero_branch, bias_A=zero_branch,
       bias_B=zero_branch, probe_disagreement=zero_branch, even_response=zero_branch,
       probe_disagreement_norm={branch: jnp.asarray(0.0) for branch in BRANCHES},
-      probe_disagreement_relative={branch: jnp.asarray(0.0) for branch in BRANCHES},
+      probe_disagreement_relative_to_bias={
+          branch: jnp.asarray(0.0) for branch in BRANCHES
+      },
       stage_odd=zero_stages, secondary_stage_odd=zero_stages,
       block_ratio_mean={branch: jnp.asarray(0.0) for branch in BRANCHES},
       block_ratio_max={branch: jnp.asarray(0.0) for branch in BRANCHES},
@@ -674,7 +685,7 @@ def advance_exp9_diagnostic(
       raw_response=branch_raw, bias=branch_bias, bias_A=branch_bias_a,
       bias_B=branch_bias_b, probe_disagreement=branch_probe_disagreement,
       probe_disagreement_norm=probe_norm,
-      probe_disagreement_relative=probe_relative,
+      probe_disagreement_relative_to_bias=probe_relative,
       even_response=branch_even,
       stage_odd=branch_stage, secondary_stage_odd=branch_secondary,
       block_ratio_mean=block_ratio_mean, block_ratio_max=block_ratio_max,
@@ -870,5 +881,5 @@ __all__ = [
     "init_exp9_shadow_state", "init_exp9_train_state", "linear_frontend",
     "make_exp9_train_step", "muon_parameter_paths", "nonlinear_response_decomposition",
     "paired_diagnostic_noise_from_innovation", "pre_q_marginal_variances",
-    "sample_paired_diagnostic_noise",
+    "sample_paired_diagnostic_noise", "smooth_muon_q",
 ]

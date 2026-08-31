@@ -1,12 +1,14 @@
 """Focused regression tests for Experiment 9's nonlinear decomposition."""
 
 from types import SimpleNamespace
+import json
 import pytest
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from jax_privacy.matrix_factorization import toeplitz
 
 from dp_muon.bandinvmf import (
     BandInvMFStrategy, filter_latent_noise, init_bandinv_noise_state,
@@ -32,19 +34,26 @@ from exp9.core import (
     pre_q_marginal_variances,
     init_exp9_train_state,
     linear_frontend,
+    make_exp9_train_step,
+    smooth_muon_q,
 )
+from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 from exp9.diagnostics import (
     cancellation_statistics, cancellation_metrics_from_jd, degradation, safe_ratio,
 )
 from exp9.online_shadow import Exp9WindowCollector
+from exp9.run import _json_safe
 
 
 def _strategy(horizon=8):
   coef = jnp.asarray([1.0, .5], jnp.float32)
+  sensitivity = toeplitz.compute_banded_inverse_sensitivity_squared(
+      n=horizon, noising_coef=coef, min_sep=1, max_participations=1
+  )
   return BandInvMFStrategy(
       horizon=horizon, bandwidth=2, min_sep=1, max_participations=1,
       workload_coef=jnp.ones((horizon,), jnp.float32), noising_coef=coef,
-      strategy_coef=jnp.ones((horizon,), jnp.float32), sensitivity_squared=jnp.asarray(1.),
+      strategy_coef=jnp.ones((horizon,), jnp.float32), sensitivity_squared=sensitivity,
       objective=jnp.asarray(1.),
   )
 
@@ -76,14 +85,14 @@ def test_paired_variance_and_pre_q_variance_match_construction():
 def test_jvp_finite_difference_and_antithetic_odd_sign():
   x, r = _matrix(), jnp.asarray([[.04, -.02], [.01, .03]], jnp.float32)
   result = nonlinear_response_decomposition(x, r, ns_steps=3, consistent_rms=.2)
+  def F(matrix):
+    return smooth_muon_q(matrix, ns_steps=3, consistent_rms=.2)
+  _, jvp = jax.jvp(F, (x,), (r,))
+  np.testing.assert_allclose(result["P1"], jvp, rtol=0, atol=0)
   central_errors = []
   for delta in (1e-2, 3e-3, 1e-3):
-    f_plus = nonlinear_response_decomposition(
-        x + delta * r, jnp.zeros_like(r), ns_steps=3, consistent_rms=.2
-    )["Y"]
-    f_minus = nonlinear_response_decomposition(
-        x - delta * r, jnp.zeros_like(r), ns_steps=3, consistent_rms=.2
-    )["Y"]
+    f_plus = F(x + delta * r)
+    f_minus = F(x - delta * r)
     central = (f_plus - f_minus) / (2.0 * delta)
     central_errors.append(float(np.linalg.norm(np.asarray(result["P1"] - central))))
   assert np.all(np.isfinite(central_errors))
@@ -243,6 +252,66 @@ def test_rng_streams_for_training_diagnostic_and_bias_are_independent():
   )
 
 
+def _tree_allclose(actual, expected):
+  assert jax.tree_util.tree_structure(actual) == jax.tree_util.tree_structure(expected)
+  for actual_leaf, expected_leaf in zip(
+      jax.tree_util.tree_leaves(actual), jax.tree_util.tree_leaves(expected), strict=True
+  ):
+    try:
+      actual_key = jax.random.key_data(actual_leaf)
+      expected_key = jax.random.key_data(expected_leaf)
+    except (TypeError, ValueError):
+      np.testing.assert_allclose(actual_leaf, expected_leaf, rtol=1e-6, atol=1e-7)
+    else:
+      np.testing.assert_array_equal(actual_key, expected_key)
+
+
+def test_diagnostic_and_bias_rngs_cannot_change_three_step_real_trajectory():
+  horizon = 4
+  strategy = _strategy(horizon)
+  calibration = calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=1.0,
+      adjacency="add_remove", sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+  participation = ParticipationSpec(horizon, 1, 1)
+
+  def loss(params, batch):
+    matrix = params["blocks"][0]["attention"]["query"]["kernel"]
+    return jnp.sum(matrix) * jnp.sum(jnp.asarray(batch["scale"]))
+
+  train_step, optimizer = make_exp9_train_step(
+      loss, strategy, calibration, participation,
+      diagnostic_strategy=strategy, diagnostic_calibration=calibration,
+      muon_learning_rate=.01, muon_weight_decay=0.0, momentum=.9,
+      ns_steps=2, consistent_rms=.2, adamw_learning_rate=.01,
+      adamw_beta1=.9, adamw_beta2=.99, adamw_eps=1e-6,
+      adamw_weight_decay=0.0, probes=2, secondary_use_bf16_ns=False,
+  )
+  params = {"blocks": ({"attention": {"query": {"kernel": _matrix()}}},)}
+
+  def initial(diagnostic_seed, bias_seed):
+    return init_exp9_train_state(
+        params, strategy, jax.random.key(101), optimizer,
+        jax.random.key(diagnostic_seed), bias_probe_rng_key=jax.random.key(bias_seed),
+        diagnostic_strategy=strategy,
+    )
+
+  states = [initial(202, 303), initial(404, 303), initial(202, 505)]
+  batches = [
+      {"scale": jnp.asarray([[1.0 + .1 * step]], jnp.float32)}
+      for step in range(3)
+  ]
+  for batch in batches:
+    states = [train_step(state, batch) for state in states]
+    baseline, diagnostic_changed, bias_changed = states
+    for candidate in (diagnostic_changed, bias_changed):
+      _tree_allclose(candidate.params, baseline.params)
+      _tree_allclose(candidate.optimizer_state, baseline.optimizer_state)
+      _tree_allclose(candidate.training_noise_state, baseline.training_noise_state)
+      _tree_allclose(candidate.training_rng_key, baseline.training_rng_key)
+      _tree_allclose(candidate.step, baseline.step)
+
+
 def test_p0_uses_fixed_muon_block_scale():
   blocks = {"wide": jnp.ones((2, 3), jnp.float32), "tall": jnp.ones((4, 1), jnp.float32)}
   state = init_exp9_shadow_state(blocks)
@@ -343,8 +412,82 @@ def test_collector_uses_exact_stage_endpoints():
   np.testing.assert_allclose(stages["late"]["metrics"]["corr"]["P0"]["J"], 6**2)
   np.testing.assert_allclose(stages["full"]["metrics"]["corr"]["P0"]["J"], 103**2)
   assert set(stages["full"]["stage_metrics"]["corr"]) == set(PRIMARY_STAGES)
-  assert stages["full"]["bias"]["P3_reliable_corr"] is True
+  assert stages["full"]["bias"]["P3_reliable_corr"] is False
   assert "global_noise_signal_ratio_mean_corr" in stages["full"]["bias"]
+
+
+def _synthetic_reliability_step(p3_signal, delta_b, bias=0.0):
+  x = {
+      branch: {path: {"block": np.asarray([0.0], np.float32)} for path in PATHS}
+      for branch in BRANCHES
+  }
+  for branch in BRANCHES:
+    x[branch]["P3"]["block"] = np.asarray([p3_signal], np.float32)
+  empty = {"block": np.zeros((1,), np.float32)}
+  empty_branch = {branch: {"block": np.zeros((1,), np.float32)} for branch in BRANCHES}
+  stages = {
+      branch: {
+          stage: {"block": np.zeros((1,), np.float32)}
+          for stage in ("linear", "bf16", "norm", "ns", "scale")
+      } for branch in BRANCHES
+  }
+  probe = {
+      branch: {"block": np.asarray([delta_b], np.float32)} for branch in BRANCHES
+  }
+  bias_tree = {
+      branch: {"block": np.asarray([bias], np.float32)} for branch in BRANCHES
+  }
+  return SimpleNamespace(
+      x=x, clean_pre_q=empty, noise_pre_q=empty_branch,
+      raw_response=empty_branch, bias=bias_tree, even_response=empty_branch,
+      stage_odd=stages, secondary_stage_odd=stages,
+      probe_disagreement=probe,
+      block_ratio_mean={branch: 0.0 for branch in BRANCHES},
+      block_ratio_max={branch: 0.0 for branch in BRANCHES},
+      global_noise_signal_ratio={branch: 0.0 for branch in BRANCHES},
+      clean_pre_q_norm={"block": 1.0}, clean_pre_q_norm_min=1.0,
+      odd_reconstruction_error={branch: 0.0 for branch in BRANCHES},
+  )
+
+
+def _collect_reliability(p3_signal, delta_b, bias=0.0):
+  collector = Exp9WindowCollector(
+      {"block": np.zeros((1,), np.float32)}, seed=0,
+      learning_rate=.1, weight_decay=0.0, horizon=1,
+  )
+  step = _synthetic_reliability_step(p3_signal, delta_b, bias)
+  collector.after_step(SimpleNamespace(step=jnp.asarray(1), last_step=step), 1)
+  return collector.stage_summaries()["full"]["bias"]
+
+
+def test_p3_reliability_uses_probe_error_relative_to_p3_signal():
+  zero = _collect_reliability(1.0, 0.0)
+  assert zero["probe_error_to_P3_D_corr"] == 0.0
+  assert zero["probe_error_to_P3_endpoint_corr"] == 0.0
+  assert zero["P3_reliable_corr"] is True
+
+  small = _collect_reliability(10.0, .01)
+  assert small["probe_error_to_P3_D_corr"] < .1
+  assert small["probe_error_to_P3_endpoint_corr"] < .1
+  assert small["P3_reliable_corr"] is True
+
+  large = _collect_reliability(.01, 10.0)
+  assert large["probe_error_to_P3_D_corr"] > .1
+  assert large["probe_error_to_P3_endpoint_corr"] > .1
+  assert large["P3_reliable_corr"] is False
+
+
+def test_large_relative_to_bias_disagreement_does_not_override_p3_signal_rule():
+  result = _collect_reliability(10.0, 1.0, bias=1e-10)
+  assert result["probe_disagreement_relative_to_bias_corr"] > 1e6
+  assert result["P3_reliable_corr"] is True
+
+
+def test_p3_zero_signal_makes_reliability_invalid_and_false():
+  result = _collect_reliability(0.0, 0.0)
+  assert result["probe_error_to_P3_D_corr"] is None
+  assert result["probe_error_to_P3_endpoint_corr"] is None
+  assert result["P3_reliable_corr"] is False
 
 
 def test_degradation_names_and_reference_statistics():
@@ -362,3 +505,11 @@ def test_invalid_ratios_are_explicitly_invalid_not_zero():
   assert cancellation_metrics_from_jd(0.0, 0.0)["valid"] is False
   with pytest.raises(ValueError, match="non-finite"):
     safe_ratio(1.0, np.nan)
+
+
+def test_json_serialization_uses_null_for_invalid_reliability_values():
+  safe = _json_safe({"probe_error_to_P3_D": float("nan"), "valid": False})
+  assert safe == {"probe_error_to_P3_D": None, "valid": False}
+  assert json.dumps(safe, allow_nan=False) == (
+      '{"probe_error_to_P3_D": null, "valid": false}'
+  )

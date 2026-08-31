@@ -109,7 +109,14 @@ def _stage_payload(stage: Mapping[str, object]) -> dict[str, object]:
   payload["P3_reliable"] = {
       "corr": bool(bias.get("P3_reliable_corr", False)),
       "iid": bool(bias.get("P3_reliable_iid", False)),
-      "rule": "||BA-BB||/(||Bhat||+eps) <= 0.1",
+      "rule": "probe_error_to_P3_D <= 0.1 AND probe_error_to_P3_endpoint <= 0.1",
+  }
+  payload["delta_even_interpretation"] = {
+      branch: (
+          "reliable"
+          if bool(bias.get(f"P3_reliable_{branch}", False))
+          else "unreliable due to bias-probe Monte Carlo error"
+      ) for branch in ("corr", "iid")
   }
   metric_tree = payload["metrics"]
   flat_paths = {}
@@ -252,6 +259,7 @@ def _write_outputs(output: Path, rows: list[dict[str, object]], per_seed: dict[s
       },
       "stage_aggregation": "J,D,C,G and bias endpoints are recomputed from raw steps for each exact stage; window ratios are descriptive only",
       "bias_label": "output_bias and raw_private_clean_gap are diagnostics, never cancellation metrics",
+      "P3_reliability_rule": "probe_error_to_P3_D <= 0.1 AND probe_error_to_P3_endpoint <= 0.1; otherwise Delta_even interpretation is unreliable due to bias-probe Monte Carlo error",
   }
   (output / "summary.json").write_text(
       json.dumps(_json_safe(summary), indent=2, allow_nan=False), encoding="utf-8"

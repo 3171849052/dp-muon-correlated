@@ -11,10 +11,15 @@ The primary float32 paths are:
 * `P2`: antithetic odd response;
 * `P3`: raw private-clean response minus `Bhat=(BA+BB)/2`, with two independent
   A/B antithetic probe replicates. The reported reliability rule is
-  `||BA-BB||/(||Bhat||+eps) <= 0.1`; it is not mixed into cancellation metrics.
+  `probe_error_to_P3_D <= 0.1 AND probe_error_to_P3_endpoint <= 0.1`.
+  `||BA-BB||/(||Bhat||+eps)` is retained only as the auxiliary
+  `probe_disagreement_relative_to_bias` diagnostic.
 
 `G_C` and `G_J` are computed from exact raw-step endpoints. Bias and raw
 private-clean gaps are reported separately and are not cancellation metrics.
+If `P3_reliable` is false, `P3` and its gains remain in the output, but the
+`Delta_even` interpretation is marked unreliable due to bias-probe Monte Carlo
+error.
 The IID branch matches the correlated branch's raw gradient-noise marginal at
 each step and uses the same latent `z` as the correlated branch; it is a
 mechanism control, not a formal same-DP baseline. Primary stage diagnostics
