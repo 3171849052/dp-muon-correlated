@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -19,7 +20,10 @@ import numpy as np
 
 from dp_muon.data import iter_logical_batches, load_cifar10
 from dp_muon.models import ViTTiny
-from dp_muon.optim import decayed_prefix_sum_workload_coef
+from dp_muon.optim import (
+    adam_first_moment_workload_matrix,
+    decayed_prefix_sum_workload_coef,
+)
 from dp_muon.privacy import (
     ParticipationSpec,
     calibrate_nonamplified_bandinv,
@@ -35,6 +39,7 @@ from dp_muon.training.cifar10_driver import (
 )
 from dp_muon.training.pretrained_snapshot import load_pretrained_snapshot
 from exp2.common import derive_contract, resolve_repo_path
+from exp2.strategies import ADAM_M_AWARE, StrategySpec, load_or_fit_strategy
 from exp8.core import (
     PATHS,
     bandinv_marginal_variances,
@@ -108,6 +113,85 @@ def _cross_seed_aggregate(per_seed: Mapping[str, Mapping[str, object]]) -> dict[
   return cross_seed_aggregate(per_seed)
 
 
+def _strategy_metadata(
+    strategy: Any,
+    *,
+    workload_type: str,
+    beta1: float,
+    learning_rate: float,
+    weight_decay: float,
+    artifact: Path | None = None,
+    action: str | None = None,
+    artifact_sha256: str | None = None,
+    reduction: str | None = None,
+    max_optimizer_steps: int | None = None,
+) -> dict[str, object]:
+  """Serialize one strategy without conflating it with the other strategy."""
+  metadata: dict[str, object] = {
+      "workload_type": workload_type,
+      "horizon": int(strategy.horizon),
+      "bandwidth": int(strategy.bandwidth),
+      "min_sep": int(strategy.min_sep),
+      "max_participations": (
+          None if strategy.max_participations is None
+          else int(strategy.max_participations)
+      ),
+      "beta1": float(beta1),
+      "learning_rate": float(learning_rate),
+      "weight_decay": float(weight_decay),
+      "sensitivity_squared": float(strategy.sensitivity_squared),
+      "objective": float(strategy.objective),
+      "noising_coef_C_inverse": np.asarray(strategy.noising_coef).tolist(),
+      "strategy_coef_C": np.asarray(strategy.strategy_coef).tolist(),
+      "workload_representation": (
+          "matrix" if strategy.workload_matrix is not None else "coef"
+      ),
+  }
+  if reduction is not None:
+    metadata["reduction"] = reduction
+  if max_optimizer_steps is not None:
+    metadata["max_optimizer_steps"] = int(max_optimizer_steps)
+  if strategy.workload_matrix is not None:
+    matrix = np.asarray(strategy.workload_matrix)
+    metadata["workload_matrix_shape"] = list(matrix.shape)
+    metadata["workload_matrix_sha256"] = hashlib.sha256(
+        np.ascontiguousarray(matrix).tobytes()
+    ).hexdigest()
+  if artifact is not None:
+    metadata["artifact"] = str(artifact.resolve())
+  if artifact_sha256 is not None:
+    metadata["sha256"] = artifact_sha256
+  if action is not None:
+    metadata["action"] = action
+  return metadata
+
+
+def _load_or_fit_diagnostic_strategy(
+    config: Any, contract: Any, output: Path
+) -> tuple[Any, Path, str, str]:
+  """Load/fit Exp8's momentum-aware diagnostic artifact in Exp8 output."""
+  spec = StrategySpec(
+      name=ADAM_M_AWARE,
+      horizon=contract.horizon,
+      bandwidth=config.bandwidth,
+      min_sep=contract.min_sep,
+      max_participations=contract.max_participations,
+      learning_rate=config.learning_rate,
+      beta1=config.beta1,
+      weight_decay=config.weight_decay,
+      reduction=config.reduction,
+      max_optimizer_steps=config.max_optimizer_steps,
+  )
+  artifact = output / "strategies" / "exp8_diagnostic_adam_m_aware.npz"
+  existed = artifact.is_file()
+  diagnostic_strategy = load_or_fit_strategy(
+      artifact, spec, force_refit=config.force_refit
+  )
+  action = "fit" if config.force_refit or not existed else "reuse"
+  artifact_sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
+  return diagnostic_strategy, artifact, action, artifact_sha256
+
+
 def _write_outputs(
     output: Path,
     rows: list[dict[str, object]],
@@ -144,8 +228,10 @@ def _run_one(
     params: Any,
     training_key: jax.Array,
     diagnostic_key: jax.Array,
-    strategy: Any,
-    calibration: Any,
+    training_strategy: Any,
+    diagnostic_strategy: Any,
+    training_calibration: Any,
+    diagnostic_calibration: Any,
     participation: ParticipationSpec,
     batches: Any,
     horizon: int,
@@ -159,12 +245,15 @@ def _run_one(
     loss_fn: Any,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
   train_step, optimizer = make_exp8_train_step(
-      loss_fn, strategy, calibration, participation,
+      loss_fn, training_strategy, training_calibration, participation,
+      diagnostic_strategy=diagnostic_strategy,
+      diagnostic_calibration=diagnostic_calibration,
       learning_rate=learning_rate, beta1=beta1, beta2=beta2, eps=eps,
       weight_decay=weight_decay, microbatch_size=microbatch_size,
   )
   state = init_exp8_train_state(
-      params, strategy, training_key, optimizer, diagnostic_rng_key=diagnostic_key
+      params, training_strategy, training_key, optimizer, diagnostic_key,
+      diagnostic_strategy=diagnostic_strategy,
   )
   collector = Exp8WindowCollector(
       params, seed=seed, learning_rate=learning_rate,
@@ -196,13 +285,21 @@ def run_real(config_path: str | Path, output: Path, seeds: list[int]) -> None:
   contract = derive_contract(config, num_examples=len(train_images))
   participation = ParticipationSpec(contract.horizon, contract.min_sep, contract.max_participations)
   snapshot, action = get_or_fit_strategy_snapshot(config, participation)
-  strategy = snapshot.strategy
-  calibration = calibrate_nonamplified_bandinv(
+  training_strategy = snapshot.strategy
+  training_calibration = calibrate_nonamplified_bandinv(
       epsilon=config.epsilon, delta=config.delta, clip_norm=config.clip_norm,
       normalize_by=float(config.batch_size), adjacency=config.adjacency,
-      sensitivity_squared=float(strategy.sensitivity_squared),
+      sensitivity_squared=float(training_strategy.sensitivity_squared),
   )
   output.mkdir(parents=True, exist_ok=True)
+  diagnostic_strategy, diagnostic_artifact, diagnostic_action, diagnostic_sha256 = (
+      _load_or_fit_diagnostic_strategy(config, contract, output)
+  )
+  diagnostic_calibration = calibrate_nonamplified_bandinv(
+      epsilon=config.epsilon, delta=config.delta, clip_norm=config.clip_norm,
+      normalize_by=float(config.batch_size), adjacency=config.adjacency,
+      sensitivity_squared=float(diagnostic_strategy.sensitivity_squared),
+  )
   all_rows: list[dict[str, object]] = []
   per_seed: dict[str, dict[str, object]] = {}
   model = ViTTiny()
@@ -220,7 +317,10 @@ def run_real(config_path: str | Path, output: Path, seeds: list[int]) -> None:
     pretrained = load_pretrained_snapshot(resolve_repo_path(config.pretrained), key=parameter_key)
     rows, stages = _run_one(
         seed=seed, params=pretrained.params, training_key=training_key,
-        diagnostic_key=diagnostic_key, strategy=strategy, calibration=calibration,
+        diagnostic_key=diagnostic_key, training_strategy=training_strategy,
+        diagnostic_strategy=diagnostic_strategy,
+        training_calibration=training_calibration,
+        diagnostic_calibration=diagnostic_calibration,
         participation=participation,
         batches=iter_logical_batches(train_images, train_labels, schedule),
         horizon=contract.horizon, learning_rate=config.learning_rate,
@@ -231,25 +331,41 @@ def run_real(config_path: str | Path, output: Path, seeds: list[int]) -> None:
     )
     all_rows.extend(rows)
     per_seed[str(seed)] = stages
-  phi = bandinv_marginal_variances(strategy, calibration.iid_noise_std)
+  phi = bandinv_marginal_variances(
+      diagnostic_strategy, diagnostic_calibration.iid_noise_std
+  )
+  training_metadata = _strategy_metadata(
+      training_strategy,
+      workload_type="decayed-prefix-sum",
+      beta1=config.beta1, learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
+      artifact=snapshot.path, action=action, artifact_sha256=snapshot.sha256,
+      reduction=config.reduction, max_optimizer_steps=config.max_optimizer_steps,
+  )
+  diagnostic_metadata = _strategy_metadata(
+      diagnostic_strategy,
+      workload_type="adam-first-moment-aware",
+      beta1=config.beta1, learning_rate=config.learning_rate,
+      weight_decay=config.weight_decay,
+      artifact=diagnostic_artifact, action=diagnostic_action,
+      artifact_sha256=diagnostic_sha256,
+      reduction=config.reduction, max_optimizer_steps=config.max_optimizer_steps,
+  )
   metadata = {
       "experiment": "exp8",
       "smoke": False,
       "config": asdict(config),
       "contract": asdict(contract),
-      "privacy_calibration": asdict(calibration),
-      "bandinv_strategy": {
-          "artifact": str(snapshot.path.resolve()), "sha256": snapshot.sha256,
-          "action": action, "horizon": strategy.horizon,
-          "bandwidth": strategy.bandwidth, "min_sep": strategy.min_sep,
-          "max_participations": strategy.max_participations,
-          "noising_coef_C_inverse": np.asarray(strategy.noising_coef).tolist(),
-          "strategy_coef_C": np.asarray(strategy.strategy_coef).tolist(),
-          "sensitivity_squared": float(strategy.sensitivity_squared),
-          "objective": float(strategy.objective),
-      },
+      "training_privacy_calibration": asdict(training_calibration),
+      "diagnostic_privacy_calibration": asdict(diagnostic_calibration),
+      "training_bandinv_strategy": training_metadata,
+      "diagnostic_bandinv_strategy": diagnostic_metadata,
+      # Compatibility aliases retain their historical meaning: they refer to
+      # the real training mechanism, never to the diagnostic mechanism.
+      "privacy_calibration": asdict(training_calibration),
+      "bandinv_strategy": training_metadata,
       "phi_t": np.asarray(phi).tolist(),
-      "phi_t_definition": "phi_t = iid_noise_std^2 * sum of squares of the first min(t+1, bandwidth) C^-1 coefficients",
+      "phi_t_definition": "phi_t = diagnostic_calibration.iid_noise_std^2 * sum of squares of the first min(t+1, diagnostic_bandinv_strategy.bandwidth) coefficients from the diagnostic momentum-aware C^-1",
       "diagnostic_control": "matched-marginal IID mechanism diagnostic only; not a formal same-guarantee DP baseline",
       "trajectory": "one real correlated DP-AdamW baseline trajectory per seed; diagnostic shadows never update params or optimizer state",
   }
@@ -261,14 +377,25 @@ def run_smoke(output: Path, seeds: list[int]) -> None:
   learning_rate, weight_decay, beta1, beta2, eps = .02, .01, .9, .9, 1e-6
   from dp_muon.bandinvmf import fit_bandinv_strategy
 
-  strategy = fit_bandinv_strategy(
+  training_strategy = fit_bandinv_strategy(
       horizon, bandwidth=2, min_sep=1, max_participations=1,
       workload_coef=decayed_prefix_sum_workload_coef(horizon, learning_rate, weight_decay),
       max_optimizer_steps=3,
   )
-  calibration = calibrate_nonamplified_bandinv(
+  diagnostic_strategy = fit_bandinv_strategy(
+      horizon, bandwidth=2, min_sep=1, max_participations=1,
+      workload_matrix=adam_first_moment_workload_matrix(
+          horizon, beta1, learning_rate, weight_decay
+      ),
+      max_optimizer_steps=3,
+  )
+  training_calibration = calibrate_nonamplified_bandinv(
       epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=2.0,
-      adjacency="add_remove", sensitivity_squared=float(strategy.sensitivity_squared),
+      adjacency="add_remove", sensitivity_squared=float(training_strategy.sensitivity_squared),
+  )
+  diagnostic_calibration = calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=2.0,
+      adjacency="add_remove", sensitivity_squared=float(diagnostic_strategy.sensitivity_squared),
   )
   participation = ParticipationSpec(horizon, 1, 1)
 
@@ -288,14 +415,19 @@ def run_smoke(output: Path, seeds: list[int]) -> None:
     training_key, diagnostic_key = jax.random.split(jax.random.key(seed + 10_000))
     rows, stages = _run_one(
         seed=seed, params=params, training_key=training_key,
-        diagnostic_key=diagnostic_key, strategy=strategy, calibration=calibration,
+        diagnostic_key=diagnostic_key, training_strategy=training_strategy,
+        diagnostic_strategy=diagnostic_strategy,
+        training_calibration=training_calibration,
+        diagnostic_calibration=diagnostic_calibration,
         participation=participation, batches=list(batches), horizon=horizon,
         learning_rate=learning_rate, beta1=beta1, beta2=beta2, eps=eps,
         weight_decay=weight_decay, microbatch_size=None, output=output, loss_fn=loss,
     )
     all_rows.extend(rows)
     per_seed[str(seed)] = stages
-  phi = bandinv_marginal_variances(strategy, calibration.iid_noise_std)
+  phi = bandinv_marginal_variances(
+      diagnostic_strategy, diagnostic_calibration.iid_noise_std
+  )
   _write_outputs(
       output, all_rows, per_seed,
       metadata={
@@ -303,14 +435,26 @@ def run_smoke(output: Path, seeds: list[int]) -> None:
           "config": {"horizon": horizon, "learning_rate": learning_rate,
                      "beta1": beta1, "beta2": beta2, "eps": eps,
                      "weight_decay": weight_decay},
-          "privacy_calibration": asdict(calibration),
-          "bandinv_strategy": {
-              "horizon": strategy.horizon, "bandwidth": strategy.bandwidth,
-              "min_sep": strategy.min_sep, "max_participations": strategy.max_participations,
-              "noising_coef_C_inverse": np.asarray(strategy.noising_coef).tolist(),
-          },
+          "training_privacy_calibration": asdict(training_calibration),
+          "diagnostic_privacy_calibration": asdict(diagnostic_calibration),
+          "training_bandinv_strategy": _strategy_metadata(
+              training_strategy, workload_type="decayed-prefix-sum", beta1=beta1,
+              learning_rate=learning_rate, weight_decay=weight_decay,
+              reduction="mean", max_optimizer_steps=3,
+          ),
+          "diagnostic_bandinv_strategy": _strategy_metadata(
+              diagnostic_strategy, workload_type="adam-first-moment-aware", beta1=beta1,
+              learning_rate=learning_rate, weight_decay=weight_decay,
+              reduction="mean", max_optimizer_steps=3,
+          ),
+          "privacy_calibration": asdict(training_calibration),
+          "bandinv_strategy": _strategy_metadata(
+              training_strategy, workload_type="decayed-prefix-sum", beta1=beta1,
+              learning_rate=learning_rate, weight_decay=weight_decay,
+              reduction="mean", max_optimizer_steps=3,
+          ),
           "phi_t": np.asarray(phi).tolist(),
-          "phi_t_definition": "phi_t = iid_noise_std^2 * sum of squares of the causal C^-1 row",
+          "phi_t_definition": "phi_t = diagnostic_calibration.iid_noise_std^2 * sum of squares of the causal diagnostic momentum-aware C^-1 row",
           "diagnostic_control": "matched-marginal IID mechanism diagnostic only; not a formal same-guarantee DP baseline",
       },
   )

@@ -10,11 +10,15 @@ import numpy as np
 
 from dp_muon.bandinvmf import (
     BandInvMFStrategy,
+    fit_bandinv_strategy,
     filter_latent_noise,
     init_bandinv_noise_state,
 )
 from jax_privacy.matrix_factorization import toeplitz
-from dp_muon.optim import decayed_prefix_sum_workload_coef
+from dp_muon.optim import (
+    adam_first_moment_workload_matrix,
+    decayed_prefix_sum_workload_coef,
+)
 from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 from exp8.core import (
     BRANCHES,
@@ -54,6 +58,16 @@ def _calibration(strategy):
   return calibrate_nonamplified_bandinv(
       epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=2.0,
       adjacency="add_remove", sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+
+
+def _momentum_strategy(horizon=6):
+  return fit_bandinv_strategy(
+      horizon, bandwidth=2, min_sep=1, max_participations=1,
+      workload_matrix=adam_first_moment_workload_matrix(
+          horizon, .9, .01, .01
+      ),
+      max_optimizer_steps=3,
   )
 
 
@@ -130,15 +144,18 @@ def test_training_and_diagnostic_rng_streams_are_distinct_and_shadows_do_not_upd
 
   step_fn, optimizer = make_exp8_train_step(
       loss, strategy, calibration, participation,
+      diagnostic_strategy=strategy, diagnostic_calibration=calibration,
       learning_rate=.01, beta1=.9, beta2=.9, eps=1e-6, weight_decay=.01,
   )
   params = {"w": jnp.asarray([.1, -.2, .3], jnp.float32)}
   training_key = jax.random.key(12)
   state1 = init_exp8_train_state(
-      params, strategy, training_key, optimizer, diagnostic_rng_key=jax.random.key(13)
+      params, strategy, training_key, optimizer, jax.random.key(13),
+      diagnostic_strategy=strategy,
   )
   state2 = init_exp8_train_state(
-      params, strategy, training_key, optimizer, diagnostic_rng_key=jax.random.key(14)
+      params, strategy, training_key, optimizer, jax.random.key(14),
+      diagnostic_strategy=strategy,
   )
   assert not np.array_equal(
       np.asarray(jax.random.key_data(state1.training_rng_key)),
@@ -151,6 +168,95 @@ def test_training_and_diagnostic_rng_streams_are_distinct_and_shadows_do_not_upd
   # Diagnostic branches differ, proving they are not accidentally feeding the update.
   assert not np.array_equal(
       np.asarray(next1.last_step.z["w"]), np.asarray(next2.last_step.z["w"])
+  )
+
+
+def test_momentum_aware_diagnostic_strategy_is_separate_and_drives_phi():
+  training_strategy = _strategy()
+  diagnostic_strategy = _momentum_strategy()
+  training_calibration = _calibration(training_strategy)
+  diagnostic_calibration = _calibration(diagnostic_strategy)
+  expected_workload = adam_first_moment_workload_matrix(6, .9, .01, .01)
+  np.testing.assert_allclose(
+      np.asarray(diagnostic_strategy.workload_matrix), np.asarray(expected_workload)
+  )
+  assert diagnostic_strategy.workload_matrix is not None
+
+  def loss(params, batch):
+    return .5 * (jnp.dot(params["w"], batch["x"][0]) - batch["y"][0]) ** 2
+
+  participation = ParticipationSpec(6, 1, 1)
+  step_fn, optimizer = make_exp8_train_step(
+      loss, training_strategy, training_calibration, participation,
+      diagnostic_strategy=diagnostic_strategy,
+      diagnostic_calibration=diagnostic_calibration,
+      learning_rate=.01, beta1=.9, beta2=.9, eps=1e-6, weight_decay=.01,
+  )
+  state = init_exp8_train_state(
+      {"w": jnp.asarray([.1, -.2, .3], jnp.float32)}, training_strategy,
+      jax.random.key(30), optimizer, jax.random.key(31),
+      diagnostic_strategy=diagnostic_strategy,
+  )
+  batch = {
+      "x": jnp.ones((2, 3), jnp.float32),
+      "y": jnp.asarray([.2, .2], jnp.float32),
+  }
+  next_state = step_fn(state, batch)
+  expected_phi = bandinv_marginal_variances(
+      diagnostic_strategy, diagnostic_calibration.iid_noise_std
+  )
+  np.testing.assert_allclose(float(next_state.last_step.phi_t), float(expected_phi[0]))
+  assert float(next_state.last_step.phi_t) != float(
+      bandinv_marginal_variances(
+          training_strategy, training_calibration.iid_noise_std
+      )[0]
+  )
+
+
+def test_diagnostic_strategy_and_rng_cannot_change_real_training_update():
+  training_strategy = _strategy()
+  diagnostic_a = _momentum_strategy()
+  diagnostic_b = _strategy()
+  training_calibration = _calibration(training_strategy)
+  diagnostic_calibration_a = _calibration(diagnostic_a)
+  diagnostic_calibration_b = _calibration(diagnostic_b)
+  participation = ParticipationSpec(6, 1, 1)
+
+  def loss(params, batch):
+    return .5 * (jnp.dot(params["w"], batch["x"][0]) - batch["y"][0]) ** 2
+
+  step_a, optimizer_a = make_exp8_train_step(
+      loss, training_strategy, training_calibration, participation,
+      diagnostic_strategy=diagnostic_a,
+      diagnostic_calibration=diagnostic_calibration_a,
+      learning_rate=.01,
+  )
+  step_b, optimizer_b = make_exp8_train_step(
+      loss, training_strategy, training_calibration, participation,
+      diagnostic_strategy=diagnostic_b,
+      diagnostic_calibration=diagnostic_calibration_b,
+      learning_rate=.01,
+  )
+  params = {"w": jnp.asarray([.1, -.2, .3], jnp.float32)}
+  state_a = init_exp8_train_state(
+      params, training_strategy, jax.random.key(40), optimizer_a, jax.random.key(41),
+      diagnostic_strategy=diagnostic_a,
+  )
+  state_b = init_exp8_train_state(
+      params, training_strategy, jax.random.key(40), optimizer_b, jax.random.key(99),
+      diagnostic_strategy=diagnostic_b,
+  )
+  batch = {
+      "x": jnp.ones((2, 3), jnp.float32),
+      "y": jnp.asarray([.2, .2], jnp.float32),
+  }
+  next_a, next_b = step_a(state_a, batch), step_b(state_b, batch)
+  _tree_allclose(next_a.params, next_b.params)
+  _tree_allclose(next_a.optimizer_state, next_b.optimizer_state)
+  _tree_allclose(next_a.training_noise_state.buffer, next_b.training_noise_state.buffer)
+  np.testing.assert_array_equal(
+      jax.random.key_data(next_a.training_rng_key),
+      jax.random.key_data(next_b.training_rng_key),
   )
 
 
@@ -172,10 +278,11 @@ def test_train_step_invokes_the_single_clipped_query_once(monkeypatch):
   step_fn, optimizer = core.make_exp8_train_step(
       lambda params, batch: jnp.asarray(0.0), strategy, calibration,
       ParticipationSpec(strategy.horizon, 1, 1), learning_rate=.01,
+      diagnostic_strategy=strategy, diagnostic_calibration=calibration,
   )
   state = core.init_exp8_train_state(
       {"w": jnp.zeros((3,), jnp.float32)}, strategy, jax.random.key(20),
-      optimizer, diagnostic_rng_key=jax.random.key(21),
+      optimizer, jax.random.key(21), diagnostic_strategy=strategy,
   )
   step_fn(state, {"unused": jnp.asarray([0.0])})
   assert calls == ["query"]
@@ -399,6 +506,12 @@ def test_smoke_outputs_are_finite(tmp_path):
   }
   assert expected.issubset({path.name for path in tmp_path.iterdir()})
   data = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
+  assert data["training_bandinv_strategy"]["workload_type"] == "decayed-prefix-sum"
+  diagnostic_metadata = data["diagnostic_bandinv_strategy"]
+  assert diagnostic_metadata["workload_type"] == "adam-first-moment-aware"
+  assert diagnostic_metadata["workload_representation"] == "matrix"
+  assert data["training_privacy_calibration"] != data["diagnostic_privacy_calibration"]
+  assert len(data["phi_t"]) == diagnostic_metadata["horizon"]
 
   def visit(value):
     if isinstance(value, float):

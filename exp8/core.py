@@ -109,14 +109,14 @@ def bandinv_marginal_variances(
 
 
 def init_diagnostic_noise_state(
-    params: PyTree, strategy: BandInvMFStrategy
+    params: PyTree, diagnostic_strategy: BandInvMFStrategy
 ) -> BandInvMFNoiseState:
   """Create state for the correlated diagnostic filter only.
 
   The IID control intentionally has no temporal/filter state.  Both branches
   still consume the same newly sampled standard-normal innovation each step.
   """
-  return init_bandinv_noise_state(params, strategy.bandwidth)
+  return init_bandinv_noise_state(params, diagnostic_strategy.bandwidth)
 
 
 def _standard_normal_tree(key: jax.Array, template: PyTree) -> PyTree:
@@ -132,7 +132,7 @@ def _standard_normal_tree(key: jax.Array, template: PyTree) -> PyTree:
 def sample_paired_diagnostic_noise(
     key: jax.Array,
     corr_state: BandInvMFNoiseState,
-    strategy: BandInvMFStrategy,
+    diagnostic_strategy: BandInvMFStrategy,
     iid_noise_std: float | jax.Array,
     phi_t: float | jax.Array,
 ) -> tuple[PyTree, PyTree, PyTree, BandInvMFNoiseState, jax.Array]:
@@ -153,10 +153,11 @@ def sample_paired_diagnostic_noise(
   # Make the coefficient dynamic inside the jitted train step.  This lets the
   # formal helper retain its eager validation while following its traced JAX
   # path here.
-  coef = jnp.asarray(strategy.noising_coef)
+  coef = jnp.asarray(diagnostic_strategy.noising_coef)
   runtime_coef = coef + corr_state.step.astype(coef.dtype) * jnp.zeros_like(coef)
   xi_corr, xi_iid, new_corr_state = paired_diagnostic_noise_from_innovation(
-      corr_state, z, strategy, iid_noise_std, phi_t, noising_coef=runtime_coef
+      corr_state, z, diagnostic_strategy, iid_noise_std, phi_t,
+      noising_coef=runtime_coef,
   )
   return xi_corr, xi_iid, z, new_corr_state, new_key
 
@@ -164,7 +165,7 @@ def sample_paired_diagnostic_noise(
 def paired_diagnostic_noise_from_innovation(
     corr_state: BandInvMFNoiseState,
     z: PyTree,
-    strategy: BandInvMFStrategy,
+    diagnostic_strategy: BandInvMFStrategy,
     iid_noise_std: float | jax.Array,
     phi_t: float | jax.Array,
     *,
@@ -178,7 +179,7 @@ def paired_diagnostic_noise_from_innovation(
   callers should leave it unset.
   """
   coefficient = (
-      jnp.asarray(strategy.noising_coef)
+      jnp.asarray(diagnostic_strategy.noising_coef)
       if noising_coef is None else jnp.asarray(noising_coef)
   )
   latent = jax.tree_util.tree_map(
@@ -438,22 +439,26 @@ def _keys_equal(left: jax.Array, right: jax.Array) -> bool:
 
 def init_exp8_train_state(
     params: PyTree,
-    strategy: BandInvMFStrategy,
+    training_strategy: BandInvMFStrategy,
     training_rng_key: jax.Array,
     optimizer: optax.GradientTransformation,
-    diagnostic_rng_key: jax.Array | None = None,
+    diagnostic_rng_key: jax.Array,
+    *,
+    diagnostic_strategy: BandInvMFStrategy,
 ) -> Exp8TrainState:
   """Initialise the real trajectory and independent diagnostic stream."""
-  if diagnostic_rng_key is None:
-    training_rng_key, diagnostic_rng_key = jax.random.split(training_rng_key)
   if _keys_equal(training_rng_key, diagnostic_rng_key):
     raise ValueError("training and diagnostic RNG keys must be independent")
   return Exp8TrainState(
       params=params,
       optimizer_state=optimizer.init(params),
-      training_noise_state=init_bandinv_noise_state(params, strategy.bandwidth),
+      training_noise_state=init_bandinv_noise_state(
+          params, training_strategy.bandwidth
+      ),
       training_rng_key=training_rng_key,
-      diagnostic_noise_state=init_diagnostic_noise_state(params, strategy),
+      diagnostic_noise_state=init_diagnostic_noise_state(
+          params, diagnostic_strategy
+      ),
       diagnostic_rng_key=diagnostic_rng_key,
       step=jnp.asarray(0, jnp.int32),
       shadow=init_diagnostic_shadow_state(params),
@@ -463,10 +468,12 @@ def init_exp8_train_state(
 
 def make_exp8_train_step(
     loss_fn: Callable[..., Any],
-    strategy: BandInvMFStrategy,
-    calibration: PrivacyCalibration,
+    training_strategy: BandInvMFStrategy,
+    training_calibration: PrivacyCalibration,
     participation_spec: ParticipationSpec,
     *,
+    diagnostic_strategy: BandInvMFStrategy,
+    diagnostic_calibration: PrivacyCalibration,
     learning_rate: float,
     beta1: float = 0.9,
     beta2: float = 0.999,
@@ -480,7 +487,10 @@ def make_exp8_train_step(
   if not callable(loss_fn):
     raise TypeError("loss_fn must be callable")
   validate_nonamplified_bandinv_privacy_setup(
-      strategy, calibration, participation_spec
+      training_strategy, training_calibration, participation_spec
+  )
+  validate_nonamplified_bandinv_privacy_setup(
+      diagnostic_strategy, diagnostic_calibration, participation_spec
   )
   optimizer = make_nonamplified_dpadamw_optimizer(
       learning_rate=learning_rate, beta1=beta1, beta2=beta2,
@@ -488,22 +498,24 @@ def make_exp8_train_step(
   )
   clipped_query = make_clipped_gradient_query(
       loss_fn,
-      clip_norm=calibration.clip_norm,
-      normalize_by=calibration.normalize_by,
+      clip_norm=training_calibration.clip_norm,
+      normalize_by=training_calibration.normalize_by,
       batch_argnums=1,
       keep_batch_dim=True,
       microbatch_size=microbatch_size,
   )
-  phi = bandinv_marginal_variances(strategy, calibration.iid_noise_std)
+  diagnostic_phi = bandinv_marginal_variances(
+      diagnostic_strategy, diagnostic_calibration.iid_noise_std
+  )
 
   def train_step(state: Exp8TrainState, batch: Any) -> Exp8TrainState:
     # The only model/loss gradient call in the complete Exp8 step.
     g = clipped_query(state.params, batch)
 
     train_step0 = state.training_noise_state.step
-    coef = jnp.asarray(strategy.noising_coef)
+    coef = jnp.asarray(training_strategy.noising_coef)
     runtime_coef = coef + jnp.asarray(train_step0, coef.dtype) * jnp.zeros_like(coef)
-    sigma = jnp.asarray(calibration.iid_noise_std)
+    sigma = jnp.asarray(training_calibration.iid_noise_std)
     runtime_sigma = sigma + jnp.asarray(train_step0, sigma.dtype) * jnp.zeros_like(sigma)
     training_noise, new_training_noise_state, new_training_key = sample_bandinv_noise(
         state.training_rng_key,
@@ -520,12 +532,12 @@ def make_exp8_train_step(
     new_params = optax.apply_updates(state.params, updates)
 
     diagnostic_step0 = state.diagnostic_noise_state.step
-    phi_t = phi[diagnostic_step0]
+    phi_t = diagnostic_phi[diagnostic_step0]
     xi_corr, xi_iid, z, new_diag_noise_state, new_diag_key = sample_paired_diagnostic_noise(
         state.diagnostic_rng_key,
         state.diagnostic_noise_state,
-        strategy,
-        calibration.iid_noise_std,
+        diagnostic_strategy,
+        diagnostic_calibration.iid_noise_std,
         phi_t,
     )
     new_shadow, last = advance_diagnostic_shadow(

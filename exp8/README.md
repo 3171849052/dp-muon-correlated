@@ -2,8 +2,10 @@
 
 Exp8 runs one real correlated DP-AdamW baseline trajectory per seed. At each
 step it evaluates the clipped gradient once, lets the real update consume its
-own BandInvMF noise stream, and maintains shadow-only correlated and
-matched-marginal IID branches from the same standard-normal innovation.
+own naive decayed-prefix BandInvMF noise stream, and maintains shadow-only
+diagnostic branches from a separately fitted Adam first-moment-aware BandInvMF
+strategy and calibration. The correlated and matched-marginal IID diagnostic
+branches share the same standard-normal innovation.
 
 The diagnostic paths are:
 
@@ -17,6 +19,11 @@ cross-iteration cancellation is lost. The matched-IID branch is a conditional
 mechanism control for this comparison; it is not a new DP algorithm and does
 not claim the same formal privacy guarantee as BandInvMF.
 
+The summary records `training_bandinv_strategy` and
+`diagnostic_bandinv_strategy` separately. In particular, `phi_t` is the
+marginal variance of the diagnostic momentum-aware branch using
+`diagnostic_privacy_calibration.iid_noise_std`, not the training calibration.
+
 Run only the requested small check with `--smoke`. The formal run is:
 
 ```bash
@@ -25,4 +32,3 @@ conda run -n curve python exp8/run.py \
   --output-dir exp8/results \
   --seeds 0 1 2
 ```
-
