@@ -43,16 +43,18 @@ def plot_gain_over_steps(
 def plot_path_gain_summary(
     summaries: Mapping[str, Mapping[str, Mapping[str, object]]], output: str | Path
 ) -> None:
+  """Plot cross-seed stage means with one-standard-deviation error bars."""
   figure, axes = plt.subplots(1, 2, figsize=(9.0, 4.0), sharey=False)
   stages = ("early", "late", "full")
   labels = ("G0", "Gc", "Gphi", "Gp")
   for axis, gain in zip(axes, ("G_C", "G_J"), strict=True):
-    for stage_index, stage in enumerate(stages):
-      if stage not in summaries:
+    for stage in stages:
+      if stage not in summaries or "paths" not in summaries[stage]:
         continue
-      values = summaries[stage]["G0_to_Gc_to_Gphi_to_Gp"][gain]  # type: ignore[index]
-      y = [float(values[path]) for path in PATHS]
-      axis.plot(range(4), y, marker="o", label=stage)
+      values = summaries[stage]["paths"]  # type: ignore[index]
+      y = [float(values[path][f"{gain}_mean"]) for path in PATHS]
+      error = [float(values[path][f"{gain}_std"]) for path in PATHS]
+      axis.errorbar(range(4), y, yerr=error, marker="o", capsize=3, label=stage)
     axis.set_xticks(range(4), labels)
     axis.set_title(gain)
     axis.grid(alpha=.25)
@@ -66,16 +68,22 @@ def plot_path_gain_summary(
 def plot_decomposition(
     summaries: Mapping[str, Mapping[str, Mapping[str, object]]], output: str | Path
 ) -> None:
+  """Plot cross-seed decomposition means with standard-deviation bars."""
   figure, axis = plt.subplots(figsize=(7.2, 4.2))
   stages = ("early", "late", "full")
   x = np.arange(len(stages))
   for field, label in (("A_energy", "A"), ("B_energy", "B"), ("I_energy", "I")):
     values = [
-        float(summaries[stage]["decomposition"].get(field, 0.0))
-        if stage in summaries else 0.0
+        float(summaries[stage]["decomposition_flat"][field + "_mean"])
+        if stage in summaries and "decomposition_flat" in summaries[stage] else 0.0
         for stage in stages
     ]
-    axis.plot(x, values, marker="o", label=label)
+    errors = [
+        float(summaries[stage]["decomposition_flat"][field + "_std"])
+        if stage in summaries and "decomposition_flat" in summaries[stage] else 0.0
+        for stage in stages
+    ]
+    axis.errorbar(x, values, yerr=errors, marker="o", capsize=3, label=label)
   axis.set_xticks(x, stages)
   axis.set_ylabel("sum squared energy (correlated branch)")
   axis.grid(alpha=.25)

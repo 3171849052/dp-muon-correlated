@@ -9,7 +9,6 @@ but uses an independent RNG stream and maintains only shadow moment states.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import math
 from typing import Any, Callable
 
 import jax
@@ -19,6 +18,7 @@ import optax
 from dp_muon.bandinvmf import (
     BandInvMFNoiseState,
     BandInvMFStrategy,
+    filter_latent_noise,
     init_bandinv_noise_state,
     sample_bandinv_noise,
 )
@@ -70,6 +70,14 @@ def _tree_dot(left: PyTree, right: PyTree) -> jax.Array:
           jax.tree_util.tree_leaves(left), jax.tree_util.tree_leaves(right), strict=True
       )
   )
+
+
+def _normalized_tree_error(left: PyTree, right: PyTree) -> jax.Array:
+  """Return a finite normalized error for two same-shaped pytrees."""
+  difference = jax.tree_util.tree_map(lambda a, b: a - b, left, right)
+  numerator = jnp.sqrt(_tree_norm_sq(difference))
+  denominator = 1.0 + jnp.sqrt(_tree_norm_sq(right))
+  return numerator / denominator
 
 
 def _tree_ema(old: PyTree, value: PyTree, beta: float) -> PyTree:
@@ -142,34 +150,46 @@ def sample_paired_diagnostic_noise(
       lambda buffer: jnp.zeros(buffer.shape[1:], dtype=buffer.dtype), corr_state.buffer
   )
   z = _standard_normal_tree(z_key, template)
-  sigma = jnp.asarray(iid_noise_std)
-  latent = jax.tree_util.tree_map(lambda value: sigma * value, z)
-  # Keep this path entirely JAX-native.  The public helper performs eager
-  # validation using Python booleans, which is correct at its API boundary but
-  # cannot be called from the jitted training step with a traced coefficient.
-  # This is the same ring-buffer/FIR operation used by that helper.
+  # Make the coefficient dynamic inside the jitted train step.  This lets the
+  # formal helper retain its eager validation while following its traced JAX
+  # path here.
   coef = jnp.asarray(strategy.noising_coef)
-  cursor = corr_state.cursor
-  indices = jnp.mod(cursor - jnp.arange(strategy.bandwidth, dtype=cursor.dtype), strategy.bandwidth)
+  runtime_coef = coef + corr_state.step.astype(coef.dtype) * jnp.zeros_like(coef)
+  xi_corr, xi_iid, new_corr_state = paired_diagnostic_noise_from_innovation(
+      corr_state, z, strategy, iid_noise_std, phi_t, noising_coef=runtime_coef
+  )
+  return xi_corr, xi_iid, z, new_corr_state, new_key
 
-  def write_buffer(buffer_leaf, latent_leaf):
-    return buffer_leaf.at[cursor].set(latent_leaf)
 
-  new_buffer = jax.tree_util.tree_map(write_buffer, corr_state.buffer, latent)
+def paired_diagnostic_noise_from_innovation(
+    corr_state: BandInvMFNoiseState,
+    z: PyTree,
+    strategy: BandInvMFStrategy,
+    iid_noise_std: float | jax.Array,
+    phi_t: float | jax.Array,
+    *,
+    noising_coef: jax.Array | None = None,
+) -> tuple[PyTree, PyTree, BandInvMFNoiseState]:
+  """Construct both branches from supplied standard-normal innovations.
 
-  def filter_buffer(buffer_leaf):
-    return jnp.tensordot(coef.astype(buffer_leaf.dtype), buffer_leaf[indices], axes=1)
-
-  xi_corr = jax.tree_util.tree_map(filter_buffer, new_buffer)
-  new_corr_state = BandInvMFNoiseState(
-      buffer=new_buffer,
-      cursor=jnp.mod(cursor + 1, strategy.bandwidth),
-      step=corr_state.step + jnp.asarray(1, corr_state.step.dtype),
-      bandwidth=strategy.bandwidth,
+  The correlated branch deliberately delegates to the package's formal
+  ``filter_latent_noise`` helper.  ``noising_coef`` is an internal escape hatch
+  for the jitted caller to pass an equivalent traced coefficient; ordinary
+  callers should leave it unset.
+  """
+  coefficient = (
+      jnp.asarray(strategy.noising_coef)
+      if noising_coef is None else jnp.asarray(noising_coef)
+  )
+  latent = jax.tree_util.tree_map(
+      lambda value: jnp.asarray(iid_noise_std) * value, z
+  )
+  xi_corr, new_corr_state = filter_latent_noise(
+      corr_state, latent, coefficient
   )
   iid_scale = jnp.sqrt(jnp.asarray(phi_t))
   xi_iid = jax.tree_util.tree_map(lambda value: iid_scale * value, z)
-  return xi_corr, xi_iid, z, new_corr_state, new_key
+  return xi_corr, xi_iid, new_corr_state
 
 
 @jax.tree_util.register_pytree_node_class
@@ -188,11 +208,14 @@ class Exp8DiagnosticStep:
   phi_t: jax.Array
   Phi_t: jax.Array
   reconstruction_error: jax.Array
+  r_difference_error_corr: jax.Array
+  r_difference_error_iid: jax.Array
 
   def tree_flatten(self):
     return (
         self.r, self.x, self.A, self.B, self.I, self.dq, self.xi, self.z,
         self.phi_t, self.Phi_t, self.reconstruction_error,
+        self.r_difference_error_corr, self.r_difference_error_iid,
     ), None
 
   @classmethod
@@ -248,6 +271,8 @@ def _zero_step(params: PyTree) -> Exp8DiagnosticStep:
       xi={branch: zero for branch in BRANCHES}, z=zero,
       phi_t=jnp.asarray(0.0, jnp.float32), Phi_t=jnp.asarray(0.0, jnp.float32),
       reconstruction_error=jnp.asarray(0.0, jnp.float32),
+      r_difference_error_corr=jnp.asarray(0.0, jnp.float32),
+      r_difference_error_iid=jnp.asarray(0.0, jnp.float32),
   )
 
 
@@ -277,16 +302,20 @@ def advance_diagnostic_shadow(
   m_c = _tree_scale(1.0 / _safe_bias_correction(beta1, t), clean_m)
   m_corr = _tree_scale(1.0 / _safe_bias_correction(beta1, t), corr_m)
   m_iid = _tree_scale(1.0 / _safe_bias_correction(beta1, t), iid_m)
-  r = {
+  r_from_difference = {
       "corr": jax.tree_util.tree_map(lambda a, b: a - b, m_corr, m_c),
       "iid": jax.tree_util.tree_map(lambda a, b: a - b, m_iid, m_c),
   }
-  # Keep the explicit pure-noise EMA in the calculation as a diagnostic
-  # invariant: it is algebraically the same as mhat_private - mhat_clean.
-  _ = {
-      "corr": _tree_scale(1.0 / _safe_bias_correction(beta1, t), state.corr_noise_m),
-      "iid": _tree_scale(1.0 / _safe_bias_correction(beta1, t), state.iid_noise_m),
+  r = {
+      "corr": _tree_scale(1.0 / _safe_bias_correction(beta1, t), corr_noise_m),
+      "iid": _tree_scale(1.0 / _safe_bias_correction(beta1, t), iid_noise_m),
   }
+  r_difference_error_corr = _normalized_tree_error(
+      r_from_difference["corr"], r["corr"]
+  )
+  r_difference_error_iid = _normalized_tree_error(
+      r_from_difference["iid"], r["iid"]
+  )
 
   v_c = _tree_scale(1.0 / _safe_bias_correction(beta2, t), clean_v)
   bias_v = beta2 * state.bias_v + (1.0 - beta2) * jnp.asarray(phi_t)
@@ -357,6 +386,8 @@ def advance_diagnostic_shadow(
       xi={"corr": xi_corr, "iid": xi_iid}, z=_zeros_like(g),
       phi_t=jnp.asarray(phi_t), Phi_t=Phi_t,
       reconstruction_error=reconstruction_error,
+      r_difference_error_corr=r_difference_error_corr,
+      r_difference_error_iid=r_difference_error_iid,
   )
 
 
@@ -506,6 +537,8 @@ def make_exp8_train_step(
         r=last.r, x=last.x, A=last.A, B=last.B, I=last.I, dq=last.dq,
         xi=last.xi, z=z, phi_t=last.phi_t, Phi_t=last.Phi_t,
         reconstruction_error=last.reconstruction_error,
+        r_difference_error_corr=last.r_difference_error_corr,
+        r_difference_error_iid=last.r_difference_error_iid,
     )
     return Exp8TrainState(
         params=new_params,
@@ -527,5 +560,5 @@ __all__ = [
     "Exp8TrainState", "advance_diagnostic_shadow", "bandinv_marginal_variances",
     "init_diagnostic_noise_state", "init_diagnostic_shadow_state",
     "init_exp8_train_state", "make_exp8_train_step",
-    "sample_paired_diagnostic_noise",
+    "paired_diagnostic_noise_from_innovation", "sample_paired_diagnostic_noise",
 ]

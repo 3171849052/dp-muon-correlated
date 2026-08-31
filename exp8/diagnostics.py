@@ -181,6 +181,61 @@ def write_window_summary(path: str | Path, rows: Iterable[Mapping[str, object]])
     writer.writerows(rows)
 
 
+def _aggregate_values(values: Sequence[float]) -> dict[str, float]:
+  mean, std = _mean_std(values)
+  return {"mean": mean, "std": std}
+
+
+def cross_seed_aggregate(
+    per_seed: Mapping[str, Mapping[str, Mapping[str, object]]]
+) -> dict[str, object]:
+  """Aggregate exact stage payloads across seeds.
+
+  ``per_seed`` is the JSON-shaped result produced by ``run.py``.  This helper
+  intentionally aggregates the exact stage metrics already computed from raw
+  steps; it never averages window-level ``C`` or ``J`` values to form a stage.
+  """
+  output: dict[str, object] = {}
+  path_fields = ("C_corr", "C_iid", "J_corr", "J_iid", "D_corr", "D_iid", "G_C", "G_J")
+  for stage in ("early", "late", "full"):
+    stage_values = [runs[stage] for runs in per_seed.values() if stage in runs]
+    if not stage_values:
+      output[stage] = {}
+      continue
+    paths: dict[str, dict[str, float]] = {}
+    for path in PATHS:
+      path_result: dict[str, float] = {}
+      for field in path_fields:
+        values = [float(stage_value["paths"][path][field]) for stage_value in stage_values]
+        aggregate = _aggregate_values(values)
+        path_result[f"{field}_mean"] = aggregate["mean"]
+        path_result[f"{field}_std"] = aggregate["std"]
+      paths[path] = path_result
+    decomposition: dict[str, dict[str, float]] = {}
+    flat_decomposition: dict[str, float] = {}
+    for field in DECOMP_FIELDS:
+      values = [float(stage_value["decomposition"].get(field, 0.0)) for stage_value in stage_values]
+      aggregate = _aggregate_values(values)
+      decomposition[field] = aggregate
+      flat_decomposition[f"{field}_mean"] = aggregate["mean"]
+      flat_decomposition[f"{field}_std"] = aggregate["std"]
+    degradation_result: dict[str, float] = {}
+    for gain in ("G_C", "G_J"):
+      for field in ("delta_clean", "delta_bias", "delta_nonlinear"):
+        values = [float(stage_value["degradation"][gain][field]) for stage_value in stage_values]
+        aggregate = _aggregate_values(values)
+        degradation_result[f"{gain}_{field}_mean"] = aggregate["mean"]
+        degradation_result[f"{gain}_{field}_std"] = aggregate["std"]
+    output[stage] = {
+        "num_seeds": len(stage_values),
+        "paths": paths,
+        "decomposition": decomposition,
+        "decomposition_flat": flat_decomposition,
+        "degradation": degradation_result,
+    }
+  return output
+
+
 def attach_path_degradation(
     metrics: Mapping[str, Mapping[str, Mapping[str, float]]]
 ) -> dict[str, object]:
@@ -209,7 +264,8 @@ def attach_path_degradation(
 
 __all__ = [
     "DECOMP_FIELDS", "METRIC_FIELDS", "add_paired_gains", "attach_path_degradation",
-    "cancellation_statistics", "cancellation_metrics_from_jd", "degradation",
+    "cancellation_statistics", "cancellation_metrics_from_jd", "cross_seed_aggregate",
+    "degradation",
     "make_window_row", "paired_gains", "safe_gain", "safe_ratio",
     "write_window_rows", "aggregate_window_rows", "write_window_summary",
 ]

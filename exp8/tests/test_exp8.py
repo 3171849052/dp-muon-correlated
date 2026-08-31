@@ -8,7 +8,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from dp_muon.bandinvmf import BandInvMFStrategy, init_bandinv_noise_state
+from dp_muon.bandinvmf import (
+    BandInvMFStrategy,
+    filter_latent_noise,
+    init_bandinv_noise_state,
+)
 from jax_privacy.matrix_factorization import toeplitz
 from dp_muon.optim import decayed_prefix_sum_workload_coef
 from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
@@ -21,9 +25,14 @@ from exp8.core import (
     init_exp8_train_state,
     init_diagnostic_shadow_state,
     make_exp8_train_step,
+    paired_diagnostic_noise_from_innovation,
     sample_paired_diagnostic_noise,
 )
-from exp8.diagnostics import cancellation_statistics, paired_gains
+from exp8.diagnostics import (
+    cancellation_statistics,
+    cross_seed_aggregate,
+    paired_gains,
+)
 from exp8.online_shadow import Exp8WindowCollector
 
 
@@ -79,6 +88,36 @@ def test_paired_noise_uses_same_z_and_only_corr_has_filter_state():
   # The returned API has no IID state, and independent calls draw distinct z_t.
   _, _, z2, _, _ = sample_paired_diagnostic_noise(next_key, next_state, strategy, 2.0, phi[1])
   assert not np.array_equal(np.asarray(z["w"]), np.asarray(z2["w"]))
+
+
+def test_diagnostic_filter_matches_formal_filter_for_ten_deterministic_steps():
+  strategy = _strategy(horizon=10)
+  params = {"w": jnp.zeros((2,), jnp.float32)}
+  actual_state = init_bandinv_noise_state(params, strategy.bandwidth)
+  reference_state = init_bandinv_noise_state(params, strategy.bandwidth)
+  sigma = .7
+  phi = bandinv_marginal_variances(strategy, sigma)
+  innovations = [
+      {"w": jnp.asarray([step + .25, -2.0 * step - .5], jnp.float32)}
+      for step in range(10)
+  ]
+  for step, z in enumerate(innovations):
+    actual_corr, actual_iid, actual_state = paired_diagnostic_noise_from_innovation(
+        actual_state, z, strategy, sigma, phi[step]
+    )
+    latent = jax.tree_util.tree_map(lambda value: sigma * value, z)
+    expected_corr, reference_state = filter_latent_noise(
+        reference_state, latent, strategy.noising_coef
+    )
+    _tree_allclose(actual_corr, expected_corr, atol=1e-6)
+    _tree_allclose(
+        actual_iid,
+        jax.tree_util.tree_map(lambda value: jnp.sqrt(phi[step]) * value, z),
+        atol=1e-6,
+    )
+    _tree_allclose(actual_state.buffer, reference_state.buffer, atol=1e-6)
+    np.testing.assert_array_equal(actual_state.cursor, reference_state.cursor)
+    np.testing.assert_array_equal(actual_state.step, reference_state.step)
 
 
 def test_training_and_diagnostic_rng_streams_are_distinct_and_shadows_do_not_update_real_state():
@@ -155,6 +194,7 @@ def test_r_is_bias_corrected_pure_noise_momentum_response_and_phi_ema():
   )
   expected1 = (1 - beta1) * 2.0 / (1 - beta1)
   np.testing.assert_allclose(np.asarray(first.r["corr"]["w"]), [expected1])
+  np.testing.assert_allclose(np.asarray(first.r["iid"]["w"]), [expected1])
   np.testing.assert_allclose(float(first.Phi_t), (1 - beta2) * .25 / (1 - beta2))
   state, second = advance_diagnostic_shadow(
       state, g, xi2, xi2, .25, beta1=beta1, beta2=beta2,
@@ -162,10 +202,42 @@ def test_r_is_bias_corrected_pure_noise_momentum_response_and_phi_ema():
   )
   expected2 = (beta1 * (1 - beta1) * 2.0 + (1 - beta1) * -1.0) / (1 - beta1**2)
   np.testing.assert_allclose(np.asarray(second.r["corr"]["w"]), [expected2])
+  np.testing.assert_allclose(np.asarray(second.r["iid"]["w"]), [expected2])
+  denominator = 1.0 - beta1**2
+  corr_difference = state.corr_m["w"] / denominator - state.clean_m["w"] / denominator
+  iid_difference = state.iid_m["w"] / denominator - state.clean_m["w"] / denominator
+  np.testing.assert_allclose(np.asarray(corr_difference), np.asarray(second.r["corr"]["w"]), atol=1e-6)
+  np.testing.assert_allclose(np.asarray(iid_difference), np.asarray(second.r["iid"]["w"]), atol=1e-6)
   expected_phi2 = (beta2 * (1 - beta2) * .25 + (1 - beta2) * .25) / (1 - beta2**2)
   np.testing.assert_allclose(float(second.Phi_t), expected_phi2, atol=1e-6)
 
 
+def test_pure_noise_ema_and_private_difference_match_for_eight_steps_both_branches():
+  params = {"w": jnp.zeros((2,), jnp.float32)}
+  state = init_diagnostic_shadow_state(params)
+  beta1, beta2 = .7, .85
+  clean_m = np.zeros(2, np.float32)
+  noise_m = {branch: np.zeros(2, np.float32) for branch in BRANCHES}
+  for step in range(1, 9):
+    g = {"w": jnp.asarray([1.0 + step, -2.0 + .5 * step], jnp.float32)}
+    xi = {
+        "corr": {"w": jnp.asarray([.25 * step, -1.0], jnp.float32)},
+        "iid": {"w": jnp.asarray([-0.5, .15 * step], jnp.float32)},
+    }
+    state, out = advance_diagnostic_shadow(
+        state, g, xi["corr"], xi["iid"], .4,
+        beta1=beta1, beta2=beta2, learning_rate=.03, eps=1e-6,
+    )
+    clean_m = beta1 * clean_m + (1 - beta1) * np.asarray(g["w"])
+    for branch in BRANCHES:
+      noise_m[branch] = beta1 * noise_m[branch] + (1 - beta1) * np.asarray(xi[branch]["w"])
+      expected = noise_m[branch] / (1 - beta1**step)
+      np.testing.assert_allclose(np.asarray(out.r[branch]["w"]), expected, atol=2e-6)
+      private_m = state.corr_m["w"] if branch == "corr" else state.iid_m["w"]
+      difference = np.asarray(private_m) / (1 - beta1**step) - clean_m / (1 - beta1**step)
+      np.testing.assert_allclose(difference, expected, atol=2e-6)
+    assert float(out.r_difference_error_corr) < 2e-6
+    assert float(out.r_difference_error_iid) < 2e-6
 def test_p0_p1_p2_p3_formulas_and_p2_is_deterministic_bias_only():
   params = {"w": jnp.asarray([0.0], jnp.float32)}
   state = init_diagnostic_shadow_state(params)
@@ -221,6 +293,8 @@ def _fake_step(value: float) -> Exp8DiagnosticStep:
       xi={branch: zero for branch in BRANCHES}, z=zero,
       phi_t=jnp.asarray(0.0), Phi_t=jnp.asarray(0.0),
       reconstruction_error=jnp.asarray(0.0),
+      r_difference_error_corr=jnp.asarray(0.0),
+      r_difference_error_iid=jnp.asarray(0.0),
   )
 
 
@@ -243,6 +317,75 @@ def test_exact_stage_boundaries_are_not_window_weighted_averages():
   np.testing.assert_allclose(stages["early"]["metrics"]["corr"]["P0"]["J"], 97**2)
   np.testing.assert_allclose(stages["late"]["metrics"]["corr"]["P0"]["J"], 6**2)
   np.testing.assert_allclose(stages["full"]["metrics"]["corr"]["P0"]["J"], 103**2)
+
+
+def _fake_stage_payload(offset: float):
+  paths = {}
+  for path_index, path in enumerate(PATHS):
+    paths[path] = {
+        "C_corr": offset + path_index,
+        "C_iid": offset + path_index + 1,
+        "J_corr": 2 * offset + path_index,
+        "J_iid": 2 * offset + path_index + 2,
+        "D_corr": 3 * offset + path_index,
+        "D_iid": 3 * offset + path_index + 3,
+        "G_C": .1 * offset + path_index,
+        "G_J": .2 * offset + path_index,
+    }
+  decomposition = {
+      "A_energy": offset + 1, "B_energy": offset + 2, "I_energy": offset + 3,
+      "AB_dot": offset + 4, "AI_dot": offset + 5, "BI_dot": offset + 6,
+      "reconstruction_error": offset / 100,
+  }
+  degradation = {
+      gain: {field: offset + index for index, field in enumerate(
+          ("delta_clean", "delta_bias", "delta_nonlinear")
+      )}
+      for gain in ("G_C", "G_J")
+  }
+  return {"paths": paths, "decomposition": decomposition, "degradation": degradation}
+
+
+def test_cross_seed_aggregate_mean_std_includes_decomposition():
+  aggregate = cross_seed_aggregate({
+      "0": {"early": _fake_stage_payload(1.0)},
+      "1": {"early": _fake_stage_payload(3.0)},
+      "2": {"early": _fake_stage_payload(5.0)},
+  })
+  early = aggregate["early"]
+  np.testing.assert_allclose(early["paths"]["P0"]["G_C_mean"], 0.3)
+  np.testing.assert_allclose(early["paths"]["P0"]["G_C_std"], .2)
+  np.testing.assert_allclose(early["paths"]["P3"]["G_J_mean"], 3.6)
+  np.testing.assert_allclose(early["decomposition"]["A_energy"]["mean"], 4.0)
+  np.testing.assert_allclose(early["decomposition"]["A_energy"]["std"], 2.0)
+  np.testing.assert_allclose(early["decomposition_flat"]["BI_dot_std"], 2.0)
+
+
+def test_plot_helpers_consume_cross_seed_means_and_uncertainty(tmp_path, monkeypatch):
+  from matplotlib.axes import Axes
+  from exp8 import plotting
+
+  aggregate = cross_seed_aggregate({
+      "0": {"early": _fake_stage_payload(1.0)},
+      "1": {"early": _fake_stage_payload(3.0)},
+  })
+  captured = []
+  original = Axes.errorbar
+
+  def record(self, x, y, yerr=None, *args, **kwargs):
+    captured.append((list(y), list(yerr)))
+    return original(self, x, y, yerr=yerr, *args, **kwargs)
+
+  monkeypatch.setattr(Axes, "errorbar", record)
+  plotting.plot_path_gain_summary(aggregate, tmp_path / "path.png")
+  plotting.plot_decomposition(aggregate, tmp_path / "decomp.png")
+  assert captured
+  # The first path summary point is the cross-seed mean (0.2), not seed 0 (0.1).
+  np.testing.assert_allclose(captured[0][0][0], .2)
+  np.testing.assert_allclose(captured[0][1][0], np.sqrt(.02))
+  # Decomposition A mean is 3, with sample std sqrt(2).
+  np.testing.assert_allclose(captured[2][0][0], 3.0)
+  np.testing.assert_allclose(captured[2][1][0], np.sqrt(2.0))
 
 
 def test_smoke_outputs_are_finite(tmp_path):

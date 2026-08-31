@@ -42,9 +42,9 @@ from exp8.core import (
     make_exp8_train_step,
 )
 from exp8.diagnostics import (
-    add_paired_gains,
     aggregate_window_rows,
     attach_path_degradation,
+    cross_seed_aggregate,
     write_window_rows,
     write_window_summary,
 )
@@ -102,27 +102,10 @@ def _stage_payload(stage: Mapping[str, object]) -> dict[str, object]:
 
 
 def _cross_seed_aggregate(per_seed: Mapping[str, Mapping[str, object]]) -> dict[str, object]:
-  output: dict[str, object] = {}
-  for stage in ("early", "late", "full"):
-    stage_values = [runs[stage] for runs in per_seed.values() if stage in runs]
-    if not stage_values:
-      output[stage] = {}
-      continue
-    paths = {}
-    for path in PATHS:
-      paths[path] = {}
-      for field in ("C_corr", "C_iid", "J_corr", "J_iid", "D_corr", "D_iid", "G_C", "G_J"):
-        values = np.asarray([float(stage_value["paths"][path][field]) for stage_value in stage_values])
-        paths[path][f"{field}_mean"] = float(np.mean(values))
-        paths[path][f"{field}_std"] = float(np.std(values, ddof=1)) if len(values) > 1 else 0.0
-    degradation_values = {}
-    for gain in ("G_C", "G_J"):
-      for field in ("delta_clean", "delta_bias", "delta_nonlinear"):
-        values = [float(stage_value["degradation"][gain][field]) for stage_value in stage_values]
-        degradation_values[f"{gain}_{field}_mean"] = float(np.mean(values))
-        degradation_values[f"{gain}_{field}_std"] = float(np.std(values, ddof=1)) if len(values) > 1 else 0.0
-    output[stage] = {"num_seeds": len(stage_values), "paths": paths, "degradation": degradation_values}
-  return output
+  # Kept as a local compatibility wrapper for callers that used the previous
+  # private helper; the implementation now lives in diagnostics.py for tests
+  # and plotting to share exactly the same aggregate.
+  return cross_seed_aggregate(per_seed)
 
 
 def _write_outputs(
@@ -136,16 +119,10 @@ def _write_outputs(
   write_window_summary(output / "window_summary.csv", aggregate_window_rows(rows))
   plot_gain_over_steps(rows, output / "correlation_gain_over_steps.png", gain="G_C")
   plot_gain_over_steps(rows, output / "endpoint_gain_over_steps.png", gain="G_J")
-  # Cross-seed plots use the same raw-stage metrics, not averages of window C/J.
+  # Cross-seed plots use the same exact-stage aggregate, not a representative seed.
   aggregate = _cross_seed_aggregate(per_seed)
-  plot_summaries = {}
-  for stage in ("early", "late", "full"):
-    stage_runs = [run[stage] for run in per_seed.values() if stage in run]
-    if stage_runs:
-      # A plot only needs a representative stage; the JSON retains every seed.
-      plot_summaries[stage] = stage_runs[0]
-  plot_path_gain_summary(plot_summaries, output / "path_gain_summary.png")
-  plot_decomposition(plot_summaries, output / "privacy_clean_decomposition.png")
+  plot_path_gain_summary(aggregate, output / "path_gain_summary.png")
+  plot_decomposition(aggregate, output / "privacy_clean_decomposition.png")
   summary = {
       **metadata,
       "seeds": [int(seed) for seed in per_seed],

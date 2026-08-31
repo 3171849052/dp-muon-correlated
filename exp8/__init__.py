@@ -9,6 +9,7 @@ from .core import (
     init_exp8_train_state,
     init_diagnostic_shadow_state,
     make_exp8_train_step,
+    paired_diagnostic_noise_from_innovation,
     sample_paired_diagnostic_noise,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "init_exp8_train_state",
     "init_diagnostic_shadow_state",
     "make_exp8_train_step",
+    "paired_diagnostic_noise_from_innovation",
     "sample_paired_diagnostic_noise",
 ]
