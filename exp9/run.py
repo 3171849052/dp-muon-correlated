@@ -60,6 +60,7 @@ from exp9.plotting import (
     plot_cancellation_paths,
     plot_decomposition,
     plot_path_gain_summary,
+    plot_stage_cancellation,
     plot_stage_diagnostics,
 )
 
@@ -75,14 +76,20 @@ def parse_args(argv=None):
 
 
 def _json_safe(value: Any) -> Any:
+  if value is None:
+    return None
   if isinstance(value, dict):
     return {str(key): _json_safe(item) for key, item in value.items()}
   if isinstance(value, (list, tuple)):
     return [_json_safe(item) for item in value]
+  if isinstance(value, np.ndarray):
+    return _json_safe(value.tolist())
   if isinstance(value, (np.integer, np.floating)):
     value = value.item()
+  if isinstance(value, (np.bool_, bool)):
+    return bool(value)
   if isinstance(value, float) and not np.isfinite(value):
-    return 0.0
+    return None
   return value
 
 
@@ -93,16 +100,27 @@ def _stage_payload(stage: Mapping[str, object]) -> dict[str, object]:
   payload["num_steps"] = int(stage["num_steps"])
   payload["decomposition"] = dict(stage["decomposition"])
   payload["bias"] = dict(stage["bias"])
+  payload["stage_metrics"] = stage.get("stage_metrics", {})
+  payload["stage_odd_response"] = stage.get("stage_odd_response", {})
+  payload["secondary_stage_odd_response"] = stage.get(
+      "secondary_stage_odd_response", {}
+  )
+  bias = payload["bias"]
+  payload["P3_reliable"] = {
+      "corr": bool(bias.get("P3_reliable_corr", False)),
+      "iid": bool(bias.get("P3_reliable_iid", False)),
+      "rule": "||BA-BB||/(||Bhat||+eps) <= 0.1",
+  }
   metric_tree = payload["metrics"]
   flat_paths = {}
   for path in PATHS:
     corr = metric_tree["corr"][path]  # type: ignore[index]
     iid = metric_tree["iid"][path]  # type: ignore[index]
     flat_paths[path] = {
-        "C_corr": float(corr.get("C", 0.0)), "C_iid": float(iid.get("C", 0.0)),
-        "J_corr": float(corr.get("J", 0.0)), "J_iid": float(iid.get("J", 0.0)),
-        "D_corr": float(corr.get("D", 0.0)), "D_iid": float(iid.get("D", 0.0)),
-        "G_C": float(corr.get("G_C", 0.0)), "G_J": float(corr.get("G_J", 0.0)),
+        "C_corr": corr.get("C"), "C_iid": iid.get("C"),
+        "J_corr": corr.get("J"), "J_iid": iid.get("J"),
+        "D_corr": corr.get("D"), "D_iid": iid.get("D"),
+        "G_C": corr.get("G_C"), "G_J": corr.get("G_J"),
     }
   payload["paths"] = flat_paths
   return payload
@@ -209,15 +227,29 @@ def _write_outputs(output: Path, rows: list[dict[str, object]], per_seed: dict[s
           writer.writerow({"stage": stage, "scope": group,
                            "metric": metric, "mean": value,
                            "std": stage_value[group].get(metric + "_std", 0.0)})
+      for branch, stage_metrics in stage_value.get("stage_metrics", {}).items():
+        for stage_name, values in stage_metrics.items():
+          for metric_name, aggregate_value in values.items():
+            writer.writerow({
+                "stage": stage, "scope": f"stage_{branch}_{stage_name}",
+                "metric": metric_name, "mean": aggregate_value.get("mean"),
+                "std": aggregate_value.get("std"),
+            })
   plot_path_gain_summary(aggregate, output / "p0_p3_cancellation.png")
   plot_decomposition(aggregate, output / "path_gap_decomposition.png")
   plot_bias_diagnostics(aggregate, output / "bias_diagnostics.png")
+  plot_stage_cancellation(aggregate, output / "q_stage_cancellation.png")
   plot_stage_diagnostics(aggregate, output / "q_stage_odd_response.png")
   summary = {
       **metadata, "seeds": [int(seed) for seed in per_seed],
       "per_seed": per_seed, "cross_seed_aggregate": aggregate,
       "num_window_rows": len(rows), "window_size": 16,
-      "primary_paths": "P0 raw linear noise; P1 JVP; P2 antithetic odd response; P3 raw response minus independently estimated output bias",
+      "primary_paths": {
+          "P0": "s_W * R_t,W, where s_W=consistent_rms*sqrt(max(shape_W))",
+          "P1": "J_F(X_t)[R_t] from a real JVP",
+          "P2": "(F(X_t+R_t)-F(X_t-R_t))/2",
+          "P3": "Y_t - Bhat_t, with Y_t=F(X_t+R_t) and Bhat=(BA+BB)/2",
+      },
       "stage_aggregation": "J,D,C,G and bias endpoints are recomputed from raw steps for each exact stage; window ratios are descriptive only",
       "bias_label": "output_bias and raw_private_clean_gap are diagnostics, never cancellation metrics",
   }

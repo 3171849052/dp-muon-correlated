@@ -41,6 +41,7 @@ PyTree = Any
 BRANCHES = ("corr", "iid")
 PATHS = ("P0", "P1", "P2", "P3")
 STAGES = ("linear", "bf16", "norm", "ns", "scale")
+PRIMARY_STAGES = ("linear", "norm", "ns", "scale")
 
 
 def _zeros_like(tree: PyTree) -> PyTree:
@@ -256,6 +257,72 @@ def _smooth_muon_q(
   ).astype(jnp.float32)
 
 
+def _probe_normals(
+    key: jax.Array, x: jax.Array, *, replicates: int, probes: int
+) -> jax.Array:
+  """Generate a ``(replicates, probes, *x.shape)`` probe batch."""
+  keys = jax.random.split(key, replicates * probes)
+  values = jax.vmap(
+      lambda subkey: jax.random.normal(subkey, x.shape, dtype=jnp.float32)
+  )(keys)
+  return values.reshape((replicates, probes, *x.shape))
+
+
+def _bias_from_probes(
+    clean_pre_q: jax.Array,
+    rho: float | jax.Array,
+    probe_u: jax.Array,
+    *,
+    f0: jax.Array | None = None,
+    ns_steps: int,
+    consistent_rms: float,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+  """Return ``(B_hat, B_A, B_B)`` using one shared probe batch."""
+  x = jnp.asarray(clean_pre_q, jnp.float32)
+  u = jnp.asarray(probe_u, jnp.float32)
+  if u.ndim != x.ndim + 2 or u.shape[0] != 2:
+    raise ValueError("probe_u must have shape (2, K, *clean_pre_q.shape)")
+  rho = jnp.asarray(rho, jnp.float32)
+  f = lambda value: _smooth_muon_q(
+      value, ns_steps=ns_steps, consistent_rms=consistent_rms
+  )
+  if f0 is None:
+    f0 = f(x)
+
+  def one_replicate(probes_for_replicate: jax.Array) -> jax.Array:
+    plus = jax.vmap(f)(x + rho * probes_for_replicate)
+    minus = jax.vmap(f)(x - rho * probes_for_replicate)
+    return jnp.mean((plus + minus) * jnp.asarray(.5, jnp.float32), axis=0) - f0
+
+  replicate_bias = jax.vmap(one_replicate)(u)
+  bias_a, bias_b = replicate_bias[0], replicate_bias[1]
+  return (bias_a + bias_b) * jnp.asarray(.5, jnp.float32), bias_a, bias_b
+
+
+def estimate_output_bias_replicates(
+    clean_pre_q: jax.Array,
+    rho: float | jax.Array,
+    key: jax.Array,
+    *,
+    probes: int = 8,
+    replicates: int = 2,
+    ns_steps: int = 5,
+    consistent_rms: float = 0.2,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+  """Estimate output bias with independent A/B replicates in one vmap."""
+  if isinstance(probes, bool) or not isinstance(probes, int) or probes < 1:
+    raise ValueError("probes must be a positive integer")
+  if replicates != 2:
+    raise ValueError("Experiment 9 requires exactly two bias probe replicates")
+  x = jnp.asarray(clean_pre_q, jnp.float32)
+  f0 = _smooth_muon_q(x, ns_steps=ns_steps, consistent_rms=consistent_rms)
+  probe_u = _probe_normals(key, x, replicates=replicates, probes=probes)
+  return _bias_from_probes(
+      x, rho, probe_u, f0=f0, ns_steps=ns_steps,
+      consistent_rms=consistent_rms,
+  )
+
+
 def estimate_output_bias(
     clean_pre_q: jax.Array,
     rho: float | jax.Array,
@@ -265,19 +332,11 @@ def estimate_output_bias(
     ns_steps: int = 5,
     consistent_rms: float = 0.2,
 ) -> jax.Array:
-  """Estimate ``E[F(X+R)-F(X)]`` with independent antithetic probes."""
-  if isinstance(probes, bool) or not isinstance(probes, int) or probes < 1:
-    raise ValueError("probes must be a positive integer")
-  x = jnp.asarray(clean_pre_q, jnp.float32)
-  rho = jnp.asarray(rho, jnp.float32)
-  f0 = _smooth_muon_q(x, ns_steps=ns_steps, consistent_rms=consistent_rms)
-  values = []
-  for probe_key in jax.random.split(key, probes):
-    u = jax.random.normal(probe_key, x.shape, dtype=jnp.float32)
-    plus = _smooth_muon_q(x + rho * u, ns_steps=ns_steps, consistent_rms=consistent_rms)
-    minus = _smooth_muon_q(x - rho * u, ns_steps=ns_steps, consistent_rms=consistent_rms)
-    values.append((plus + minus) * jnp.asarray(0.5, jnp.float32))
-  return jnp.mean(jnp.stack(values), axis=0) - f0
+  """Return only ``B_hat``; A/B details are available from the replicate API."""
+  return estimate_output_bias_replicates(
+      clean_pre_q, rho, key, probes=probes, replicates=2,
+      ns_steps=ns_steps, consistent_rms=consistent_rms,
+  )[0]
 
 
 def nonlinear_response_decomposition(
@@ -289,6 +348,10 @@ def nonlinear_response_decomposition(
     probes: int = 8,
     ns_steps: int = 5,
     consistent_rms: float = 0.2,
+    probe_u: jax.Array | None = None,
+    f0: jax.Array | None = None,
+    plus: jax.Array | None = None,
+    minus: jax.Array | None = None,
 ) -> dict[str, jax.Array]:
   """Return P0--P3, raw Y, even response, and independently probed bias."""
   x = jnp.asarray(clean_pre_q, jnp.float32)
@@ -296,22 +359,28 @@ def nonlinear_response_decomposition(
   f = lambda value: _smooth_muon_q(
       value, ns_steps=ns_steps, consistent_rms=consistent_rms
   )
-  f0 = f(x)
-  plus = f(x + r)
-  minus = f(x - r)
+  f0 = f(x) if f0 is None else f0
+  plus = f(x + r) if plus is None else plus
+  minus = f(x - r) if minus is None else minus
   _, p1 = jax.jvp(f, (x,), (r,))
   p2 = (plus - minus) * jnp.asarray(0.5, jnp.float32)
   raw = plus - f0
   even = (plus + minus) * jnp.asarray(0.5, jnp.float32) - f0
-  if bias_key is None:
+  if bias_key is None and probe_u is None:
     bias = jnp.zeros_like(x)
+    bias_a = jnp.zeros_like(x)
+    bias_b = jnp.zeros_like(x)
   else:
-    bias = estimate_output_bias(
-        x, rho, bias_key, probes=probes, ns_steps=ns_steps,
+    if probe_u is None:
+      probe_u = _probe_normals(bias_key, x, replicates=2, probes=probes)
+    bias, bias_a, bias_b = _bias_from_probes(
+        x, rho, probe_u, f0=f0, ns_steps=ns_steps,
         consistent_rms=consistent_rms,
     )
-  return {"P0": r, "P1": p1, "P2": p2, "P3": raw - bias,
-          "Y": raw, "even": even, "bias": bias,
+  p0 = _consistent_rms_scale(x, consistent_rms) * r
+  return {"P0": p0, "P1": p1, "P2": p2, "P3": raw - bias,
+          "Y": raw, "even": even, "bias": bias, "bias_A": bias_a,
+          "bias_B": bias_b, "probe_disagreement": bias_a - bias_b,
           "odd_reconstruction_error": raw - p2 - even}
 
 
@@ -334,6 +403,13 @@ def _stage_odd_response(
   return {stage: (plus[stage] - minus[stage]) * 0.5 for stage in STAGES}
 
 
+def _consistent_rms_scale(matrix: jax.Array, consistent_rms: float) -> jax.Array:
+  """The fixed parameter-axis scale used by production Muon."""
+  return jnp.asarray(consistent_rms, jnp.float32) * jnp.sqrt(
+      jnp.asarray(max(matrix.shape), jnp.float32)
+  )
+
+
 @jax.tree_util.register_pytree_node_class
 @dataclass(frozen=True)
 class Exp9DiagnosticStep:
@@ -344,12 +420,19 @@ class Exp9DiagnosticStep:
   noise_pre_q: dict[str, dict[str, jax.Array]]
   raw_response: dict[str, dict[str, jax.Array]]
   bias: dict[str, dict[str, jax.Array]]
+  bias_A: dict[str, dict[str, jax.Array]]
+  bias_B: dict[str, dict[str, jax.Array]]
+  probe_disagreement: dict[str, dict[str, jax.Array]]
+  probe_disagreement_norm: dict[str, jax.Array]
+  probe_disagreement_relative: dict[str, jax.Array]
   even_response: dict[str, dict[str, jax.Array]]
   stage_odd: dict[str, dict[str, dict[str, jax.Array]]]
   secondary_stage_odd: dict[str, dict[str, dict[str, jax.Array]]]
-  noise_signal_ratio: dict[str, dict[str, jax.Array]]
+  block_ratio_mean: dict[str, jax.Array]
+  block_ratio_max: dict[str, jax.Array]
+  global_noise_signal_ratio: dict[str, jax.Array]
   clean_pre_q_norm: dict[str, jax.Array]
-  normalization_boundary_margin: dict[str, jax.Array]
+  clean_pre_q_norm_min: jax.Array
   phi_pre_q: dict[str, jax.Array]
   rho_pre_q: dict[str, jax.Array]
   clipped_clean_gradient: PyTree
@@ -358,9 +441,13 @@ class Exp9DiagnosticStep:
   def tree_flatten(self):
     return (
         self.x, self.clean_pre_q, self.noise_pre_q, self.raw_response, self.bias,
-        self.even_response, self.stage_odd, self.secondary_stage_odd,
-        self.noise_signal_ratio, self.clean_pre_q_norm,
-        self.normalization_boundary_margin, self.phi_pre_q, self.rho_pre_q,
+        self.bias_A, self.bias_B, self.probe_disagreement,
+        self.probe_disagreement_norm, self.probe_disagreement_relative,
+        self.even_response,
+        self.stage_odd, self.secondary_stage_odd, self.block_ratio_mean,
+        self.block_ratio_max, self.global_noise_signal_ratio,
+        self.clean_pre_q_norm, self.clean_pre_q_norm_min,
+        self.phi_pre_q, self.rho_pre_q,
         self.clipped_clean_gradient, self.odd_reconstruction_error,
     ), None
 
@@ -417,12 +504,16 @@ def _zero_step(params: PyTree, muon_blocks: Mapping[str, jax.Array]) -> Exp9Diag
   }
   return Exp9DiagnosticStep(
       x=zero_x, clean_pre_q=dict(zero_blocks), noise_pre_q=zero_branch,
-      raw_response=zero_branch, bias=zero_branch, even_response=zero_branch,
+      raw_response=zero_branch, bias=zero_branch, bias_A=zero_branch,
+      bias_B=zero_branch, probe_disagreement=zero_branch, even_response=zero_branch,
+      probe_disagreement_norm={branch: jnp.asarray(0.0) for branch in BRANCHES},
+      probe_disagreement_relative={branch: jnp.asarray(0.0) for branch in BRANCHES},
       stage_odd=zero_stages, secondary_stage_odd=zero_stages,
-      noise_signal_ratio={branch: {key: jnp.asarray(0.0) for key in zero_blocks}
-                         for branch in BRANCHES},
+      block_ratio_mean={branch: jnp.asarray(0.0) for branch in BRANCHES},
+      block_ratio_max={branch: jnp.asarray(0.0) for branch in BRANCHES},
+      global_noise_signal_ratio={branch: jnp.asarray(0.0) for branch in BRANCHES},
       clean_pre_q_norm={key: jnp.asarray(0.0) for key in zero_blocks},
-      normalization_boundary_margin={key: jnp.asarray(0.0) for key in zero_blocks},
+      clean_pre_q_norm_min=jnp.asarray(0.0),
       phi_pre_q={branch: jnp.asarray(0.0) for branch in BRANCHES},
       rho_pre_q={branch: jnp.asarray(0.0) for branch in BRANCHES},
       clipped_clean_gradient=_zeros_like(params),
@@ -447,6 +538,8 @@ def advance_exp9_diagnostic(
     clipped_clean_gradient: PyTree | None = None,
 ) -> tuple[Exp9ShadowState, Exp9DiagnosticStep]:
   """Advance the Muon-only shadow and evaluate all primary/secondary paths."""
+  if isinstance(probes, bool) or not isinstance(probes, int) or probes < 1:
+    raise ValueError("probes must be a positive integer")
   keys = tuple(clean_gradient)
   if tuple(xi_corr) != keys or tuple(xi_iid) != keys:
     raise ValueError("clean and diagnostic Muon block keys must match")
@@ -469,55 +562,127 @@ def advance_exp9_diagnostic(
   branch_phi = {branch: jnp.asarray(phi_pre_q[branch], jnp.float32)
                 for branch in BRANCHES}
   branch_x = {branch: {path: {} for path in PATHS} for branch in BRANCHES}
-  branch_raw, branch_bias, branch_even = {}, {}, {}
-  branch_stage, branch_secondary, branch_ratios = {}, {}, {}
+  branch_raw, branch_bias, branch_bias_a, branch_bias_b = {}, {}, {}, {}
+  branch_probe_disagreement, branch_even = {}, {}
+  branch_stage, branch_secondary = {}, {}
+  branch_block_ratios, branch_global_ratios = {}, {}
   reconstruction = {}
-  clean_norm = {key: _tree_norm({"block": clean_x[key]}) for key in keys}
-  boundary_margin = {key: clean_norm[key] for key in keys}
+  clean_norm = {key: jnp.linalg.norm(clean_x[key]) for key in keys}
+  probe_keys = jax.random.split(bias_key, len(keys))
+  probe_u_by_key = {
+      key: _probe_normals(block_key, clean_x[key], replicates=2, probes=probes)
+      for key, block_key in zip(keys, probe_keys, strict=True)
+  }
+  primary_clean_stages = {
+      key: muon_q_stages(
+          clean_x[key], ns_steps=ns_steps, consistent_rms=consistent_rms,
+          use_bf16_ns=False,
+      ) for key in keys
+  }
   for branch_index, branch in enumerate(BRANCHES):
-    branch_raw[branch], branch_bias[branch], branch_even[branch] = {}, {}, {}
+    del branch_index
+    branch_raw[branch], branch_bias[branch] = {}, {}
+    branch_bias_a[branch], branch_bias_b[branch] = {}, {}
+    branch_probe_disagreement[branch], branch_even[branch] = {}, {}
     branch_stage[branch] = {stage: {} for stage in STAGES}
     branch_secondary[branch] = {stage: {} for stage in STAGES}
-    branch_ratios[branch] = {}
     reconstruction_terms = []
-    branch_keys = jax.random.split(jax.random.fold_in(bias_key, branch_index), len(keys))
-    for key, block_key in zip(keys, branch_keys, strict=True):
+    for key in keys:
       rho = jnp.sqrt(jnp.maximum(branch_phi[branch], 0.0))
+      primary_plus = muon_q_stages(
+          clean_x[key] + branch_r[branch][key], ns_steps=ns_steps,
+          consistent_rms=consistent_rms, use_bf16_ns=False,
+      )
+      primary_minus = muon_q_stages(
+          clean_x[key] - branch_r[branch][key], ns_steps=ns_steps,
+          consistent_rms=consistent_rms, use_bf16_ns=False,
+      )
       decomp = nonlinear_response_decomposition(
-          clean_x[key], branch_r[branch][key], bias_key=block_key, rho=rho,
+          clean_x[key], branch_r[branch][key], probe_u=probe_u_by_key[key], rho=rho,
+          f0=primary_clean_stages[key]["scale"],
+          plus=primary_plus["scale"], minus=primary_minus["scale"],
           probes=probes, ns_steps=ns_steps, consistent_rms=consistent_rms,
       )
+      # P0 is the same linear response with Muon's fixed parameter-axis
+      # consistent-RMS block scale.  It is not a new temporal workload.
+      decomp["P0"] = _consistent_rms_scale(clean_x[key], consistent_rms) * branch_r[branch][key]
       for path in PATHS:
         branch_x[branch][path][key] = -jnp.asarray(learning_rate, jnp.float32) * decomp[path]
       branch_raw[branch][key] = decomp["Y"]
       branch_bias[branch][key] = decomp["bias"]
+      branch_bias_a[branch][key] = decomp["bias_A"]
+      branch_bias_b[branch][key] = decomp["bias_B"]
+      branch_probe_disagreement[branch][key] = decomp["probe_disagreement"]
       branch_even[branch][key] = decomp["even"]
       reconstruction_terms.append(_tree_norm({"value": decomp["odd_reconstruction_error"]}))
-      primary_stages = _stage_odd_response(
-          clean_x[key], branch_r[branch][key], ns_steps=ns_steps,
-          consistent_rms=consistent_rms, use_bf16_ns=False,
-      )
-      secondary_stages = _stage_odd_response(
-          clean_x[key], branch_r[branch][key], ns_steps=ns_steps,
-          consistent_rms=consistent_rms, use_bf16_ns=secondary_use_bf16_ns,
-      )
+      primary_stages = {
+          stage: (primary_plus[stage] - primary_minus[stage]) * 0.5
+          for stage in STAGES
+      }
+      if secondary_use_bf16_ns:
+        secondary_plus = muon_q_stages(
+            clean_x[key] + branch_r[branch][key], ns_steps=ns_steps,
+            consistent_rms=consistent_rms, use_bf16_ns=True,
+        )
+        secondary_minus = muon_q_stages(
+            clean_x[key] - branch_r[branch][key], ns_steps=ns_steps,
+            consistent_rms=consistent_rms, use_bf16_ns=True,
+        )
+        secondary_stages = {
+            stage: (secondary_plus[stage] - secondary_minus[stage]) * 0.5
+            for stage in STAGES
+        }
+      else:
+        secondary_stages = primary_stages
       for stage in STAGES:
         branch_stage[branch][stage][key] = primary_stages[stage]
         branch_secondary[branch][stage][key] = secondary_stages[stage]
-      branch_ratios[branch][key] = _tree_norm({"value": branch_r[branch][key]}) / (
-          clean_norm[key] + jnp.asarray(1e-12, jnp.float32)
-      )
+    noise_sq = sum(jnp.sum(branch_r[branch][key] ** 2) for key in keys)
+    signal_sq = sum(jnp.sum(clean_x[key] ** 2) for key in keys)
+    branch_global_ratios[branch] = jnp.sqrt(noise_sq) / (
+        jnp.sqrt(signal_sq) + jnp.asarray(1e-12, jnp.float32)
+    )
+    ratios = {
+        key: jnp.linalg.norm(branch_r[branch][key]) / (
+            clean_norm[key] + jnp.asarray(1e-12, jnp.float32)
+        ) for key in keys
+    }
+    branch_block_ratios[branch] = ratios
     reconstruction[branch] = jnp.sqrt(sum(value * value for value in reconstruction_terms))
+  probe_norm = {
+      branch: _tree_norm(branch_probe_disagreement[branch]) for branch in BRANCHES
+  }
+  bias_norm = {branch: _tree_norm(branch_bias[branch]) for branch in BRANCHES}
+  probe_relative = {
+      branch: probe_norm[branch] / (bias_norm[branch] + jnp.asarray(1e-12, jnp.float32))
+      for branch in BRANCHES
+  }
+  block_ratio_mean = {
+      branch: (jnp.mean(jnp.stack(tuple(ratios.values()))) if ratios else jnp.asarray(0.0))
+      for branch, ratios in branch_block_ratios.items()
+  }
+  block_ratio_max = {
+      branch: (jnp.max(jnp.stack(tuple(ratios.values()))) if ratios else jnp.asarray(0.0))
+      for branch, ratios in branch_block_ratios.items()
+  }
   new_state = Exp9ShadowState(
       clean_momentum=clean_m, corr_noise_momentum=corr_m,
       iid_noise_momentum=iid_m, step=t,
   )
   return new_state, Exp9DiagnosticStep(
       x=branch_x, clean_pre_q=clean_x, noise_pre_q=branch_r,
-      raw_response=branch_raw, bias=branch_bias, even_response=branch_even,
+      raw_response=branch_raw, bias=branch_bias, bias_A=branch_bias_a,
+      bias_B=branch_bias_b, probe_disagreement=branch_probe_disagreement,
+      probe_disagreement_norm=probe_norm,
+      probe_disagreement_relative=probe_relative,
+      even_response=branch_even,
       stage_odd=branch_stage, secondary_stage_odd=branch_secondary,
-      noise_signal_ratio=branch_ratios, clean_pre_q_norm=clean_norm,
-      normalization_boundary_margin=boundary_margin, phi_pre_q=branch_phi,
+      block_ratio_mean=block_ratio_mean, block_ratio_max=block_ratio_max,
+      global_noise_signal_ratio=branch_global_ratios,
+      clean_pre_q_norm=clean_norm,
+      clean_pre_q_norm_min=(jnp.min(jnp.stack(tuple(clean_norm.values())))
+                            if clean_norm else jnp.asarray(0.0)),
+      phi_pre_q=branch_phi,
       rho_pre_q={branch: jnp.sqrt(jnp.maximum(branch_phi[branch], 0.0))
                  for branch in BRANCHES},
       clipped_clean_gradient=(_zeros_like(clean_gradient)

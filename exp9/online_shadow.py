@@ -7,17 +7,16 @@ from typing import Any
 
 import numpy as np
 
-from exp9.core import BRANCHES, PATHS, Exp9DiagnosticStep
+from exp9.core import BRANCHES, PATHS, PRIMARY_STAGES, STAGES, Exp9DiagnosticStep
 from exp9.diagnostics import (
-    BIAS_FIELDS,
-    DECOMP_FIELDS,
-    cancellation_metrics_from_jd,
-    make_window_row,
+    BIAS_FIELDS, DECOMP_FIELDS, cancellation_metrics_from_jd, make_window_row,
+    paired_gains,
 )
 
 
 PyTree = Any
 WINDOW_SIZE = 16
+_EPS = 1e-12
 
 
 def _copy_blocks(values: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -28,15 +27,25 @@ def _zeros_from(values: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
   return {key: np.zeros_like(value, dtype=np.float64) for key, value in values.items()}
 
 
+def _array(value: Any, name: str) -> np.ndarray:
+  result = np.asarray(value, dtype=np.float64)
+  if not np.all(np.isfinite(result)):
+    raise ValueError(f"non-finite primary diagnostic value: {name}")
+  return result
+
+
 def _norm_sq(values: dict[str, np.ndarray]) -> float:
-  return float(sum(np.sum(np.asarray(value, dtype=np.float64) ** 2) for value in values.values()))
+  result = float(sum(np.sum(_array(value, "block") ** 2) for value in values.values()))
+  if not np.isfinite(result):
+    raise ValueError("non-finite accumulated Frobenius norm")
+  return result
 
 
 def _sub(left: dict[str, np.ndarray], right: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
   return {key: left[key] - right[key] for key in left}
 
 
-def _metrics(bucket: "_Bucket") -> dict[str, dict[str, dict[str, float]]]:
+def _metrics(bucket: "_Bucket") -> dict[str, dict[str, dict[str, object]]]:
   return {
       branch: {
           path: cancellation_metrics_from_jd(
@@ -48,18 +57,43 @@ def _metrics(bucket: "_Bucket") -> dict[str, dict[str, dict[str, float]]]:
   }
 
 
+def _stage_metrics(bucket: "_Bucket") -> dict[str, dict[str, dict[str, dict[str, object]]]]:
+  result = {
+      branch: {
+          stage: cancellation_metrics_from_jd(
+              _norm_sq(bucket.stage_d[branch][stage]), bucket.stage_D[branch][stage]
+          )
+          for stage in PRIMARY_STAGES
+      }
+      for branch in BRANCHES
+  }
+  for stage in PRIMARY_STAGES:
+    gains = paired_gains(result["corr"][stage], result["iid"][stage])
+    result["corr"][stage].update(gains)
+    result["iid"][stage].update(gains)
+  return result
+
+
 @dataclass
 class _Bucket:
   d: dict[str, dict[str, dict[str, np.ndarray]]]
   D: dict[str, dict[str, float]]
+  stage_d: dict[str, dict[str, dict[str, np.ndarray]]]
+  stage_D: dict[str, dict[str, dict[str, float]]]
   bias_d: dict[str, dict[str, np.ndarray]]
   raw_d: dict[str, dict[str, np.ndarray]]
+  probe_disagreement_d: dict[str, dict[str, np.ndarray]]
   decomposition: dict[str, float]
   bias_sum: dict[str, float]
+  bias_sq_sum: dict[str, float]
   raw_response_sum: dict[str, float]
-  ratio_sum: dict[str, float]
+  probe_disagreement_norm_sum: dict[str, float]
+  probe_disagreement_sq_sum: dict[str, float]
+  global_ratio_sum: dict[str, float]
+  block_ratio_mean_sum: dict[str, float]
+  block_ratio_max_sum: dict[str, float]
   ratio_count: int
-  margin_min: float
+  clean_norm_min: float
   stage_odd_norm_sum: dict[str, dict[str, float]]
   secondary_stage_odd_norm_sum: dict[str, dict[str, float]]
 
@@ -69,20 +103,27 @@ def _new_bucket(template: dict[str, np.ndarray]) -> _Bucket:
   return _Bucket(
       d={branch: {path: _copy_blocks(zero) for path in PATHS} for branch in BRANCHES},
       D={branch: {path: 0.0 for path in PATHS} for branch in BRANCHES},
+      stage_d={branch: {stage: _copy_blocks(zero) for stage in PRIMARY_STAGES}
+               for branch in BRANCHES},
+      stage_D={branch: {stage: 0.0 for stage in PRIMARY_STAGES} for branch in BRANCHES},
       bias_d={branch: _copy_blocks(zero) for branch in BRANCHES},
       raw_d={branch: _copy_blocks(zero) for branch in BRANCHES},
+      probe_disagreement_d={branch: _copy_blocks(zero) for branch in BRANCHES},
       decomposition={field: 0.0 for field in DECOMP_FIELDS},
       bias_sum={branch: 0.0 for branch in BRANCHES},
+      bias_sq_sum={branch: 0.0 for branch in BRANCHES},
       raw_response_sum={branch: 0.0 for branch in BRANCHES},
-      ratio_sum={branch: 0.0 for branch in BRANCHES},
-      ratio_count=0, margin_min=float("inf"),
+      probe_disagreement_norm_sum={branch: 0.0 for branch in BRANCHES},
+      probe_disagreement_sq_sum={branch: 0.0 for branch in BRANCHES},
+      global_ratio_sum={branch: 0.0 for branch in BRANCHES},
+      block_ratio_mean_sum={branch: 0.0 for branch in BRANCHES},
+      block_ratio_max_sum={branch: 0.0 for branch in BRANCHES},
+      ratio_count=0, clean_norm_min=float("inf"),
       stage_odd_norm_sum={
-          branch: {stage: 0.0 for stage in ("linear", "bf16", "norm", "ns", "scale")}
-          for branch in BRANCHES
+          branch: {stage: 0.0 for stage in STAGES} for branch in BRANCHES
       },
       secondary_stage_odd_norm_sum={
-          branch: {stage: 0.0 for stage in ("linear", "bf16", "norm", "ns", "scale")}
-          for branch in BRANCHES
+          branch: {stage: 0.0 for stage in STAGES} for branch in BRANCHES
       },
   )
 
@@ -92,13 +133,18 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
   a = 1.0 - float(learning_rate) * float(weight_decay)
   for branch in BRANCHES:
     for path in PATHS:
-      x = {key: np.asarray(value, dtype=np.float64) for key, value in step.x[branch][path].items()}
+      x = {key: _array(value, f"x/{branch}/{path}/{key}")
+           for key, value in step.x[branch][path].items()}
       bucket.d[branch][path] = {
           key: a * bucket.d[branch][path][key] + x[key] for key in x
       }
       bucket.D[branch][path] = a * a * bucket.D[branch][path] + _norm_sq(x)
-    bias = {key: np.asarray(value, dtype=np.float64) for key, value in step.bias[branch].items()}
-    raw = {key: np.asarray(value, dtype=np.float64) for key, value in step.raw_response[branch].items()}
+    bias = {key: _array(value, f"bias/{branch}/{key}")
+            for key, value in step.bias[branch].items()}
+    raw = {key: _array(value, f"raw/{branch}/{key}")
+           for key, value in step.raw_response[branch].items()}
+    probe = {key: _array(value, f"probe_disagreement/{branch}/{key}")
+             for key, value in step.probe_disagreement[branch].items()}
     bucket.bias_d[branch] = {
         key: a * bucket.bias_d[branch][key] - float(learning_rate) * bias[key]
         for key in bias
@@ -107,25 +153,47 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
         key: a * bucket.raw_d[branch][key] - float(learning_rate) * raw[key]
         for key in raw
     }
-    bucket.bias_sum[branch] += float(sum(np.linalg.norm(value) for value in bias.values()))
-    bucket.raw_response_sum[branch] += float(sum(np.linalg.norm(value) for value in raw.values()))
-    bucket.ratio_sum[branch] += float(sum(np.asarray(value) for value in step.noise_signal_ratio[branch].values()))
-    for stage, values in step.stage_odd[branch].items():
-      bucket.stage_odd_norm_sum[branch][stage] += float(
-          np.sqrt(sum(np.sum(np.asarray(value, dtype=np.float64) ** 2)
-                      for value in values.values()))
-      )
-    for stage, values in step.secondary_stage_odd[branch].items():
+    bucket.probe_disagreement_d[branch] = {
+        key: a * bucket.probe_disagreement_d[branch][key] - float(learning_rate) * probe[key]
+        for key in probe
+    }
+    bucket.bias_sum[branch] += float(np.sqrt(_norm_sq(bias)))
+    bucket.bias_sq_sum[branch] += _norm_sq(bias)
+    bucket.raw_response_sum[branch] += float(np.sqrt(_norm_sq(raw)))
+    bucket.probe_disagreement_norm_sum[branch] += float(np.sqrt(_norm_sq(probe)))
+    bucket.probe_disagreement_sq_sum[branch] += _norm_sq(probe)
+    for stage in STAGES:
+      values = {key: _array(value, f"stage/{branch}/{stage}/{key}")
+                for key, value in step.stage_odd[branch][stage].items()}
+      secondary_values = {
+          key: _array(value, f"secondary_stage/{branch}/{stage}/{key}")
+          for key, value in step.secondary_stage_odd[branch][stage].items()
+      }
+      bucket.stage_odd_norm_sum[branch][stage] += float(np.sqrt(_norm_sq(values)))
       bucket.secondary_stage_odd_norm_sum[branch][stage] += float(
-          np.sqrt(sum(np.sum(np.asarray(value, dtype=np.float64) ** 2)
-                      for value in values.values()))
+          np.sqrt(_norm_sq(secondary_values))
       )
+      if stage in PRIMARY_STAGES:
+        stage_x = {key: -float(learning_rate) * value for key, value in values.items()}
+        bucket.stage_d[branch][stage] = {
+            key: a * bucket.stage_d[branch][stage][key] + stage_x[key]
+            for key in stage_x
+        }
+        bucket.stage_D[branch][stage] = (
+            a * a * bucket.stage_D[branch][stage] + _norm_sq(stage_x)
+        )
+    global_ratio = float(_array(step.global_noise_signal_ratio[branch],
+                                f"global_noise_signal_ratio/{branch}"))
+    block_mean = float(_array(step.block_ratio_mean[branch], f"block_ratio_mean/{branch}"))
+    block_max = float(_array(step.block_ratio_max[branch], f"block_ratio_max/{branch}"))
+    bucket.global_ratio_sum[branch] += global_ratio
+    bucket.block_ratio_mean_sum[branch] += block_mean
+    bucket.block_ratio_max_sum[branch] += block_max
+  clean_min = float(_array(step.clean_pre_q_norm_min, "clean_pre_q_norm_min"))
+  bucket.clean_norm_min = min(bucket.clean_norm_min, clean_min)
   bucket.ratio_count += 1
-  margins = [float(np.asarray(value)) for value in step.normalization_boundary_margin.values()]
-  if margins:
-    bucket.margin_min = min(bucket.margin_min, min(margins))
-  bucket.decomposition["state_gap_energy"] += sum(
-      _norm_sq(_sub(step.x[branch]["P0"], step.x[branch]["P1"])) for branch in ("corr",)
+  bucket.decomposition["state_gap_energy"] += _norm_sq(
+      _sub(step.x["corr"]["P0"], step.x["corr"]["P1"])
   )
   bucket.decomposition["odd_gap_energy"] += _norm_sq(
       _sub(step.x["corr"]["P1"], step.x["corr"]["P2"])
@@ -134,20 +202,39 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
       _sub(step.x["corr"]["P2"], step.x["corr"]["P3"])
   )
   reconstruction = max(
-      float(np.asarray(step.odd_reconstruction_error[branch])) for branch in BRANCHES
+      float(_array(step.odd_reconstruction_error[branch],
+                   f"odd_reconstruction_error/{branch}")) for branch in BRANCHES
   )
   bucket.decomposition["odd_reconstruction_error"] = max(
       bucket.decomposition["odd_reconstruction_error"], reconstruction
   )
+  scalar_values = [
+      *bucket.D["corr"].values(), *bucket.D["iid"].values(),
+      *bucket.stage_D["corr"].values(), *bucket.stage_D["iid"].values(),
+      *bucket.bias_sum.values(), *bucket.bias_sq_sum.values(),
+      *bucket.raw_response_sum.values(), *bucket.probe_disagreement_norm_sum.values(),
+      *bucket.probe_disagreement_sq_sum.values(), *bucket.global_ratio_sum.values(),
+      *bucket.block_ratio_mean_sum.values(), *bucket.block_ratio_max_sum.values(),
+  ]
+  if not np.all(np.isfinite(np.asarray(scalar_values, dtype=np.float64))):
+    raise ValueError("non-finite accumulated primary diagnostic")
 
 
-def _bucket_bias(bucket: _Bucket) -> dict[str, float]:
-  ratio = {
-      branch: (bucket.ratio_sum[branch] / bucket.ratio_count
-               if bucket.ratio_count else 0.0)
-      for branch in BRANCHES
+def _bucket_bias(bucket: _Bucket) -> dict[str, object]:
+  if bucket.ratio_count == 0:
+    return {
+        field: (False if field.startswith("P3_reliable_") else None)
+        for field in BIAS_FIELDS
+    }
+  count = bucket.ratio_count
+  relative = {
+      branch: float(np.sqrt(bucket.probe_disagreement_sq_sum[branch]) / (
+          np.sqrt(bucket.bias_sq_sum[branch]) + _EPS
+      )) for branch in BRANCHES
   }
-  margin = bucket.margin_min if np.isfinite(bucket.margin_min) else 0.0
+  reliable = {branch: bucket.ratio_count > 0 and relative[branch] <= .1
+              for branch in BRANCHES}
+  clean_min = bucket.clean_norm_min if np.isfinite(bucket.clean_norm_min) else None
   return {
       "output_bias_norm_corr": bucket.bias_sum["corr"],
       "output_bias_norm_iid": bucket.bias_sum["iid"],
@@ -157,14 +244,33 @@ def _bucket_bias(bucket: _Bucket) -> dict[str, float]:
       "raw_private_clean_gap_endpoint_iid": float(np.sqrt(_norm_sq(bucket.raw_d["iid"]))),
       "raw_private_clean_response_norm_corr": bucket.raw_response_sum["corr"],
       "raw_private_clean_response_norm_iid": bucket.raw_response_sum["iid"],
-      "normalization_boundary_margin_min": margin,
-      "noise_signal_ratio_mean_corr": ratio["corr"],
-      "noise_signal_ratio_mean_iid": ratio["iid"],
+      "probe_disagreement_norm_corr": bucket.probe_disagreement_norm_sum["corr"] / count,
+      "probe_disagreement_norm_iid": bucket.probe_disagreement_norm_sum["iid"] / count,
+      "probe_disagreement_relative_corr": relative["corr"],
+      "probe_disagreement_relative_iid": relative["iid"],
+      "probe_disagreement_endpoint_corr": float(
+          np.sqrt(_norm_sq(bucket.probe_disagreement_d["corr"]))
+      ),
+      "probe_disagreement_endpoint_iid": float(
+          np.sqrt(_norm_sq(bucket.probe_disagreement_d["iid"]))
+      ),
+      "P3_reliable_corr": reliable["corr"],
+      "P3_reliable_iid": reliable["iid"],
+      "clean_pre_q_norm_min": clean_min,
+      "global_noise_signal_ratio_mean_corr": bucket.global_ratio_sum["corr"] / count,
+      "global_noise_signal_ratio_mean_iid": bucket.global_ratio_sum["iid"] / count,
+      "block_noise_signal_ratio_mean_corr": bucket.block_ratio_mean_sum["corr"] / count,
+      "block_noise_signal_ratio_mean_iid": bucket.block_ratio_mean_sum["iid"] / count,
+      "block_noise_signal_ratio_max_corr": bucket.block_ratio_max_sum["corr"] / count,
+      "block_noise_signal_ratio_max_iid": bucket.block_ratio_max_sum["iid"] / count,
   }
 
 
-def _bucket_stage_response(bucket: _Bucket) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, float]]]:
-  count = max(bucket.ratio_count, 1)
+def _bucket_stage_response(bucket: _Bucket) -> tuple[dict[str, dict[str, float | None]], dict[str, dict[str, float | None]]]:
+  if bucket.ratio_count == 0:
+    empty = {branch: {stage: None for stage in STAGES} for branch in BRANCHES}
+    return empty, {branch: dict(values) for branch, values in empty.items()}
+  count = bucket.ratio_count
   primary = {
       branch: {stage: value / count for stage, value in values.items()}
       for branch, values in bucket.stage_odd_norm_sum.items()
@@ -177,8 +283,6 @@ def _bucket_stage_response(bucket: _Bucket) -> tuple[dict[str, dict[str, float]]
 
 
 def _host_step(step: Exp9DiagnosticStep) -> Exp9DiagnosticStep:
-  # The collector deliberately converts arrays at the boundary, keeping all
-  # primary map computations inside the compiled training step.
   return step
 
 
@@ -214,7 +318,8 @@ class Exp9WindowCollector:
     if self._template is not None:
       return
     self._template = {
-        key: np.asarray(value, dtype=np.float64) for key, value in step.clean_pre_q.items()
+        key: _array(value, f"clean_pre_q/{key}")
+        for key, value in step.clean_pre_q.items()
     }
     self._window = _new_bucket(self._template)
     self._full = _new_bucket(self._template)
@@ -224,7 +329,7 @@ class Exp9WindowCollector:
     self._rows.append(make_window_row(
         seed=self.seed, window_index=index, start_step=start, end_step=end,
         metrics=_metrics(bucket), decomposition=bucket.decomposition,
-        bias=_bucket_bias(bucket),
+        bias=_bucket_bias(bucket), stage_metrics=_stage_metrics(bucket),
     ))
 
   def after_step(self, state: Any, step: int) -> None:
@@ -265,28 +370,41 @@ class Exp9WindowCollector:
     self._finalized = True
     return self.rows
 
-  def _stage_payload(self, bucket: _Bucket | None, *, start: int, end: int) -> dict[str, object]:
-    if bucket is None:
-      template = self._template or {}
-      bucket = _new_bucket(template)
-    metrics = _metrics(bucket)
-    stage_odd, secondary_stage_odd = _bucket_stage_response(bucket)
-    return {
-        "start_step": int(start), "end_step": int(end),
-        "num_steps": max(0, int(end) - int(start) + 1),
-        "metrics": metrics, "decomposition": dict(bucket.decomposition),
-        "bias": _bucket_bias(bucket),
-        "stage_odd_response": stage_odd,
-        "secondary_stage_odd_response": secondary_stage_odd,
-    }
-
   def stage_summaries(self) -> dict[str, dict[str, object]]:
     early_end = min(97, self.horizon)
-    return {
-        "early": self._stage_payload(self._early, start=1, end=early_end),
-        "late": self._stage_payload(self._late, start=98, end=self.horizon),
-        "full": self._stage_payload(self._full, start=1, end=self.horizon),
-    }
+    result = {}
+    for name, bucket, start, end in (
+        ("early", self._early, 1, early_end),
+        ("late", self._late, 98, self.horizon),
+        ("full", self._full, 1, self.horizon),
+    ):
+      if bucket is None:
+        template = self._template or {}
+        bucket = _new_bucket(template)
+      metrics = _metrics(bucket)
+      stage_odd, secondary_stage_odd = _bucket_stage_response(bucket)
+      result[name] = {
+          "start_step": int(start), "end_step": int(end),
+          "num_steps": max(0, int(end) - int(start) + 1),
+          "metrics": metrics, "paths": {
+              path: {
+                  "C_corr": metrics["corr"][path].get("C"),
+                  "C_iid": metrics["iid"][path].get("C"),
+                  "J_corr": metrics["corr"][path].get("J"),
+                  "J_iid": metrics["iid"][path].get("J"),
+                  "D_corr": metrics["corr"][path].get("D"),
+                  "D_iid": metrics["iid"][path].get("D"),
+                  "G_C": metrics["corr"][path].get("G_C"),
+                  "G_J": metrics["corr"][path].get("G_J"),
+              } for path in PATHS
+          },
+          "decomposition": dict(bucket.decomposition),
+          "bias": _bucket_bias(bucket),
+          "stage_metrics": _stage_metrics(bucket),
+          "stage_odd_response": stage_odd,
+          "secondary_stage_odd_response": secondary_stage_odd,
+      }
+    return result
 
 
 __all__ = ["Exp9WindowCollector", "WINDOW_SIZE"]

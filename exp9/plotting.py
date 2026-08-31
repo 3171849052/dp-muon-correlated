@@ -11,6 +11,13 @@ import numpy as np
 from exp9.core import PATHS
 
 
+def _plot_value(value: object) -> float:
+  if value is None:
+    return np.nan
+  value = float(value)
+  return value if np.isfinite(value) else np.nan
+
+
 def _mean_window_values(rows: Iterable[Mapping[str, object]], field: str):
   groups: dict[int, list[Mapping[str, object]]] = {}
   for row in rows:
@@ -18,7 +25,10 @@ def _mean_window_values(rows: Iterable[Mapping[str, object]], field: str):
   values = []
   for _, group in sorted(groups.items()):
     midpoint = np.mean([(float(row["start_step"]) + float(row["end_step"])) / 2 for row in group])
-    values.append((midpoint, np.mean([float(row[field]) for row in group])))
+    numeric = [_plot_value(row.get(field)) for row in group]
+    numeric = [value for value in numeric if np.isfinite(value)]
+    if numeric:
+      values.append((midpoint, np.mean(numeric)))
   return values
 
 
@@ -53,8 +63,8 @@ def plot_path_gain_summary(
       if stage not in summaries or "paths" not in summaries[stage]:
         continue
       values = summaries[stage]["paths"]
-      y = [float(values[path][f"{gain}_mean"]) for path in PATHS]
-      error = [float(values[path][f"{gain}_std"]) for path in PATHS]
+      y = [_plot_value(values[path].get(f"{gain}_mean")) for path in PATHS]
+      error = [_plot_value(values[path].get(f"{gain}_std")) for path in PATHS]
       axis.errorbar(range(4), y, yerr=error, marker="o", capsize=3, label=stage)
     axis.set_xticks(range(4), ("P0", "P1", "P2", "P3"))
     axis.set_title(gain)
@@ -81,12 +91,12 @@ def plot_bias_diagnostics(
     for branch in ("corr", "iid"):
       field = f"{metric}_{branch}"
       y = [
-          float(summaries[stage].get("bias_flat", {}).get(f"{field}_mean", 0.0))
-          if stage in summaries else 0.0 for stage in stages
+          _plot_value(summaries[stage].get("bias_flat", {}).get(f"{field}_mean"))
+          if stage in summaries else np.nan for stage in stages
       ]
       error = [
-          float(summaries[stage].get("bias_flat", {}).get(f"{field}_std", 0.0))
-          if stage in summaries else 0.0 for stage in stages
+          _plot_value(summaries[stage].get("bias_flat", {}).get(f"{field}_std"))
+          if stage in summaries else np.nan for stage in stages
       ]
       axis.errorbar(x, y, yerr=error, marker="o", capsize=3, label=branch)
     axis.set_title(title)
@@ -109,10 +119,10 @@ def plot_decomposition(
   for field, label in (("state_gap_energy", "state"),
                        ("odd_gap_energy", "odd"),
                        ("even_gap_energy", "even")):
-    y = [float(summaries[stage].get("decomposition_flat", {}).get(field + "_mean", 0.0))
-         if stage in summaries else 0.0 for stage in stages]
-    error = [float(summaries[stage].get("decomposition_flat", {}).get(field + "_std", 0.0))
-             if stage in summaries else 0.0 for stage in stages]
+    y = [_plot_value(summaries[stage].get("decomposition_flat", {}).get(field + "_mean"))
+         if stage in summaries else np.nan for stage in stages]
+    error = [_plot_value(summaries[stage].get("decomposition_flat", {}).get(field + "_std"))
+             if stage in summaries else np.nan for stage in stages]
     axis.errorbar(x, y, yerr=error, marker="o", capsize=3, label=label)
   axis.set_xticks(x, stages)
   axis.set_ylabel("correlated path-gap energy")
@@ -137,8 +147,8 @@ def plot_stage_diagnostics(
   ):
     for branch in ("corr", "iid"):
       y = [
-          float(summaries["full"].get(field, {}).get(branch, {}).get(stage, {}).get("mean", 0.0))
-          if "full" in summaries else 0.0 for stage in stage_names
+          _plot_value(summaries["full"].get(field, {}).get(branch, {}).get(stage, {}).get("mean"))
+          if "full" in summaries else np.nan for stage in stage_names
       ]
       axis.plot(stage_names, y, marker="o", label=branch)
     axis.set_title(title)
@@ -150,7 +160,31 @@ def plot_stage_diagnostics(
   plt.close(figure)
 
 
+def plot_stage_cancellation(
+    summaries: Mapping[str, Mapping[str, Mapping[str, object]]], output: str | Path
+) -> None:
+  """Plot float32 stage-wise G_C/G_J; invalid zero-D cases remain gaps."""
+  figure, axes = plt.subplots(1, 2, figsize=(10.0, 4.0), sharex=True)
+  stages = ("linear", "norm", "ns", "scale")
+  full = summaries.get("full", {})
+  stage_metrics = full.get("stage_metrics", {})
+  for axis, gain in zip(axes, ("G_C", "G_J"), strict=True):
+    for branch in ("corr", "iid"):
+      values = stage_metrics.get(branch, {})
+      y = [_plot_value(values.get(stage, {}).get(gain, {}).get("mean")) for stage in stages]
+      error = [_plot_value(values.get(stage, {}).get(gain, {}).get("std")) for stage in stages]
+      axis.errorbar(stages, y, yerr=error, marker="o", capsize=3, label=branch)
+    axis.set_title(gain + " (primary float32)")
+    axis.grid(alpha=.25)
+  axes[0].set_ylabel("paired cancellation gain")
+  axes[-1].legend()
+  figure.tight_layout()
+  figure.savefig(output, dpi=150)
+  plt.close(figure)
+
+
 __all__ = [
     "plot_bias_diagnostics", "plot_cancellation_paths", "plot_decomposition",
-    "plot_gain_over_steps", "plot_path_gain_summary", "plot_stage_diagnostics",
+    "plot_gain_over_steps", "plot_path_gain_summary", "plot_stage_cancellation",
+    "plot_stage_diagnostics",
 ]
