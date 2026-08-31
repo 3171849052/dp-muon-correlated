@@ -9,7 +9,10 @@ import matplotlib.pyplot as plt
 
 
 def _key(row: Mapping[str, object], metric: str) -> str:
-  return metric if metric in row else f"{metric}_mean"
+  if metric in row:
+    return metric
+  window_mean = f"mean_window_{metric}"
+  return window_mean if window_mean in row else f"{metric}_mean"
 
 
 def _x(rows):

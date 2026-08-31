@@ -87,7 +87,9 @@ def _run_trajectory(
     artifact_identifiers: dict[str, str], loss_fn: Callable[[Any, Any], Any],
     evaluate: Callable[[Any], dict[str, float]] | None, eval_every: int = 1,
     num_train_examples: int | None = None, logical_batch_size: int | None = None,
-) -> tuple[dict[str, Any], list[dict[str, object]]]:
+) -> tuple[
+    dict[str, Any], list[dict[str, object]], list[dict[str, object]]
+]:
   step = make_exp7b_train_step(
       loss_fn, strategy, calibration, participation, algorithm=algorithm,
       learning_rate=learning_rate, gamma_prime=gamma_prime, beta1=beta1,
@@ -121,7 +123,7 @@ def _run_trajectory(
       "final_test_loss": last.get("test_loss"),
       "final_test_accuracy": last.get("test_accuracy"),
       "num_windows": len(rows),
-  }, rows
+  }, rows, collector.step_diagnostics
 
 
 class _Evaluator:
@@ -134,6 +136,7 @@ class _Evaluator:
 
 def _write_outputs(
     output: Path, rows: list[dict[str, object]], runs: list[dict[str, Any]],
+    step_diagnostics: list[dict[str, object]],
     *, horizon: int, metadata: dict[str, Any], gamma_prime_ratio: float,
     phi_inf: float, gamma_prime: float,
 ) -> dict[str, Any]:
@@ -143,9 +146,15 @@ def _write_outputs(
   plot_paired_gaps(aggregated, output / "paired_real_vs_clean_gap.png")
   plot_bc_preconditioner(aggregated, output / "bc_preconditioner_floor_activation.png")
   plot_update_norms(aggregated, output / "update_norm_diagnostics.png")
+  implied_p_max = 1.0 / np.sqrt(gamma_prime)
   by_algorithm = {
       algorithm: two_stage_summary(
-          [row for row in rows if row["algorithm"] == algorithm], total_steps=horizon
+          [row for row in rows if row["algorithm"] == algorithm],
+          total_steps=horizon,
+          step_diagnostics=[
+              row for row in step_diagnostics if row["algorithm"] == algorithm
+          ],
+          implied_p_max=implied_p_max,
       ) for algorithm in ("baseline", "bc")
   }
   per_seed: dict[str, Any] = {}
@@ -162,13 +171,18 @@ def _write_outputs(
           [row for row in rows
            if str(row["seed"]) == seed and row["algorithm"] == algorithm],
           total_steps=horizon,
+          step_diagnostics=[
+              row for row in step_diagnostics
+              if str(row["seed"]) == seed and row["algorithm"] == algorithm
+          ],
+          implied_p_max=implied_p_max,
       ))
   summary = {
       **metadata,
       "gamma_prime_ratio": gamma_prime_ratio,
       "phi_infty": phi_inf,
       "gamma_prime": gamma_prime,
-      "implied_p_max": 1.0 / np.sqrt(gamma_prime),
+      "implied_p_max": implied_p_max,
       "gamma_prime_privacy_note": (
           "deterministic post-processing of the existing DP output; no additional privacy cost"
       ),
@@ -211,7 +225,7 @@ def run_real(
       contract.horizon, contract.min_sep, contract.max_participations
   )
   output.mkdir(parents=True, exist_ok=True)
-  rows, runs = [], []
+  rows, runs, step_diagnostics = [], [], []
   for seed in seeds:
     schedule = build_schedule_for_seed(contract, seed)
     parameter_key, noise_key = jax.random.split(jax.random.key(seed))
@@ -229,7 +243,7 @@ def run_real(
         },
     )
     for algorithm in ("baseline", "bc"):
-      result, trajectory_rows = _run_trajectory(
+      result, trajectory_rows, trajectory_steps = _run_trajectory(
           algorithm=algorithm, seed=seed, params=snapshot.params, noise_key=noise_key,
           strategy=strategy, calibration=calibration, participation=participation,
           batches=iter_logical_batches(train_images, train_labels, schedule),
@@ -247,8 +261,9 @@ def run_real(
       )
       runs.append(result)
       rows.extend(trajectory_rows)
+      step_diagnostics.extend(trajectory_steps)
   _write_outputs(
-      output, rows, runs, horizon=contract.horizon,
+      output, rows, runs, step_diagnostics, horizon=contract.horizon,
       gamma_prime_ratio=gamma_prime_ratio, phi_inf=phi_inf, gamma_prime=gamma_prime,
       metadata={"smoke": False, "contract": asdict(contract), "config": asdict(config),
                 "calibration": asdict(calibration),
@@ -294,7 +309,7 @@ def run_smoke(
        "y": np.asarray([.5, -.25], np.float32)} for step in range(horizon)
   ]
   output.mkdir(parents=True, exist_ok=True)
-  rows, runs = [], []
+  rows, runs, step_diagnostics = [], [], []
   for seed in seeds:
     params = {"w": jax.random.normal(jax.random.key(seed), (2,)) * .01}
     noise_key = jax.random.key(seed + 10_000)
@@ -306,7 +321,7 @@ def run_smoke(
         },
     )
     for algorithm in ("baseline", "bc"):
-      result, trajectory_rows = _run_trajectory(
+      result, trajectory_rows, trajectory_steps = _run_trajectory(
           algorithm=algorithm, seed=seed, params=params, noise_key=noise_key,
           strategy=strategy, calibration=calibration, participation=participation,
           batches=list(batches), horizon=horizon, learning_rate=learning_rate,
@@ -319,8 +334,9 @@ def run_smoke(
       )
       runs.append(result)
       rows.extend(trajectory_rows)
+      step_diagnostics.extend(trajectory_steps)
   _write_outputs(
-      output, rows, runs, horizon=horizon,
+      output, rows, runs, step_diagnostics, horizon=horizon,
       gamma_prime_ratio=gamma_prime_ratio, phi_inf=phi_inf, gamma_prime=gamma_prime,
       metadata={"smoke": True, "calibration": asdict(calibration),
                 "bandinv_noise": {

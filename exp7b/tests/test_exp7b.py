@@ -18,6 +18,9 @@ from exp7b.core import (
     gamma_prime_from_ratio, make_exp7b_train_step, paper_bc_preconditioner,
     phi_infinity,
 )
+from exp7b.diagnostics import (
+    NORM_NAMES, aggregate_window_rows, histogram_quantile, stage_metrics, window_row,
+)
 from exp7b.online_shadow import Exp7bWindowCollector
 from exp7b.run import run_smoke
 
@@ -228,6 +231,156 @@ def test_paired_branches_share_initialization_batches_and_latent_noise():
     )
 
 
+def _synthetic_histogram(values, *, bins, implied_p_max):
+  values = np.asarray(values, np.float64)
+  indices = np.minimum(
+      np.floor(values / implied_p_max * bins).astype(np.int64), bins - 1
+  )
+  return np.bincount(indices, minlength=bins)
+
+
+def _cancellation_windows(total_steps=488, window_size=16):
+  rows = []
+  for index, start in enumerate(range(1, total_steps + 1, window_size)):
+    end = min(total_steps, start + window_size - 1)
+    rows.append({
+        "seed": 0, "algorithm": "bc", "window_index": index,
+        "start_step": start, "end_step": end,
+        "C_00": 1.0, "C_10": 2.0, "C_01": 3.0, "C_11": 5.0,
+        "C_BC": 1.5, "C_real": 1.5,
+        "C_dynamic_clean_p": 1.0, "gap": .5,
+    })
+  return rows
+
+
+def _step_record(step, samples, norm_value, *, bins=8, implied_p_max=8.0):
+  return {
+      "seed": 0, "algorithm": "bc", "step": step,
+      **{f"nonpositive_v_fraction_{path}": step / 1000 for path in (
+          "00", "10", "01", "11", "BC"
+      )},
+      "corrected_v_nonpositive_fraction": step / 1000,
+      "floor_activation_fraction": step / 2000,
+      "p_bc_histogram": _synthetic_histogram(
+          samples, bins=bins, implied_p_max=implied_p_max
+      ),
+      "p_bc_max": max(samples),
+      "raw_optimizer_update_l2": norm_value,
+      "applied_parameter_update_l2": 2 * norm_value,
+      "parameter_l2": 3 * norm_value,
+  }
+
+
+def test_stage_stability_uses_exact_steps_at_97_98_boundary():
+  implied_p_max, bins = 8.0, 8
+  samples_by_step = {
+      step: np.asarray([step % 7 + .1, (step * 3) % 7 + .2])
+      for step in range(1, 489)
+  }
+  norm_values = np.arange(1, 489, dtype=np.float64)
+  norm_values[97] = 10_000.0  # step 98: must never leak into early stage.
+  records = [
+      _step_record(step, samples_by_step[step], norm_values[step - 1],
+                   bins=bins, implied_p_max=implied_p_max)
+      for step in range(1, 489)
+  ]
+  rows = _cancellation_windows()
+  early = stage_metrics(
+      rows, stage_start=1, stage_end=97, step_diagnostics=records,
+      implied_p_max=implied_p_max,
+  )
+  late = stage_metrics(
+      rows, stage_start=98, stage_end=488, step_diagnostics=records,
+      implied_p_max=implied_p_max,
+  )
+
+  assert early["covered_stability_steps"] == 97
+  assert late["covered_stability_steps"] == 391
+  assert early["raw_optimizer_update_l2_max"] == pytest.approx(97.0)
+  assert late["raw_optimizer_update_l2_max"] == pytest.approx(10_000.0)
+  assert early["raw_optimizer_update_l2_min"] == pytest.approx(1.0)
+  assert late["raw_optimizer_update_l2_min"] == pytest.approx(99.0)
+  assert early["raw_optimizer_update_l2_std"] == pytest.approx(
+      np.std(norm_values[:97])
+  )
+  assert late["raw_optimizer_update_l2_std"] == pytest.approx(
+      np.std(norm_values[97:])
+  )
+  # Window 7 is 97-112, but early receives exactly its first step.
+  overlapping_window_max_average = np.mean([16, 32, 48, 64, 80, 96, 10_000])
+  assert early["raw_optimizer_update_l2_max"] != pytest.approx(
+      overlapping_window_max_average
+  )
+
+  for summary, selected_steps in (
+      (early, range(1, 98)), (late, range(98, 489))
+  ):
+    direct_samples = np.concatenate([samples_by_step[step] for step in selected_steps])
+    direct_histogram = _synthetic_histogram(
+        direct_samples, bins=bins, implied_p_max=implied_p_max
+    )
+    assert summary["p_bc_median"] == pytest.approx(
+        histogram_quantile(direct_histogram, .5, implied_p_max)
+    )
+    assert summary["p_bc_q99"] == pytest.approx(
+        histogram_quantile(direct_histogram, .99, implied_p_max)
+    )
+    assert summary["p_bc_q99_9"] == pytest.approx(
+        histogram_quantile(direct_histogram, .999, implied_p_max)
+    )
+
+
+def _window_stability(*, mean, std, minimum, maximum, p_quantile, p_max):
+  stability = {
+      "corrected_v_nonpositive_fraction": .25,
+      "floor_activation_fraction": .5,
+      "p_bc_median": p_quantile,
+      "p_bc_q99": p_quantile + 1,
+      "p_bc_q99_9": p_quantile + 2,
+      "p_bc_max": p_max,
+  }
+  for name in NORM_NAMES:
+    stability.update({
+        f"{name}_mean": mean, f"{name}_std": std,
+        f"{name}_min": minimum, f"{name}_max": maximum,
+    })
+  return stability
+
+
+def test_cross_seed_window_summary_pools_std_and_preserves_extrema_names():
+  scores = {"00": 1., "10": 2., "01": 3., "11": 5., "BC": 1.5}
+  negative = {path: .1 for path in ("00", "10", "01", "11", "BC")}
+  rows = [
+      window_row(
+          seed=0, algorithm="bc", window_index=0, start_step=1, end_step=2,
+          mean_p_relative_change=.1, scores=scores, negative_fractions=negative,
+          stability=_window_stability(
+              mean=2., std=1., minimum=1., maximum=3., p_quantile=2., p_max=5.
+          ),
+      ),
+      window_row(
+          seed=1, algorithm="bc", window_index=0, start_step=1, end_step=2,
+          mean_p_relative_change=.2, scores=scores, negative_fractions=negative,
+          stability=_window_stability(
+              mean=10., std=2., minimum=7., maximum=13., p_quantile=6., p_max=14.
+          ),
+      ),
+  ]
+  summary = aggregate_window_rows(rows)[0]
+  direct_values = np.asarray([1., 3., 8., 12.])
+  assert summary["raw_optimizer_update_l2_mean"] == pytest.approx(
+      np.mean(direct_values)
+  )
+  assert summary["raw_optimizer_update_l2_std"] == pytest.approx(
+      np.std(direct_values)
+  )
+  assert summary["raw_optimizer_update_l2_min"] == pytest.approx(1.)
+  assert summary["raw_optimizer_update_l2_max"] == pytest.approx(13.)
+  assert summary["p_bc_max"] == pytest.approx(14.)
+  assert summary["mean_window_p_bc_median"] == pytest.approx(4.)
+  assert "p_bc_median_mean" not in summary
+
+
 def test_small_smoke_writes_all_required_outputs(tmp_path: Path):
   run_smoke(tmp_path, [0], gamma_prime_ratio=1.0)
   required = (
@@ -248,6 +401,9 @@ def test_small_smoke_writes_all_required_outputs(tmp_path: Path):
       "final_test_loss", "final_test_accuracy",
       "early_steps_1_97", "late_steps_98_488",
   }
+  assert summary["per_seed"]["0"]["bc"]["early_steps_1_97"][
+      "covered_stability_steps"
+  ] == 20
   with (tmp_path / "window_diagnostics_bc_seed0.csv").open(newline="") as stream:
     row = next(csv.DictReader(stream))
   assert set(row) >= {

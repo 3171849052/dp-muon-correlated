@@ -84,6 +84,12 @@ class Exp7bWindowState:
   emitted_scores: dict[str, jax.Array]
   emitted_negative: dict[str, jax.Array]
   emitted_stability: dict[str, jax.Array]
+  latest_negative: dict[str, jax.Array]
+  latest_corrected_nonpositive: jax.Array
+  latest_floor: jax.Array
+  latest_p_histogram: jax.Array
+  latest_p_maximum: jax.Array
+  latest_norms: dict[str, jax.Array]
 
   def tree_flatten(self):
     return (
@@ -94,6 +100,9 @@ class Exp7bWindowState:
         self.window_index, self.has_previous_p, self.emitted,
         self.emitted_start_step, self.emitted_end_step, self.emitted_p_change,
         self.emitted_scores, self.emitted_negative, self.emitted_stability,
+        self.latest_negative, self.latest_corrected_nonpositive,
+        self.latest_floor, self.latest_p_histogram, self.latest_p_maximum,
+        self.latest_norms,
     ), None
 
   @classmethod
@@ -128,6 +137,11 @@ def init_window_state(params: PyTree, histogram_bins: int = DEFAULT_HISTOGRAM_BI
       emitted_scores={path: _scalar() for path in PATHS},
       emitted_negative={path: _scalar() for path in PATHS},
       emitted_stability={},
+      latest_negative={path: _scalar() for path in PATHS},
+      latest_corrected_nonpositive=_scalar(), latest_floor=_scalar(),
+      latest_p_histogram=jnp.zeros((histogram_bins,), jnp.int32),
+      latest_p_maximum=_scalar(),
+      latest_norms={name: _scalar() for name in NORM_NAMES},
   )
 
 
@@ -200,9 +214,10 @@ def _update(
   corrected_nonpositive = _fraction(corrected, lambda value: value <= 0)
   floor = _fraction(corrected, lambda value: value <= gamma_prime)
   implied_p_max = jax.lax.rsqrt(jnp.asarray(gamma_prime, jnp.float32))
-  histogram = accumulator.p_histogram + _p_histogram(
+  latest_histogram = _p_histogram(
       p["BC"], implied_p_max, accumulator.p_histogram.size
   )
+  histogram = accumulator.p_histogram + latest_histogram
   current_p_max = jnp.max(jnp.stack([
       jnp.max(leaf) for leaf in jax.tree_util.tree_leaves(p["BC"])
   ]))
@@ -277,6 +292,12 @@ def _update(
                         for path in PATHS},
       emitted_stability={name: jnp.where(complete, value, 0.0)
                          for name, value in stability.items()},
+      latest_negative=negative,
+      latest_corrected_nonpositive=corrected_nonpositive,
+      latest_floor=floor,
+      latest_p_histogram=latest_histogram,
+      latest_p_maximum=current_p_max,
+      latest_norms=norms,
   )
 
 
@@ -294,6 +315,7 @@ class Exp7bWindowCollector:
     self.window_size, self.eps_num = int(window_size), float(eps_num)
     self._state = init_window_state(params, histogram_bins)
     self._rows: list[dict[str, object]] = []
+    self._step_diagnostics: list[dict[str, object]] = []
     self._compiled = jax.jit(lambda acc, train: _update(
         acc, train, algorithm=algorithm, beta1=beta1, beta2=beta2,
         learning_rate=learning_rate, weight_decay=weight_decay, eps=eps,
@@ -303,6 +325,10 @@ class Exp7bWindowCollector:
   @property
   def rows(self):
     return list(self._rows)
+
+  @property
+  def step_diagnostics(self):
+    return list(self._step_diagnostics)
 
   def _append(self, *, start: int, end: int, p_change: float,
               scores: dict[str, float], negative: dict[str, float],
@@ -318,6 +344,26 @@ class Exp7bWindowCollector:
     if step != int(np.asarray(state.step)):
       raise ValueError("callback step must equal train state step")
     self._state = self._compiled(self._state, state)
+    self._step_diagnostics.append({
+        "seed": self.seed,
+        "algorithm": self.algorithm,
+        "step": step,
+        **{
+            f"nonpositive_v_fraction_{path}": float(np.asarray(
+                self._state.latest_negative[path]
+            )) for path in PATHS
+        },
+        "corrected_v_nonpositive_fraction": float(np.asarray(
+            self._state.latest_corrected_nonpositive
+        )),
+        "floor_activation_fraction": float(np.asarray(self._state.latest_floor)),
+        "p_bc_histogram": np.asarray(self._state.latest_p_histogram, np.int64),
+        "p_bc_max": float(np.asarray(self._state.latest_p_maximum)),
+        **{
+            name: float(np.asarray(self._state.latest_norms[name]))
+            for name in NORM_NAMES
+        },
+    })
     if bool(np.asarray(self._state.emitted)):
       self._append(
           start=int(np.asarray(self._state.emitted_start_step)),

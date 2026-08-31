@@ -24,6 +24,14 @@ The reported p50/p99/p99.9 are conservative upper-bin estimates from a fixed
 4096-bin `[0, implied_p_max]` histogram accumulated over every coordinate and
 step in each 16-step window.  `p_bc_max` is exact.
 
+Early/late stability summaries use separate exact per-step records rather
+than overlap-weighted window extrema.  Norm means/std/min/max are pooled over
+the actual steps in the stage, and p50/p99/p99.9 come from a histogram pooled
+over every coordinate and actual step in the stage.  The per-window CSV schema
+is unchanged.  In `window_summary.csv`, cross-seed extrema remain extrema,
+norm std is pooled, and averages of per-seed window quantiles are explicitly
+named `mean_window_p_bc_*` rather than pooled quantiles.
+
 Smoke run:
 
 ```bash
