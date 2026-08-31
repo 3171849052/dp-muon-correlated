@@ -1,0 +1,270 @@
+"""Focused tests for Exp8's paired noise and layer decomposition."""
+
+from types import SimpleNamespace
+import json
+import math
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+from dp_muon.bandinvmf import BandInvMFStrategy, init_bandinv_noise_state
+from jax_privacy.matrix_factorization import toeplitz
+from dp_muon.optim import decayed_prefix_sum_workload_coef
+from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
+from exp8.core import (
+    BRANCHES,
+    PATHS,
+    Exp8DiagnosticStep,
+    advance_diagnostic_shadow,
+    bandinv_marginal_variances,
+    init_exp8_train_state,
+    init_diagnostic_shadow_state,
+    make_exp8_train_step,
+    sample_paired_diagnostic_noise,
+)
+from exp8.diagnostics import cancellation_statistics, paired_gains
+from exp8.online_shadow import Exp8WindowCollector
+
+
+def _strategy(horizon=6):
+  coef = jnp.asarray([1.0, .5], jnp.float32)
+  return BandInvMFStrategy(
+      horizon=horizon, bandwidth=2, min_sep=1, max_participations=1,
+      workload_coef=decayed_prefix_sum_workload_coef(horizon, .01, .01),
+      noising_coef=coef,
+      strategy_coef=jnp.ones((horizon,), jnp.float32),
+      sensitivity_squared=toeplitz.compute_banded_inverse_sensitivity_squared(
+          n=horizon, noising_coef=coef, min_sep=1, max_participations=1
+      ),
+      objective=jnp.asarray(1.0, jnp.float32),
+  )
+
+
+def _calibration(strategy):
+  return calibrate_nonamplified_bandinv(
+      epsilon=3.0, delta=1e-5, clip_norm=1.0, normalize_by=2.0,
+      adjacency="add_remove", sensitivity_squared=float(strategy.sensitivity_squared),
+  )
+
+
+def _tree_allclose(left, right, **kwargs):
+  for a, b in zip(jax.tree_util.tree_leaves(left), jax.tree_util.tree_leaves(right), strict=True):
+    np.testing.assert_allclose(np.asarray(a), np.asarray(b), **kwargs)
+
+
+def test_correlated_and_matched_iid_theoretical_marginal_variance_match():
+  strategy = _strategy()
+  sigma = 2.0
+  phi = np.asarray(bandinv_marginal_variances(strategy, sigma))
+  expected = sigma**2 * np.cumsum(np.asarray(strategy.noising_coef) ** 2)
+  expected = expected[np.minimum(np.arange(strategy.horizon), strategy.bandwidth - 1)]
+  np.testing.assert_allclose(phi, expected)
+  np.testing.assert_allclose(phi, np.asarray(np.sqrt(phi) ** 2))
+
+
+def test_paired_noise_uses_same_z_and_only_corr_has_filter_state():
+  strategy = _strategy()
+  params = {"w": jnp.zeros((3,), jnp.float32)}
+  state = init_bandinv_noise_state(params, strategy.bandwidth)
+  phi = bandinv_marginal_variances(strategy, 2.0)
+  corr, iid, z, next_state, next_key = sample_paired_diagnostic_noise(
+      jax.random.key(4), state, strategy, 2.0, phi[0]
+  )
+  _tree_allclose(iid, jax.tree_util.tree_map(lambda value: jnp.sqrt(phi[0]) * value, z))
+  _tree_allclose(corr, jax.tree_util.tree_map(
+      lambda value: 2.0 * strategy.noising_coef[0] * value, z
+  ))
+  assert int(next_state.step) == 1
+  # The returned API has no IID state, and independent calls draw distinct z_t.
+  _, _, z2, _, _ = sample_paired_diagnostic_noise(next_key, next_state, strategy, 2.0, phi[1])
+  assert not np.array_equal(np.asarray(z["w"]), np.asarray(z2["w"]))
+
+
+def test_training_and_diagnostic_rng_streams_are_distinct_and_shadows_do_not_update_real_state():
+  strategy = _strategy()
+  calibration = _calibration(strategy)
+  participation = ParticipationSpec(strategy.horizon, 1, 1)
+
+  def loss(params, batch):
+    return .5 * (jnp.dot(params["w"], batch["x"][0]) - batch["y"][0]) ** 2
+
+  step_fn, optimizer = make_exp8_train_step(
+      loss, strategy, calibration, participation,
+      learning_rate=.01, beta1=.9, beta2=.9, eps=1e-6, weight_decay=.01,
+  )
+  params = {"w": jnp.asarray([.1, -.2, .3], jnp.float32)}
+  training_key = jax.random.key(12)
+  state1 = init_exp8_train_state(
+      params, strategy, training_key, optimizer, diagnostic_rng_key=jax.random.key(13)
+  )
+  state2 = init_exp8_train_state(
+      params, strategy, training_key, optimizer, diagnostic_rng_key=jax.random.key(14)
+  )
+  assert not np.array_equal(
+      np.asarray(jax.random.key_data(state1.training_rng_key)),
+      np.asarray(jax.random.key_data(state1.diagnostic_rng_key)),
+  )
+  batch = {"x": jnp.ones((2, 3), jnp.float32), "y": jnp.asarray([.2, .2], jnp.float32)}
+  next1, next2 = step_fn(state1, batch), step_fn(state2, batch)
+  _tree_allclose(next1.params, next2.params)
+  _tree_allclose(next1.optimizer_state, next2.optimizer_state)
+  # Diagnostic branches differ, proving they are not accidentally feeding the update.
+  assert not np.array_equal(
+      np.asarray(next1.last_step.z["w"]), np.asarray(next2.last_step.z["w"])
+  )
+
+
+def test_train_step_invokes_the_single_clipped_query_once(monkeypatch):
+  strategy = _strategy()
+  calibration = _calibration(strategy)
+  calls = []
+
+  def fake_query_factory(*args, **kwargs):
+    del args, kwargs
+    def query(params, batch):
+      del params, batch
+      calls.append("query")
+      return {"w": jnp.asarray([.1, .1, .1], jnp.float32)}
+    return query
+
+  import exp8.core as core
+  monkeypatch.setattr(core, "make_clipped_gradient_query", fake_query_factory)
+  step_fn, optimizer = core.make_exp8_train_step(
+      lambda params, batch: jnp.asarray(0.0), strategy, calibration,
+      ParticipationSpec(strategy.horizon, 1, 1), learning_rate=.01,
+  )
+  state = core.init_exp8_train_state(
+      {"w": jnp.zeros((3,), jnp.float32)}, strategy, jax.random.key(20),
+      optimizer, diagnostic_rng_key=jax.random.key(21),
+  )
+  step_fn(state, {"unused": jnp.asarray([0.0])})
+  assert calls == ["query"]
+
+
+def test_r_is_bias_corrected_pure_noise_momentum_response_and_phi_ema():
+  params = {"w": jnp.zeros((1,), jnp.float32)}
+  state = init_diagnostic_shadow_state(params)
+  beta1, beta2 = .5, .8
+  xi1 = {"w": jnp.asarray([2.0], jnp.float32)}
+  xi2 = {"w": jnp.asarray([-1.0], jnp.float32)}
+  g = {"w": jnp.asarray([3.0], jnp.float32)}
+  state, first = advance_diagnostic_shadow(
+      state, g, xi1, xi1, .25, beta1=beta1, beta2=beta2,
+      learning_rate=.1, eps=1e-6,
+  )
+  expected1 = (1 - beta1) * 2.0 / (1 - beta1)
+  np.testing.assert_allclose(np.asarray(first.r["corr"]["w"]), [expected1])
+  np.testing.assert_allclose(float(first.Phi_t), (1 - beta2) * .25 / (1 - beta2))
+  state, second = advance_diagnostic_shadow(
+      state, g, xi2, xi2, .25, beta1=beta1, beta2=beta2,
+      learning_rate=.1, eps=1e-6,
+  )
+  expected2 = (beta1 * (1 - beta1) * 2.0 + (1 - beta1) * -1.0) / (1 - beta1**2)
+  np.testing.assert_allclose(np.asarray(second.r["corr"]["w"]), [expected2])
+  expected_phi2 = (beta2 * (1 - beta2) * .25 + (1 - beta2) * .25) / (1 - beta2**2)
+  np.testing.assert_allclose(float(second.Phi_t), expected_phi2, atol=1e-6)
+
+
+def test_p0_p1_p2_p3_formulas_and_p2_is_deterministic_bias_only():
+  params = {"w": jnp.asarray([0.0], jnp.float32)}
+  state = init_diagnostic_shadow_state(params)
+  g = {"w": jnp.asarray([1.0], jnp.float32)}
+  xi_corr = {"w": jnp.asarray([.5], jnp.float32)}
+  xi_iid = {"w": jnp.asarray([-.25], jnp.float32)}
+  _, out = advance_diagnostic_shadow(
+      state, g, xi_corr, xi_iid, .25, beta1=.5, beta2=.5,
+      learning_rate=.1, eps=0.0,
+  )
+  # t=1: mhat_c=1, r_corr=.5, vhat_c=1, Phi=.25, vhat_p=2.25.
+  np.testing.assert_allclose(np.asarray(out.x["corr"]["P0"]["w"]), [-.05])
+  np.testing.assert_allclose(np.asarray(out.x["corr"]["P1"]["w"]), [-.05])
+  np.testing.assert_allclose(
+      np.asarray(out.x["corr"]["P2"]["w"]), [-.05 / np.sqrt(1.25)], atol=1e-6
+  )
+  np.testing.assert_allclose(np.asarray(out.x["corr"]["P3"]["w"]), [-.05 / 1.5])
+  # P2's scale is shared and contains no realization-specific 2*g*xi or xi^2.
+  p2_corr_over_r = np.asarray(out.x["corr"]["P2"]["w"] / out.r["corr"]["w"])
+  p2_iid_over_r = np.asarray(out.x["iid"]["P2"]["w"] / out.r["iid"]["w"])
+  np.testing.assert_allclose(p2_corr_over_r, p2_iid_over_r)
+  for field in ("A", "B", "I"):
+    value = getattr(out, field)
+    assert value is not None
+  _tree_allclose(out.dq, jax.tree_util.tree_map(
+      lambda a, b, c: a + b + c, out.A, out.B, out.I
+  ), atol=1e-6)
+  assert float(out.reconstruction_error) <= 1e-6
+
+
+def test_hand_cancellation_and_gains():
+  result = cancellation_statistics(
+      np.asarray([[1.0], [2.0]]), weight_decay=.0, learning_rate=.1
+  )
+  # x is already scaled, so use a=1 and d_e=3.
+  np.testing.assert_allclose(result["J"], 9.0)
+  np.testing.assert_allclose(result["D"], 5.0)
+  np.testing.assert_allclose(result["C"], 1.8)
+  gains = paired_gains({"C": 2.0, "J": 3.0}, {"C": 4.0, "J": 6.0})
+  assert gains == {"G_C": .5, "G_J": .5}
+  assert cancellation_statistics(
+      np.zeros((2, 1)), weight_decay=.01, learning_rate=.1
+  ) == {"J": 0.0, "D": 0.0, "C": 0.0}
+
+
+def _fake_step(value: float) -> Exp8DiagnosticStep:
+  zero = {"w": jnp.asarray([0.0], jnp.float32)}
+  x = {branch: {path: {"w": jnp.asarray([0.0], jnp.float32)} for path in PATHS} for branch in BRANCHES}
+  x["corr"]["P0"] = {"w": jnp.asarray([value], jnp.float32)}
+  return Exp8DiagnosticStep(
+      r={branch: zero for branch in BRANCHES}, x=x,
+      A=zero, B=zero, I=zero, dq=zero,
+      xi={branch: zero for branch in BRANCHES}, z=zero,
+      phi_t=jnp.asarray(0.0), Phi_t=jnp.asarray(0.0),
+      reconstruction_error=jnp.asarray(0.0),
+  )
+
+
+def test_exact_stage_boundaries_are_not_window_weighted_averages():
+  params = {"w": jnp.asarray([0.0], jnp.float32)}
+  collector = Exp8WindowCollector(
+      params, seed=0, learning_rate=0.0, weight_decay=0.0, horizon=100,
+  )
+  for step in range(1, 101):
+    fake = SimpleNamespace(step=jnp.asarray(step), last_step=_fake_step(1.0 if step <= 97 else 2.0))
+    collector.after_step(fake, step)
+  stages = collector.stage_summaries()
+  assert stages["early"]["start_step"] == 1
+  assert stages["early"]["end_step"] == 97
+  assert stages["early"]["num_steps"] == 97
+  assert stages["late"]["start_step"] == 98
+  assert stages["late"]["num_steps"] == 3
+  assert stages["full"]["num_steps"] == 100
+  # With a=1, the exact endpoints are 97, 6, and 103; no 16-step averaging.
+  np.testing.assert_allclose(stages["early"]["metrics"]["corr"]["P0"]["J"], 97**2)
+  np.testing.assert_allclose(stages["late"]["metrics"]["corr"]["P0"]["J"], 6**2)
+  np.testing.assert_allclose(stages["full"]["metrics"]["corr"]["P0"]["J"], 103**2)
+
+
+def test_smoke_outputs_are_finite(tmp_path):
+  from exp8.run import run_smoke
+
+  run_smoke(tmp_path, [0])
+  expected = {
+      "window_diagnostics_seed0.csv", "window_summary.csv", "summary.json",
+      "correlation_gain_over_steps.png", "endpoint_gain_over_steps.png",
+      "path_gain_summary.png", "privacy_clean_decomposition.png",
+  }
+  assert expected.issubset({path.name for path in tmp_path.iterdir()})
+  data = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
+
+  def visit(value):
+    if isinstance(value, float):
+      assert math.isfinite(value)
+    elif isinstance(value, dict):
+      for item in value.values():
+        visit(item)
+    elif isinstance(value, list):
+      for item in value:
+        visit(item)
+
+  visit(data)
