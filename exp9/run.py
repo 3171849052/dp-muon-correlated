@@ -106,18 +106,22 @@ def _stage_payload(stage: Mapping[str, object]) -> dict[str, object]:
       "secondary_stage_odd_response", {}
   )
   bias = payload["bias"]
+  corr_reliable = bool(bias.get("P3_reliable_corr", False))
+  iid_reliable = bool(bias.get("P3_reliable_iid", False))
+  paired_reliable = corr_reliable and iid_reliable
+  # Keep the serialized bias field and its compact payload view consistent,
+  # even if a caller supplies an older/incomplete stage mapping.
+  bias["P3_reliable_paired"] = paired_reliable
   payload["P3_reliable"] = {
-      "corr": bool(bias.get("P3_reliable_corr", False)),
-      "iid": bool(bias.get("P3_reliable_iid", False)),
+      "corr": corr_reliable,
+      "iid": iid_reliable,
+      "paired": paired_reliable,
       "rule": "probe_error_to_P3_D <= 0.1 AND probe_error_to_P3_endpoint <= 0.1",
   }
-  payload["delta_even_interpretation"] = {
-      branch: (
-          "reliable"
-          if bool(bias.get(f"P3_reliable_{branch}", False))
-          else "unreliable due to bias-probe Monte Carlo error"
-      ) for branch in ("corr", "iid")
-  }
+  payload["delta_even_interpretation"] = (
+      "reliable" if paired_reliable
+      else "unreliable due to bias-probe Monte Carlo error in corr and/or iid branch"
+  )
   metric_tree = payload["metrics"]
   flat_paths = {}
   for path in PATHS:
@@ -234,6 +238,18 @@ def _write_outputs(output: Path, rows: list[dict[str, object]], per_seed: dict[s
           writer.writerow({"stage": stage, "scope": group,
                            "metric": metric, "mean": value,
                            "std": stage_value[group].get(metric + "_std", 0.0)})
+      paired = stage_value.get("paired_reliability", {})
+      if paired:
+        writer.writerow({
+            "stage": stage, "scope": "paired_reliability",
+            "metric": "paired_reliable_seed_count",
+            "mean": paired.get("paired_reliable_seed_count"), "std": 0.0,
+        })
+        writer.writerow({
+            "stage": stage, "scope": "paired_reliability",
+            "metric": "paired_reliable_fraction",
+            "mean": paired.get("paired_reliable_fraction"), "std": 0.0,
+        })
       for branch, stage_metrics in stage_value.get("stage_metrics", {}).items():
         for stage_name, values in stage_metrics.items():
           for metric_name, aggregate_value in values.items():

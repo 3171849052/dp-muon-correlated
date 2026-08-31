@@ -15,6 +15,10 @@ The primary float32 paths are:
   `||BA-BB||/(||Bhat||+eps)` is retained only as the auxiliary
   `probe_disagreement_relative_to_bias` diagnostic.
 
+`P3_reliable_paired = P3_reliable_corr && P3_reliable_iid`. `Delta_even` is
+only strongly interpretable when this paired flag is true; otherwise its
+original numeric value is retained and marked unreliable.
+
 `G_C` and `G_J` are computed from exact raw-step endpoints. Bias and raw
 private-clean gaps are reported separately and are not cancellation metrics.
 If `P3_reliable` is false, `P3` and its gains remain in the output, but the
@@ -23,8 +27,10 @@ error.
 The IID branch matches the correlated branch's raw gradient-noise marginal at
 each step and uses the same latent `z` as the correlated branch; it is a
 mechanism control, not a formal same-DP baseline. Primary stage diagnostics
-(`linear`, `norm`, `ns`, `scale`) report their own `J,D,C,G_C,G_J`; BF16 is
-secondary precision only.
+(`linear`, `norm`, `ns`, `scale`) report their own `J,D,C,G_C,G_J`. All
+primary stages are consistently weighted by the final per-block Muon
+consistent-RMS scale; this avoids interpreting fixed block reweighting as
+nonlinear degradation. BF16 is secondary precision only.
 
 Smoke check:
 

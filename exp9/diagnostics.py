@@ -28,7 +28,7 @@ BIAS_FIELDS = (
     "probe_disagreement_endpoint_corr", "probe_disagreement_endpoint_iid",
     "probe_error_to_P3_D_corr", "probe_error_to_P3_D_iid",
     "probe_error_to_P3_endpoint_corr", "probe_error_to_P3_endpoint_iid",
-    "P3_reliable_corr", "P3_reliable_iid",
+    "P3_reliable_corr", "P3_reliable_iid", "P3_reliable_paired",
     "clean_pre_q_norm_min",
     "global_noise_signal_ratio_mean_corr", "global_noise_signal_ratio_mean_iid",
     "block_noise_signal_ratio_mean_corr", "block_noise_signal_ratio_mean_iid",
@@ -299,6 +299,11 @@ def cross_seed_aggregate(
         field: _aggregate([stage.get("bias", {}).get(field) for stage in stages])
         for field in BIAS_FIELDS
     }
+    paired_flags = [
+        bool(stage.get("P3_reliable", {}).get(
+            "paired", stage.get("bias", {}).get("P3_reliable_paired", False)
+        )) for stage in stages
+    ]
     degradation_result = {}
     for gain in ("G_C", "G_J"):
       gain_values = [
@@ -320,6 +325,10 @@ def cross_seed_aggregate(
         "bias_flat": {
             f"{field}_{suffix}": value[suffix]
             for field, value in bias.items() for suffix in ("mean", "std")
+        },
+        "paired_reliability": {
+            "paired_reliable_seed_count": int(sum(paired_flags)),
+            "paired_reliable_fraction": float(np.mean(paired_flags)),
         },
         "stage_metrics": _aggregate_stage_metrics(stages),
         "stage_odd_response": _aggregate_stage_responses(stages, "stage_odd_response"),

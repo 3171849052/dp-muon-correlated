@@ -166,8 +166,9 @@ def _apply_step(bucket: _Bucket, step: Exp9DiagnosticStep, *, learning_rate: flo
     bucket.probe_disagreement_sq_sum[branch] += _norm_sq(probe)
     # The standard error of B_hat=(B_A+B_B)/2 is half the A/B
     # disagreement.  This is the corresponding optimizer-space energy.
-    bucket.probe_error_energy[branch] += (
-        .25 * float(learning_rate) ** 2 * _norm_sq(probe)
+    bucket.probe_error_energy[branch] = (
+        a * a * bucket.probe_error_energy[branch]
+        + .25 * float(learning_rate) ** 2 * _norm_sq(probe)
     )
     for stage in STAGES:
       values = {key: _array(value, f"stage/{branch}/{stage}/{key}")
@@ -297,6 +298,7 @@ def _bucket_bias(bucket: _Bucket) -> dict[str, object]:
       "probe_error_to_P3_endpoint_iid": probe_error_to_endpoint["iid"],
       "P3_reliable_corr": reliable["corr"],
       "P3_reliable_iid": reliable["iid"],
+      "P3_reliable_paired": reliable["corr"] and reliable["iid"],
       "clean_pre_q_norm_min": clean_min,
       "global_noise_signal_ratio_mean_corr": bucket.global_ratio_sum["corr"] / count,
       "global_noise_signal_ratio_mean_iid": bucket.global_ratio_sum["iid"] / count,

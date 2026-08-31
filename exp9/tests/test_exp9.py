@@ -15,7 +15,7 @@ from dp_muon.bandinvmf import (
 )
 from dp_muon.optim import (
     classic_nesterov_momentum, fixed_lr_nesterov_decayed_trajectory_workload_coef,
-    nesterov_kernel_coef,
+    muon_q_stages, nesterov_kernel_coef,
 )
 from exp9.core import (
     BRANCHES,
@@ -39,10 +39,11 @@ from exp9.core import (
 )
 from dp_muon.privacy import ParticipationSpec, calibrate_nonamplified_bandinv
 from exp9.diagnostics import (
-    cancellation_statistics, cancellation_metrics_from_jd, degradation, safe_ratio,
+    cancellation_statistics, cancellation_metrics_from_jd, cross_seed_aggregate,
+    degradation, safe_ratio,
 )
 from exp9.online_shadow import Exp9WindowCollector
-from exp9.run import _json_safe
+from exp9.run import _json_safe, _stage_payload
 
 
 def _strategy(horizon=8):
@@ -331,6 +332,121 @@ def test_p0_uses_fixed_muon_block_scale():
   )
 
 
+def test_stage_attribution_uses_fixed_scale_for_each_block():
+  blocks = {
+      "wide": jnp.asarray([[1.0, .2, -.4], [.3, 1.5, .7]], jnp.float32),
+      "tall": jnp.asarray([[1.2], [-.3], [.8], [1.7]], jnp.float32),
+  }
+  noise = {
+      "wide": jnp.asarray([[.1, -.2, .05], [.03, .04, -.1]], jnp.float32),
+      "tall": jnp.asarray([[.2], [-.05], [.1], [-.15]], jnp.float32),
+  }
+  _, step = advance_exp9_diagnostic(
+      init_exp9_shadow_state(blocks), blocks, noise, noise,
+      {"corr": .04, "iid": .04}, jax.random.key(71), momentum=0.0,
+      learning_rate=.05, consistent_rms=.3, ns_steps=3, probes=2,
+      secondary_use_bf16_ns=False,
+  )
+  for key, value in noise.items():
+    scale = .3 * np.sqrt(max(value.shape))
+    plus = muon_q_stages(
+        blocks[key] + value, ns_steps=3, consistent_rms=.3,
+        use_bf16_ns=False,
+    )
+    minus = muon_q_stages(
+        blocks[key] - value, ns_steps=3, consistent_rms=.3,
+        use_bf16_ns=False,
+    )
+    odd = {stage: (plus[stage] - minus[stage]) * .5 for stage in plus}
+    np.testing.assert_allclose(
+        np.asarray(step.stage_odd["corr"]["linear"][key]),
+        scale * np.asarray(value), rtol=0, atol=1e-6,
+    )
+    for stage in ("norm", "ns"):
+      np.testing.assert_allclose(
+          np.asarray(step.stage_odd["corr"][stage][key]),
+          scale * np.asarray(odd[stage]), rtol=0, atol=1e-6,
+      )
+    np.testing.assert_allclose(
+        np.asarray(step.stage_odd["corr"]["scale"][key]),
+        np.asarray(odd["scale"]), rtol=0, atol=1e-6,
+    )
+
+
+def test_stage_attribution_is_invariant_to_single_block_scale():
+  block = {"block": jnp.asarray([[1.0, -.25], [.5, 1.4]], jnp.float32)}
+  noises = [
+      {"block": jnp.asarray([[.1, -.2], [.03, .05]], jnp.float32)},
+      {"block": jnp.asarray([[-.04, .08], [.06, -.02]], jnp.float32)},
+  ]
+
+  def responses(consistent_rms):
+    state = init_exp9_shadow_state(block)
+    values = {stage: [] for stage in PRIMARY_STAGES}
+    for index, noise in enumerate(noises):
+      state, step = advance_exp9_diagnostic(
+          state, block, noise, noise, {"corr": .04, "iid": .04},
+          jax.random.key(73 + index), momentum=.3, learning_rate=.05,
+          consistent_rms=consistent_rms, ns_steps=3, probes=2,
+          secondary_use_bf16_ns=False,
+      )
+      for stage in PRIMARY_STAGES:
+        values[stage].append(np.asarray(step.stage_odd["corr"][stage]["block"]))
+    return {stage: np.stack(stage_values) for stage, stage_values in values.items()}
+
+  low, high = responses(.2), responses(.4)
+  for stage in PRIMARY_STAGES:
+    low_stats = cancellation_statistics(low[stage], weight_decay=.07, learning_rate=.05)
+    high_stats = cancellation_statistics(high[stage], weight_decay=.07, learning_rate=.05)
+    np.testing.assert_allclose(high_stats["C"], low_stats["C"], rtol=2e-5, atol=2e-5)
+
+
+def test_secondary_bf16_stage_attribution_uses_same_block_scale():
+  blocks = {"block": jnp.asarray([[1.0, .2, -.4], [.3, 1.5, .7]], jnp.float32)}
+  noise = {"block": jnp.asarray([[.1, -.2, .05], [.03, .04, -.1]], jnp.float32)}
+  _, step = advance_exp9_diagnostic(
+      init_exp9_shadow_state(blocks), blocks, noise, noise,
+      {"corr": .04, "iid": .04}, jax.random.key(74), momentum=0.0,
+      learning_rate=.05, consistent_rms=.3, ns_steps=3, probes=2,
+      secondary_use_bf16_ns=True,
+  )
+  plus = muon_q_stages(
+      blocks["block"] + noise["block"], ns_steps=3, consistent_rms=.3,
+      use_bf16_ns=True,
+  )
+  minus = muon_q_stages(
+      blocks["block"] - noise["block"], ns_steps=3, consistent_rms=.3,
+      use_bf16_ns=True,
+  )
+  odd = {stage: (plus[stage] - minus[stage]) * .5 for stage in plus}
+  scale = .3 * np.sqrt(3.0)
+  for stage in ("linear", "norm", "ns"):
+    np.testing.assert_allclose(
+        np.asarray(step.secondary_stage_odd["corr"][stage]["block"]),
+        scale * np.asarray(odd[stage]), rtol=0, atol=1e-6,
+    )
+  np.testing.assert_allclose(
+      np.asarray(step.secondary_stage_odd["corr"]["scale"]["block"]),
+      np.asarray(odd["scale"]), rtol=0, atol=1e-6,
+  )
+
+
+def test_stage_scale_and_ns_match_when_final_scale_is_one():
+  block = {"block": jnp.asarray([[1.0, -.25], [.5, 1.4]], jnp.float32)}
+  noise = {"block": jnp.asarray([[.1, -.2], [.03, .05]], jnp.float32)}
+  _, step = advance_exp9_diagnostic(
+      init_exp9_shadow_state(block), block, noise, noise,
+      {"corr": .04, "iid": .04}, jax.random.key(72), momentum=0.0,
+      learning_rate=.05, consistent_rms=1 / np.sqrt(2), ns_steps=3,
+      probes=2, secondary_use_bf16_ns=False,
+  )
+  np.testing.assert_allclose(
+      np.asarray(step.stage_odd["corr"]["ns"]["block"]),
+      np.asarray(step.stage_odd["corr"]["scale"]["block"]),
+      rtol=2e-5, atol=2e-5,
+  )
+
+
 def test_same_probe_same_rho_gives_same_bias_hat_for_both_branches():
   blocks = {"block": _matrix()}
   state = init_exp9_shadow_state(blocks)
@@ -416,13 +532,19 @@ def test_collector_uses_exact_stage_endpoints():
   assert "global_noise_signal_ratio_mean_corr" in stages["full"]["bias"]
 
 
-def _synthetic_reliability_step(p3_signal, delta_b, bias=0.0):
+def _synthetic_reliability_step(
+    p3_signal, delta_b, bias=0.0, *, iid_p3_signal=None,
+    iid_delta_b=None, iid_bias=None,
+):
   x = {
       branch: {path: {"block": np.asarray([0.0], np.float32)} for path in PATHS}
       for branch in BRANCHES
   }
+  branch_p3 = {"corr": p3_signal, "iid": p3_signal if iid_p3_signal is None else iid_p3_signal}
+  branch_delta = {"corr": delta_b, "iid": delta_b if iid_delta_b is None else iid_delta_b}
+  branch_bias = {"corr": bias, "iid": bias if iid_bias is None else iid_bias}
   for branch in BRANCHES:
-    x[branch]["P3"]["block"] = np.asarray([p3_signal], np.float32)
+    x[branch]["P3"]["block"] = np.asarray([branch_p3[branch]], np.float32)
   empty = {"block": np.zeros((1,), np.float32)}
   empty_branch = {branch: {"block": np.zeros((1,), np.float32)} for branch in BRANCHES}
   stages = {
@@ -432,10 +554,12 @@ def _synthetic_reliability_step(p3_signal, delta_b, bias=0.0):
       } for branch in BRANCHES
   }
   probe = {
-      branch: {"block": np.asarray([delta_b], np.float32)} for branch in BRANCHES
+      branch: {"block": np.asarray([branch_delta[branch]], np.float32)}
+      for branch in BRANCHES
   }
   bias_tree = {
-      branch: {"block": np.asarray([bias], np.float32)} for branch in BRANCHES
+      branch: {"block": np.asarray([branch_bias[branch]], np.float32)}
+      for branch in BRANCHES
   }
   return SimpleNamespace(
       x=x, clean_pre_q=empty, noise_pre_q=empty_branch,
@@ -450,14 +574,93 @@ def _synthetic_reliability_step(p3_signal, delta_b, bias=0.0):
   )
 
 
-def _collect_reliability(p3_signal, delta_b, bias=0.0):
+def _collect_reliability_stage(
+    p3_signal, delta_b, bias=0.0, *, weight_decay=0.0,
+    iid_p3_signal=None, iid_delta_b=None, iid_bias=None, horizon=1,
+):
   collector = Exp9WindowCollector(
       {"block": np.zeros((1,), np.float32)}, seed=0,
-      learning_rate=.1, weight_decay=0.0, horizon=1,
+      learning_rate=.1, weight_decay=weight_decay, horizon=horizon,
   )
-  step = _synthetic_reliability_step(p3_signal, delta_b, bias)
-  collector.after_step(SimpleNamespace(step=jnp.asarray(1), last_step=step), 1)
-  return collector.stage_summaries()["full"]["bias"]
+  for step_index in range(1, horizon + 1):
+    step = _synthetic_reliability_step(
+        p3_signal[step_index - 1] if isinstance(p3_signal, (list, tuple)) else p3_signal,
+        delta_b[step_index - 1] if isinstance(delta_b, (list, tuple)) else delta_b,
+        bias, iid_p3_signal=(
+            iid_p3_signal[step_index - 1]
+            if isinstance(iid_p3_signal, (list, tuple)) else iid_p3_signal
+        ), iid_delta_b=(
+            iid_delta_b[step_index - 1]
+            if isinstance(iid_delta_b, (list, tuple)) else iid_delta_b
+        ), iid_bias=iid_bias,
+    )
+    collector.after_step(
+        SimpleNamespace(step=jnp.asarray(step_index), last_step=step), step_index
+    )
+  return collector.stage_summaries()["full"]
+
+
+def _collect_reliability(p3_signal, delta_b, bias=0.0, **kwargs):
+  return _collect_reliability_stage(p3_signal, delta_b, bias, **kwargs)["bias"]
+
+
+def test_probe_error_energy_uses_weight_decay_recurrence():
+  p3_values = [2.0, 3.0, 4.0]
+  delta_values = [.2, .3, .4]
+  eta, weight_decay = .1, .5
+  a = 1.0 - eta * weight_decay
+  expected_energy = 0.0
+  old_no_decay_energy = 0.0
+  p3_D = 0.0
+  for p3, delta in zip(p3_values, delta_values, strict=True):
+    expected_energy = a * a * expected_energy + .25 * eta * eta * delta * delta
+    old_no_decay_energy += .25 * eta * eta * delta * delta
+    p3_D = a * a * p3_D + p3 * p3
+  result = _collect_reliability(
+      p3_values, delta_values, weight_decay=weight_decay, horizon=3,
+  )
+  expected_ratio = expected_energy / p3_D
+  old_ratio = old_no_decay_energy / p3_D
+  np.testing.assert_allclose(result["probe_error_to_P3_D_corr"], expected_ratio)
+  assert not np.isclose(result["probe_error_to_P3_D_corr"], old_ratio)
+
+
+@pytest.mark.parametrize(
+    ("corr_ok", "iid_ok"),
+    [(True, True), (True, False), (False, True), (False, False)],
+)
+def test_p3_reliability_has_paired_boolean_for_all_branch_combinations(corr_ok, iid_ok):
+  good = (10.0, .01)
+  bad = (.01, 10.0)
+  corr_values = good if corr_ok else bad
+  iid_values = good if iid_ok else bad
+  result = _collect_reliability(
+      corr_values[0], corr_values[1], iid_p3_signal=iid_values[0],
+      iid_delta_b=iid_values[1],
+  )
+  assert result["P3_reliable_corr"] is corr_ok
+  assert result["P3_reliable_iid"] is iid_ok
+  assert result["P3_reliable_paired"] is (corr_ok and iid_ok)
+
+
+def test_delta_even_interpretation_and_cross_seed_count_use_paired_reliability():
+  reliable_stage = _stage_payload(_collect_reliability_stage(10.0, .01))
+  mixed_stage = _stage_payload(_collect_reliability_stage(
+      10.0, .01, iid_p3_signal=.01, iid_delta_b=10.0
+  ))
+  assert reliable_stage["P3_reliable"] == {
+      "corr": True, "iid": True, "paired": True,
+      "rule": "probe_error_to_P3_D <= 0.1 AND probe_error_to_P3_endpoint <= 0.1",
+  }
+  assert reliable_stage["delta_even_interpretation"] == "reliable"
+  assert mixed_stage["P3_reliable"]["paired"] is False
+  assert mixed_stage["delta_even_interpretation"].startswith("unreliable due to")
+  aggregate = cross_seed_aggregate({
+      "0": {"full": reliable_stage}, "1": {"full": mixed_stage},
+  })
+  assert aggregate["full"]["paired_reliability"] == {
+      "paired_reliable_seed_count": 1, "paired_reliable_fraction": .5,
+  }
 
 
 def test_p3_reliability_uses_probe_error_relative_to_p3_signal():
@@ -465,22 +668,26 @@ def test_p3_reliability_uses_probe_error_relative_to_p3_signal():
   assert zero["probe_error_to_P3_D_corr"] == 0.0
   assert zero["probe_error_to_P3_endpoint_corr"] == 0.0
   assert zero["P3_reliable_corr"] is True
+  assert zero["P3_reliable_paired"] is True
 
   small = _collect_reliability(10.0, .01)
   assert small["probe_error_to_P3_D_corr"] < .1
   assert small["probe_error_to_P3_endpoint_corr"] < .1
   assert small["P3_reliable_corr"] is True
+  assert small["P3_reliable_paired"] is True
 
   large = _collect_reliability(.01, 10.0)
   assert large["probe_error_to_P3_D_corr"] > .1
   assert large["probe_error_to_P3_endpoint_corr"] > .1
   assert large["P3_reliable_corr"] is False
+  assert large["P3_reliable_paired"] is False
 
 
 def test_large_relative_to_bias_disagreement_does_not_override_p3_signal_rule():
   result = _collect_reliability(10.0, 1.0, bias=1e-10)
   assert result["probe_disagreement_relative_to_bias_corr"] > 1e6
   assert result["P3_reliable_corr"] is True
+  assert result["P3_reliable_paired"] is True
 
 
 def test_p3_zero_signal_makes_reliability_invalid_and_false():
@@ -488,6 +695,23 @@ def test_p3_zero_signal_makes_reliability_invalid_and_false():
   assert result["probe_error_to_P3_D_corr"] is None
   assert result["probe_error_to_P3_endpoint_corr"] is None
   assert result["P3_reliable_corr"] is False
+  assert result["P3_reliable_iid"] is False
+  assert result["P3_reliable_paired"] is False
+
+
+def test_invalid_p3_denominator_in_either_branch_forces_paired_false():
+  corr_invalid = _collect_reliability(
+      0.0, 0.0, iid_p3_signal=10.0, iid_delta_b=.01,
+  )
+  iid_invalid = _collect_reliability(
+      10.0, .01, iid_p3_signal=0.0, iid_delta_b=0.0,
+  )
+  assert corr_invalid["P3_reliable_corr"] is False
+  assert corr_invalid["P3_reliable_iid"] is True
+  assert corr_invalid["P3_reliable_paired"] is False
+  assert iid_invalid["P3_reliable_corr"] is True
+  assert iid_invalid["P3_reliable_iid"] is False
+  assert iid_invalid["P3_reliable_paired"] is False
 
 
 def test_degradation_names_and_reference_statistics():

@@ -626,10 +626,20 @@ def advance_exp9_diagnostic(
       branch_probe_disagreement[branch][key] = decomp["probe_disagreement"]
       branch_even[branch][key] = decomp["even"]
       reconstruction_terms.append(_tree_norm({"value": decomp["odd_reconstruction_error"]}))
-      primary_stages = {
+      primary_odd = {
           stage: (primary_plus[stage] - primary_minus[stage]) * 0.5
           for stage in STAGES
       }
+      block_scale = _consistent_rms_scale(clean_x[key], consistent_rms)
+      # Attribution uses a common final parameter-axis scale.  The production
+      # scale stage already contains it; earlier stages receive it here so a
+      # multi-block aggregation cannot mistake fixed block reweighting for a
+      # nonlinear degradation.
+      primary_stages = {
+          stage: block_scale * primary_odd[stage]
+          for stage in ("linear", "bf16", "norm", "ns")
+      }
+      primary_stages["scale"] = primary_odd["scale"]
       if secondary_use_bf16_ns:
         secondary_plus = muon_q_stages(
             clean_x[key] + branch_r[branch][key], ns_steps=ns_steps,
@@ -639,12 +649,17 @@ def advance_exp9_diagnostic(
             clean_x[key] - branch_r[branch][key], ns_steps=ns_steps,
             consistent_rms=consistent_rms, use_bf16_ns=True,
         )
-        secondary_stages = {
+        secondary_odd = {
             stage: (secondary_plus[stage] - secondary_minus[stage]) * 0.5
             for stage in STAGES
         }
       else:
-        secondary_stages = primary_stages
+        secondary_odd = primary_odd
+      secondary_stages = {
+          stage: block_scale * secondary_odd[stage]
+          for stage in ("linear", "bf16", "norm", "ns")
+      }
+      secondary_stages["scale"] = secondary_odd["scale"]
       for stage in STAGES:
         branch_stage[branch][stage][key] = primary_stages[stage]
         branch_secondary[branch][stage][key] = secondary_stages[stage]
