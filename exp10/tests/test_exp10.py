@@ -24,9 +24,13 @@ from exp10.core import (
 )
 from exp10.diagnostics import (
     Exp10Collector,
+    PooledHistogramBuilder,
+    aggregate_paired_stage_rows,
     histogram_checkpoint_steps,
+    paired_stage_metrics_from_stage_rows,
     save_histograms,
 )
+from exp10.plotting import resolve_histogram_artifact
 
 
 def _strategy(horizon=6):
@@ -215,14 +219,88 @@ def test_histogram_retains_negative_cross_values_and_shared_bins(tmp_path):
   for step in range(1, 17):
     collector.after_step(_fake_state(step), step)
   record = collector.histogram_records[0]
-  assert record["bin_edges"][0] < 0
-  assert record["counts"].shape == (2, len(COMPONENTS), 8)
-  np.testing.assert_allclose(record["relative_frequency"].sum(axis=-1), 1.0)
+  assert record["group_bin_edges"][0, 0] < 0
+  assert record["counts"].shape == (2, 4, 2, 8)
+  # Singleton noise groups use only slot zero; signal/cross groups use both.
+  assert np.all(record["counts"][:, 0, :2].sum(axis=-1) > 0)
+  assert np.all(record["relative_frequency"][:, 0, :2].sum(axis=-1) == 1.0)
   output = tmp_path / "histograms.npz"
   save_histograms(output, collector.histogram_records, histogram_bins=8)
   with np.load(output, allow_pickle=False) as data:
-    assert tuple(data["component_names"].astype(str)) == COMPONENTS
-    assert data["bin_edges"].shape == (1, 9)
+    assert tuple(data["group_names"].astype(str)) == (
+        "instantaneous_signal_cross", "instantaneous_noise",
+        "ema_signal_cross", "ema_noise",
+    )
+    assert data["group_bin_edges"].shape == (1, 4, 9)
+    assert data["counts"].shape == (1, 2, 4, 2, 8)
+
+
+def _stage_row(seed, branch, g2, feedback, xi2):
+  return {
+      "seed": seed, "stage": "early", "branch": branch,
+      "start_step": 1, "end_step": 2, "num_steps": 2,
+      "mean_g2": g2,
+      "mean_g2_cross": g2 + feedback,
+      "mean_xi2": xi2,
+  }
+
+
+def test_paired_stage_delta_identity_and_confidence_aggregation():
+  rows = []
+  for seed, shift in ((0, 0.0), (1, .2)):
+    rows.extend([
+        _stage_row(seed, "mf", 3.0 + shift, .5 + shift, .4),
+        _stage_row(seed, "iid", 1.0, .2, .6),
+    ])
+  paired = paired_stage_metrics_from_stage_rows(rows)
+  assert len(paired) == 2
+  for row in paired:
+    np.testing.assert_allclose(
+        row["delta_total"],
+        row["delta_traj"] + row["delta_feedback"] + row["delta_noise"],
+    )
+  aggregate = aggregate_paired_stage_rows(paired)
+  feedback = aggregate["early"]["delta_feedback"]
+  assert feedback["n"] == 2
+  np.testing.assert_allclose(feedback["mean"], .4)
+  np.testing.assert_allclose(feedback["std"], np.sqrt(.02))
+  np.testing.assert_allclose(feedback["se"], np.sqrt(.02 / 2.0))
+  assert feedback["ci95_low"] < feedback["mean"] < feedback["ci95_high"]
+
+
+def test_pooled_histograms_share_group_edges_and_sum_raw_counts():
+  first = _fake_state(16)
+  second = _fake_state(16)
+  # Make the second seed visibly different while preserving a negative cross.
+  second.last_step.instantaneous["mf"]["g2_cross"] = {"w": jnp.asarray([-4.0, 2.0])}
+  builder = PooledHistogramBuilder(horizon=16, bins=8)
+  builder.observe_extrema(first, 16)
+  builder.observe_extrema(second, 16)
+  builder.finalize_edges()
+  first_record = builder.add_state(0, first, 16)
+  second_record = builder.add_state(1, second, 16)
+  pooled = builder.pooled_records()[0]
+  assert first_record is not None and second_record is not None
+  np.testing.assert_array_equal(
+      pooled["counts"], first_record["counts"] + second_record["counts"]
+  )
+  np.testing.assert_array_equal(
+      first_record["group_bin_edges"], second_record["group_bin_edges"]
+  )
+  assert not np.array_equal(
+      pooled["group_bin_edges"][0], pooled["group_bin_edges"][1]
+  )
+  assert np.all(pooled["group_bin_edges"][0, 0] < 0)
+  assert np.all(pooled["group_bin_edges"][2, 0] < 0)
+
+
+def test_plotting_defaults_to_pooled_and_explicit_seed_uses_per_seed(tmp_path):
+  per_seed = tmp_path / "histograms.npz"
+  pooled = tmp_path / "pooled_histograms.npz"
+  per_seed.write_bytes(b"per-seed")
+  pooled.write_bytes(b"pooled")
+  assert resolve_histogram_artifact(per_seed, seed=None) == pooled
+  assert resolve_histogram_artifact(pooled, seed=3) == per_seed
 
 
 def test_smoke_run_writes_all_exp10_artifacts(tmp_path):
@@ -231,11 +309,33 @@ def test_smoke_run_writes_all_exp10_artifacts(tmp_path):
   run_smoke(tmp_path, [0], histogram_bins=8)
   expected = {
       "summary.json", "step_metrics.csv", "stage_metrics.csv",
-      "histograms.npz", "histograms.png",
+      "paired_stage_metrics.csv", "histograms.npz",
+      "pooled_histograms.npz", "histograms.png", "paired_statistics.png",
   }
   assert expected.issubset({path.name for path in tmp_path.iterdir()})
   summary = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
   assert summary["experiment"] == "exp10"
   assert summary["smoke"] is True
+  assert "late" not in summary["cross_seed_stage_aggregate"]
+  assert "iid_negative_control_E[g2_cross_minus_g2]" in summary["expectation_checks"]
+  assert "mean_2gxi_iid" in summary["feedback_summary"]["early"]
   with np.load(tmp_path / "histograms.npz", allow_pickle=False) as data:
     np.testing.assert_array_equal(data["steps"], [16, 20])
+
+
+def test_train_state_stores_static_coordinate_count_not_mutable_nonlocal():
+  import inspect
+  from exp10.core import make_exp10_train_step
+  assert "nonlocal num_coordinates" not in inspect.getsource(make_exp10_train_step)
+  strategy = _strategy()
+  optimizer = make_exp10_train_step(
+      lambda params, batch: jnp.sum(params["w"] * batch["x"][0]),
+      strategy,
+      _calibration(strategy),
+      ParticipationSpec(strategy.horizon, 1, 1),
+      learning_rate=.01,
+  )[1]
+  state = init_exp10_train_state(
+      {"w": jnp.zeros((2,), jnp.float32)}, strategy, jax.random.key(0), optimizer
+  )
+  assert state.num_coordinates == 2

@@ -38,8 +38,24 @@ quantity. Stage rows use exact raw-step aggregation rather than averaging
 per-step ratios:
 
 - `early`: steps 1--97 (or 1--horizon for a shorter run);
-- `late`: steps 98--horizon;
+- `late`: steps 98--horizon (omitted when `horizon < 98`);
 - `full`: steps 1--horizon.
+
+`paired_stage_metrics.csv` pairs the MF and IID row from the same seed and
+stage. It records `delta_traj`, `delta_feedback`, `delta_noise`,
+`delta_total`, and `delta_decomposition_residual`, where
+
+```text
+delta_total ~= delta_traj + delta_feedback + delta_noise
+```
+
+`summary.json` contains `paired_stage_aggregate`. Every paired metric has
+cross-seed `mean`, sample `std`, `se`, and `ci95_low`/`ci95_high`. For two or
+more seeds the CI uses `scipy.stats.t.ppf(.975, n-1)`; if SciPy is unavailable
+the implementation falls back to the normal critical value 1.96. For one
+seed the standard error and CI width are zero. `feedback_summary` separately
+reports the IID negative control `mean_2gxi_iid`, MF feedback
+`mean_2gxi_mf`, and paired `delta_feedback` with the same uncertainty fields.
 
 ## Output format
 
@@ -52,28 +68,46 @@ Each output directory contains:
   `private_v_hat-(V_g_cross+V_xi)` maximum error;
 - `step_metrics.csv`: one row per `(seed, step, branch)`;
 - `stage_metrics.csv`: one row per `(seed, stage, branch)`;
-- `histograms.npz`: compact histogram data;
-- `histograms.png`: a plot of the last stored checkpoint (when checkpoints
-  exist).
+- `paired_stage_metrics.csv`: one paired row per `(seed, stage)`;
+- `histograms.npz`: optional per-seed compact histogram data;
+- `pooled_histograms.npz`: required cross-seed pooled histogram data;
+- `histograms.png`: pooled comparison of the last checkpoint;
+- `paired_statistics.png`: paired delta plot with cross-seed 95% CI.
 
-`histograms.npz` uses `format_version=exp10-histograms-v1` and contains:
+Both NPZ artifacts use `format_version=exp10-histograms-v2` and contain:
 
 ```text
-seeds                 (K,)
 steps                 (K,)
-bin_edges             (K, bins+1)
-counts                (K, 2, 6, bins)
-relative_frequency    (K, 2, 6, bins)
+group_bin_edges       (K, 4, bins+1)
+counts                (K, 2, 4, 2, bins)
+relative_frequency    (K, 2, 4, 2, bins)
 branch_names          ["mf", "iid"]
-component_names       ["g2", "g2_cross", "xi2", "V_g", "V_g_cross", "V_xi"]
+group_names           ["instantaneous_signal_cross", "instantaneous_noise",
+                       "ema_signal_cross", "ema_noise"]
+group_component_names [["g2", "g2_cross"], ["xi2", ""],
+                       ["V_g", "V_g_cross"], ["V_xi", ""]]
 ```
 
-For every `(seed, step)`, the one `bin_edges` row is shared by both branches
-and all six components. `g2_cross` is passed to `numpy.histogram` directly,
-so negative values are retained; no floor or clipping is applied. Only edges
-and counts/frequencies are saved, never full parameter-coordinate arrays.
+The four groups deliberately avoid scale contamination:
+
+- Group A: `g2`, `g2_cross` share bins across MF/IID/all seeds;
+- Group B: `xi2` has independent bins;
+- Group C: `V_g`, `V_g_cross` share bins across MF/IID/all seeds;
+- Group D: `V_xi` has independent bins.
+
+`g2_cross` and `V_g_cross` are histogrammed directly, so negative values are
+retained; no floor or clipping is applied. Histogram counts remain in the
+original linear value domain. The runner uses two passes: pass one keeps only
+per-group extrema, and pass two replays the deterministic trajectories to
+accumulate raw counts with common cross-seed edges. The pooled artifact sums
+raw counts first and computes relative frequencies afterward. No full
+parameter-coordinate tensor is persisted.
+
 Histograms are stored at steps 16, 32, ..., horizon, with the final step added
-when horizon is not a multiple of 16.
+when horizon is not a multiple of 16. Without `seed`, the plotting helper
+automatically prefers sibling `pooled_histograms.npz`; with an explicit seed it
+uses `histograms.npz`. `xscale="symlog"` is available for display only—the
+stored counts remain linear-domain counts.
 
 The plotting helper can be used independently:
 
@@ -81,6 +115,18 @@ The plotting helper can be used independently:
 conda run -n curve python -c \
   'from exp10.plotting import plot_histograms; plot_histograms("exp10/results/histograms.npz", "exp10/results/histograms_last.png")'
 ```
+
+## Interpretation and privacy disclaimers
+
+The IID branch is a `matched-marginal mechanism control`, not a `formal
+same-(epsilon,delta) IID DP baseline`. It reuses the MF calibration and
+matches the MF row marginal variance; it is not calibrated with a separate IID
+privacy accountant.
+
+Exp10 records clean clipped-gradient-derived quantities such as `g^2` and
+`g*xi`. These diagnostic artifacts are not DP releases. Exp10 is an internal
+research diagnostic, and its statistics must not be treated as a
+privacy-protected published mechanism.
 
 ## Checks
 

@@ -408,6 +408,7 @@ class Exp10TrainState:
   mf_diagnostics: AdamSecondMomentDiagnostics
   iid_diagnostics: AdamSecondMomentDiagnostics
   last_step: Exp10Step
+  num_coordinates: int
 
   def tree_flatten(self):
     return (
@@ -421,12 +422,11 @@ class Exp10TrainState:
         self.mf_diagnostics,
         self.iid_diagnostics,
         self.last_step,
-    ), None
+    ), self.num_coordinates
 
   @classmethod
   def tree_unflatten(cls, aux_data, children):
-    del aux_data
-    return cls(*children)
+    return cls(*children, num_coordinates=aux_data)
 
   @property
   def params(self) -> dict[str, PyTree]:
@@ -451,6 +451,7 @@ def init_exp10_train_state(
       mf_noise_state=init_bandinv_noise_state(params, strategy.bandwidth),
       rng_key=rng_key,
       step=jnp.asarray(0, jnp.int32),
+      num_coordinates=_tree_numel(params),
       mf_diagnostics=init_second_moment_diagnostics(params),
       iid_diagnostics=init_second_moment_diagnostics(params),
       last_step=_zero_step(params),
@@ -494,10 +495,8 @@ def make_exp10_train_step(
   phi_schedule = bandinv_marginal_variances(
       strategy, calibration.iid_noise_std
   )
-  num_coordinates: int | None = None
 
   def train_step(state: Exp10TrainState, batch: Any) -> Exp10TrainState:
-    nonlocal num_coordinates
     # These are two real queries at the two branches' current parameters.
     g_mf = clipped_query(state.mf_params, batch)
     g_iid = clipped_query(state.iid_params, batch)
@@ -524,10 +523,6 @@ def make_exp10_train_step(
     mf_params = optax.apply_updates(state.mf_params, mf_updates)
     iid_params = optax.apply_updates(state.iid_params, iid_updates)
 
-    if num_coordinates is None:
-      # Static model metadata; assigning a Python int is outside the traced
-      # numerical path and keeps the metric denominator stable across branches.
-      num_coordinates = _tree_numel(g_mf)
     mf_components = second_moment_components(g_mf, xi_mf)
     iid_components = second_moment_components(g_iid, xi_iid)
     mf_diagnostics, mf_ema = advance_second_moment_diagnostics(
@@ -557,7 +552,7 @@ def make_exp10_train_step(
                     g_mf,
                     xi_mf,
                 ),
-                num_coordinates=num_coordinates,
+                num_coordinates=state.num_coordinates,
             ),
             "iid": component_metrics(
                 iid_components,
@@ -566,7 +561,7 @@ def make_exp10_train_step(
                     g_iid,
                     xi_iid,
                 ),
-                num_coordinates=num_coordinates,
+                num_coordinates=state.num_coordinates,
             ),
         },
         decomposition_error_max_abs={"mf": mf_error[0], "iid": iid_error[0]},
@@ -581,6 +576,7 @@ def make_exp10_train_step(
         mf_noise_state=new_noise_state,
         rng_key=next_key,
         step=new_step,
+        num_coordinates=state.num_coordinates,
         mf_diagnostics=mf_diagnostics,
         iid_diagnostics=iid_diagnostics,
         last_step=last_step,
