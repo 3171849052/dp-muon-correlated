@@ -73,6 +73,7 @@ def make_nonamplified_dpmuon_optimizer(
     adamw_weight_decay: float = 0.0,
     use_bf16_ns: bool = True,
     pre_q_parameter_path: tuple[str | int, ...] | None = None,
+    pre_q_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
 ) -> optax.GradientTransformation:
   """Builds a single Optax partition with distinct Muon and AdamW settings."""
   _finite_scalar(muon_learning_rate, "muon_learning_rate", positive=True)
@@ -90,6 +91,21 @@ def make_nonamplified_dpmuon_optimizer(
       raise ValueError(f"{name} must be in [0, 1)")
   _finite_scalar(adamw_eps, "adamw_eps", positive=True)
   _finite_scalar(adamw_weight_decay, "adamw_weight_decay", nonnegative=True)
+  if pre_q_parameter_path is not None and pre_q_parameter_paths is not None:
+    raise ValueError(
+        "pre_q_parameter_path and pre_q_parameter_paths are mutually exclusive"
+    )
+  if pre_q_parameter_paths is not None and not pre_q_parameter_paths:
+    raise ValueError("pre_q_parameter_paths must not be empty")
+  if pre_q_parameter_paths is not None:
+    pre_q_hook = optax.chain(*(
+        make_pre_q_svd_hook(path) for path in pre_q_parameter_paths
+    ))
+  else:
+    pre_q_hook = (
+        make_pre_q_svd_hook(pre_q_parameter_path)
+        if pre_q_parameter_path is not None else None
+    )
   return optax.partition(
       {
           MUON: muon_transform(
@@ -99,10 +115,7 @@ def make_nonamplified_dpmuon_optimizer(
               ns_steps=ns_steps,
               consistent_rms=consistent_rms,
               use_bf16_ns=use_bf16_ns,
-              pre_q_hook=(
-                  make_pre_q_svd_hook(pre_q_parameter_path)
-                  if pre_q_parameter_path is not None else None
-              ),
+              pre_q_hook=pre_q_hook,
           ),
           ADAMW: optax.adamw(
               learning_rate=adamw_learning_rate,
@@ -152,6 +165,7 @@ def make_nonamplified_dpmuon_train_step(
     use_bf16_ns: bool = True,
     add_noise: bool = True,
     pre_q_parameter_path: tuple[str | int, ...] | None = None,
+    pre_q_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
 ) -> tuple[
     Callable[[NonAmplifiedDPMuonState, Any], NonAmplifiedDPMuonState],
     optax.GradientTransformation,
@@ -180,6 +194,7 @@ def make_nonamplified_dpmuon_train_step(
       adamw_weight_decay=adamw_weight_decay,
       use_bf16_ns=use_bf16_ns,
       pre_q_parameter_path=pre_q_parameter_path,
+      pre_q_parameter_paths=pre_q_parameter_paths,
   )
   clipped_query = make_clipped_gradient_query(
       loss_fn,
