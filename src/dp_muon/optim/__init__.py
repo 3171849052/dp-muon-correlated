@@ -25,7 +25,14 @@ from .muon_nesterov import (
     init_muon_nesterov_state,
     muon_nesterov_step,
 )
-from .muon import classic_nesterov_momentum, muon_post_nesterov_transform, muon_transform
+from .muon import (
+    PreQSVDState,
+    classic_nesterov_momentum,
+    extract_pre_q_singular_values,
+    make_pre_q_svd_hook,
+    muon_post_nesterov_transform,
+    muon_transform,
+)
 from .muon_q import STAGES as MUON_Q_STAGES, muon_q, muon_q_stages
 from .parameter_groups import (
     ADAMW,
@@ -54,8 +61,11 @@ __all__ = [
     "init_muon_nesterov_state",
     "muon_nesterov_step",
     "classic_nesterov_momentum",
+    "extract_pre_q_singular_values",
+    "make_pre_q_svd_hook",
     "muon_post_nesterov_transform",
     "muon_transform",
+    "PreQSVDState",
     "MUON_Q_STAGES",
     "muon_q",
     "muon_q_stages",

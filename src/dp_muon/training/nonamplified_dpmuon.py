@@ -11,7 +11,13 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from dp_muon.optim import ADAMW, MUON, muon_transform, vit_muon_parameter_labels
+from dp_muon.optim import (
+    ADAMW,
+    MUON,
+    make_pre_q_svd_hook,
+    muon_transform,
+    vit_muon_parameter_labels,
+)
 from dp_muon.privacy import (
     PrivacyCalibration,
     make_clipped_gradient_query,
@@ -66,6 +72,7 @@ def make_nonamplified_dpmuon_optimizer(
     adamw_eps: float = 1e-8,
     adamw_weight_decay: float = 0.0,
     use_bf16_ns: bool = True,
+    pre_q_parameter_path: tuple[str | int, ...] | None = None,
 ) -> optax.GradientTransformation:
   """Builds a single Optax partition with distinct Muon and AdamW settings."""
   _finite_scalar(muon_learning_rate, "muon_learning_rate", positive=True)
@@ -92,6 +99,10 @@ def make_nonamplified_dpmuon_optimizer(
               ns_steps=ns_steps,
               consistent_rms=consistent_rms,
               use_bf16_ns=use_bf16_ns,
+              pre_q_hook=(
+                  make_pre_q_svd_hook(pre_q_parameter_path)
+                  if pre_q_parameter_path is not None else None
+              ),
           ),
           ADAMW: optax.adamw(
               learning_rate=adamw_learning_rate,
@@ -139,6 +150,8 @@ def make_nonamplified_dpmuon_train_step(
     adamw_weight_decay: float = 0.0,
     microbatch_size: int | None = None,
     use_bf16_ns: bool = True,
+    add_noise: bool = True,
+    pre_q_parameter_path: tuple[str | int, ...] | None = None,
 ) -> tuple[
     Callable[[NonAmplifiedDPMuonState, Any], NonAmplifiedDPMuonState],
     optax.GradientTransformation,
@@ -166,6 +179,7 @@ def make_nonamplified_dpmuon_train_step(
       adamw_eps=adamw_eps,
       adamw_weight_decay=adamw_weight_decay,
       use_bf16_ns=use_bf16_ns,
+      pre_q_parameter_path=pre_q_parameter_path,
   )
   clipped_query = make_clipped_gradient_query(
       loss_fn,
@@ -182,13 +196,19 @@ def make_nonamplified_dpmuon_train_step(
     if not isinstance(state, NonAmplifiedDPMuonState):
       raise TypeError("state must be a NonAmplifiedDPMuonState")
     clipped_grad = clipped_query(state.params, batch)
-    # This is the unique privacy mechanism invocation for this logical batch.
-    noise, new_key = _sample_iid_gaussian_noise(
-        state.rng_key, clipped_grad, jnp.asarray(calibration.iid_noise_std)
-    )
-    private_grad = jax.tree_util.tree_map(
-        lambda gradient, perturbation: gradient + perturbation, clipped_grad, noise
-    )
+    if add_noise:
+      # This is the unique privacy mechanism invocation for this logical batch.
+      noise, new_key = _sample_iid_gaussian_noise(
+          state.rng_key, clipped_grad, jnp.asarray(calibration.iid_noise_std)
+      )
+      private_grad = jax.tree_util.tree_map(
+          lambda gradient, perturbation: gradient + perturbation, clipped_grad, noise
+      )
+    else:
+      # The clean control preserves the exact clipped query and optimizer path,
+      # but does not invoke a Gaussian mechanism or advance its key.
+      private_grad = clipped_grad
+      new_key = state.rng_key
     updates, optimizer_state = optimizer.update(
         private_grad, state.optimizer_state, state.params
     )
