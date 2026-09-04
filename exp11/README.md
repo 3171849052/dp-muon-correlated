@@ -11,7 +11,7 @@ The trajectories load one pretrained snapshot, consume one shared fixed-cycle
 batch schedule, and use the same optimizer settings. The only recorded
 parameter is `blocks/0/attention/query/kernel`. Its spectrum is captured from
 the optimizer's post-Nesterov, pre-Newton--Schulz value at steps 32, 244, and
-480. Only singular values are written to `results/spectra.npz`.
+480. Only singular values are written to the result artifacts.
 
 Run the small end-to-end check with:
 
@@ -27,5 +27,13 @@ conda run -n curve python exp11/run.py \
   --output-dir exp11/results
 ```
 
-The formal output contains `spectra.npz` and `singular_spectra.png`. The plot
-has three shared-y log-scale panels and exactly two curves per panel.
+The formal output contains `spectra.npz`, `spectra.csv`, and
+`singular_spectra.png`. `spectra.csv` is long-form with the fixed columns
+`step,index,clean,dp`: `step` is the checkpoint, `index` is the 1-based
+singular-value index, and `clean`/`dp` are the corresponding unnormalized
+singular values. The CSV is exported directly from `spectra.npz` with stable
+17-digit scientific-notation floats. The plot has three shared-y log-scale
+panels and exactly two curves per panel.
+
+The `--smoke` command writes the same three artifact filenames to its supplied
+output directory.

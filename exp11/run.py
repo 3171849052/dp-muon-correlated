@@ -40,7 +40,7 @@ from dp_muon.training.nonamplified_dpmuon import (
 )
 from dp_muon.training.pretrained_snapshot import load_pretrained_snapshot
 
-from exp11.plotting import plot_singular_spectra, save_spectra
+from exp11.plotting import plot_singular_spectra, save_spectra, save_spectra_csv
 
 
 PARAMETER_PATH = ("blocks", 0, "attention", "query", "kernel")
@@ -244,8 +244,10 @@ def run_formal(
       clean_singular_values=result.clean_singular_values,
       dp_singular_values=result.dp_singular_values,
   )
+  csv_path = save_spectra_csv(spectra_path, output_dir / "spectra.csv")
   plot_singular_spectra(spectra_path, output_dir / "singular_spectra.png")
   print(f"wrote {spectra_path}")
+  print(f"wrote {csv_path}")
   print(f"wrote {output_dir / 'singular_spectra.png'}")
   return result
 
@@ -312,8 +314,10 @@ def run_smoke(output_dir: str | Path) -> SpectrumResult:
       clean_singular_values=result.clean_singular_values,
       dp_singular_values=result.dp_singular_values,
   )
+  csv_path = save_spectra_csv(spectra_path, output_dir / "spectra.csv")
   plot_singular_spectra(spectra_path, output_dir / "singular_spectra.png")
   print(f"wrote {spectra_path}")
+  print(f"wrote {csv_path}")
   print(f"wrote {output_dir / 'singular_spectra.png'}")
   return result
 

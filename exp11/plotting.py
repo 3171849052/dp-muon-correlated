@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +37,11 @@ def _as_spectra_arrays(
     raise ValueError("spectra must contain only finite values")
   if np.any(clean < 0) or np.any(dp < 0):
     raise ValueError("singular values must be non-negative")
+  if (
+      (clean.shape[1] > 1 and np.any(np.diff(clean, axis=1) > 0))
+      or (dp.shape[1] > 1 and np.any(np.diff(dp, axis=1) > 0))
+  ):
+    raise ValueError("singular values must be in descending order")
   return steps, clean, dp
 
 
@@ -80,6 +86,35 @@ def load_spectra(path: str | Path) -> dict[str, np.ndarray]:
   return result
 
 
+def save_spectra_csv(
+    spectra: str | Path,
+    output: str | Path,
+) -> Path:
+  """Export one validated NPZ spectrum artifact as a stable long-form CSV."""
+  values = load_spectra(spectra)
+  steps = values["steps"].astype(int)
+  clean = values["clean_singular_values"]
+  dp = values["dp_singular_values"]
+  output = Path(output)
+  output.parent.mkdir(parents=True, exist_ok=True)
+  with output.open("w", encoding="utf-8", newline="") as stream:
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow(("step", "index", "clean", "dp"))
+    for row_step, clean_spectrum, dp_spectrum in zip(
+        steps, clean, dp, strict=True
+    ):
+      for index, (clean_value, dp_value) in enumerate(
+          zip(clean_spectrum, dp_spectrum, strict=True), start=1
+      ):
+        writer.writerow((
+            int(row_step),
+            index,
+            format(float(clean_value), ".17e"),
+            format(float(dp_value), ".17e"),
+        ))
+  return output
+
+
 def plot_singular_spectra(
     spectra: str | Path,
     output: str | Path,
@@ -119,4 +154,10 @@ def plot_singular_spectra(
   return output
 
 
-__all__ = ["SPECTRA_KEYS", "load_spectra", "plot_singular_spectra", "save_spectra"]
+__all__ = [
+    "SPECTRA_KEYS",
+    "load_spectra",
+    "plot_singular_spectra",
+    "save_spectra",
+    "save_spectra_csv",
+]

@@ -1,5 +1,6 @@
 """Tests for Exp11 pairing, pre-Q capture, artifacts, and smoke wiring."""
 
+import csv
 from dataclasses import replace
 
 import jax
@@ -17,7 +18,12 @@ from dp_muon.training import (
     make_nonamplified_dpmuon_train_step,
 )
 import dp_muon.training.nonamplified_dpmuon as dpmuon
-from exp11.plotting import load_spectra, plot_singular_spectra, save_spectra
+from exp11.plotting import (
+    load_spectra,
+    plot_singular_spectra,
+    save_spectra,
+    save_spectra_csv,
+)
 from exp11.run import (
     DPMuonSettings,
     PARAMETER_PATH,
@@ -197,6 +203,25 @@ def test_npz_schema_and_shared_y_plot(tmp_path):
   loaded = load_spectra(spectra)
   assert set(loaded) == {"steps", "parameter_name", "clean_singular_values", "dp_singular_values"}
   assert str(loaded["parameter_name"].item()) == PARAMETER_NAME
+  csv_path = save_spectra_csv(spectra, tmp_path / "spectra.csv")
+  with csv_path.open(encoding="utf-8", newline="") as stream:
+    rows = list(csv.reader(stream))
+  assert rows[0] == ["step", "index", "clean", "dp"]
+  assert len(rows) - 1 == loaded["clean_singular_values"].size
+  cursor = 1
+  for step, clean_spectrum, dp_spectrum in zip(
+      loaded["steps"], loaded["clean_singular_values"],
+      loaded["dp_singular_values"], strict=True
+  ):
+    for index, (clean_value, dp_value) in enumerate(
+        zip(clean_spectrum, dp_spectrum, strict=True), start=1
+    ):
+      row = rows[cursor]
+      assert int(row[0]) == int(step)
+      assert int(row[1]) == index
+      assert float(row[2]) == float(clean_value)
+      assert float(row[3]) == float(dp_value)
+      cursor += 1
   plot = plot_singular_spectra(spectra, tmp_path / "singular_spectra.png")
   assert plot.is_file() and plot.stat().st_size > 0
 
@@ -205,4 +230,9 @@ def test_smoke_runs_both_paths_and_writes_artifacts(tmp_path):
   result = run_smoke(tmp_path)
   assert result.steps.tolist() == [1, 2, 3]
   assert (tmp_path / "spectra.npz").is_file()
+  assert (tmp_path / "spectra.csv").is_file()
   assert (tmp_path / "singular_spectra.png").is_file()
+  with (tmp_path / "spectra.csv").open(encoding="utf-8", newline="") as stream:
+    rows = list(csv.reader(stream))
+  assert rows[0] == ["step", "index", "clean", "dp"]
+  assert len(rows) - 1 == result.clean_singular_values.size
