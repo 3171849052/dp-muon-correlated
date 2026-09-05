@@ -25,6 +25,20 @@ class PreQSVDState(NamedTuple):
   singular_values: jax.Array
 
 
+class PreQMatrixState(NamedTuple):
+  """Optax state containing the latest post-Nesterov, pre-Q matrix.
+
+  Unlike :class:`PreQSVDState`, this state deliberately retains the complete
+  matrix on the device.  It is an analysis-only hook: callers are expected to
+  copy it to host at selected checkpoints and must not use it as a training
+  input.  Keeping the value in the optimizer state makes the captured matrix
+  the exact update produced by the preceding Nesterov transform, rather than
+  a matrix reconstructed from a later gradient evaluation.
+  """
+
+  matrix: jax.Array
+
+
 def _tree_value(tree: Any, path: ParameterPath) -> Any:
   value = tree
   for entry in path:
@@ -76,6 +90,43 @@ def make_pre_q_svd_hook(parameter_path: ParameterPath) -> optax.GradientTransfor
   return optax.GradientTransformation(init_fn, update_fn)
 
 
+def make_pre_q_matrix_hook(parameter_path: ParameterPath) -> optax.GradientTransformation:
+  """Capture one exact Muon pre-Q matrix during the optimizer update.
+
+  The hook is intended to be placed immediately after Muon's temporal
+  momentum/Nesterov transform.  It forwards updates unchanged and stores only
+  the latest selected matrix in its Optax state.  The matrix is therefore
+  available to a checkpoint collector without rerunning the loss or gradient.
+  """
+  if not isinstance(parameter_path, tuple) or not parameter_path:
+    raise ValueError("parameter_path must be a non-empty tuple")
+  if any(not isinstance(entry, (str, int)) or isinstance(entry, bool)
+         for entry in parameter_path):
+    raise ValueError("parameter_path entries must be strings or integers")
+
+  def _matrix(tree: Any) -> jax.Array:
+    matrix = _tree_value(tree, parameter_path)
+    if isinstance(matrix, optax.MaskedNode):
+      raise ValueError("pre-Q parameter path is not in the Muon partition")
+    matrix = jnp.asarray(matrix)
+    if matrix.ndim != 2 or not jnp.issubdtype(matrix.dtype, jnp.floating):
+      raise ValueError("pre-Q parameter must be a floating rank-two matrix")
+    return matrix
+
+  def init_fn(params: Any) -> PreQMatrixState:
+    matrix = _matrix(params)
+    return PreQMatrixState(jnp.zeros_like(matrix))
+
+  def update_fn(updates: Any, state: PreQMatrixState, params: Any = None):
+    del params
+    if not isinstance(state, PreQMatrixState):
+      raise TypeError("state must be a PreQMatrixState")
+    matrix = _matrix(updates)
+    return updates, PreQMatrixState(matrix)
+
+  return optax.GradientTransformation(init_fn, update_fn)
+
+
 def extract_pre_q_singular_values(optimizer_state: Any) -> jax.Array:
   """Find the spectrum emitted by :func:`make_pre_q_svd_hook` in Optax state."""
   if isinstance(optimizer_state, PreQSVDState):
@@ -93,6 +144,25 @@ def extract_pre_q_singular_values(optimizer_state: Any) -> jax.Array:
       except ValueError:
         pass
   raise ValueError("optimizer state does not contain a pre-Q SVD hook")
+
+
+def extract_pre_q_matrix(optimizer_state: Any) -> jax.Array:
+  """Find the matrix emitted by :func:`make_pre_q_matrix_hook` in Optax state."""
+  if isinstance(optimizer_state, PreQMatrixState):
+    return optimizer_state.matrix
+  if isinstance(optimizer_state, Mapping):
+    for value in optimizer_state.values():
+      try:
+        return extract_pre_q_matrix(value)
+      except ValueError:
+        pass
+  elif isinstance(optimizer_state, tuple):
+    for value in optimizer_state:
+      try:
+        return extract_pre_q_matrix(value)
+      except ValueError:
+        pass
+  raise ValueError("optimizer state does not contain a pre-Q matrix hook")
 
 
 def classic_nesterov_momentum(
@@ -227,10 +297,13 @@ def muon_transform(
 
 
 __all__ = [
-    "classic_nesterov_momentum",
-    "extract_pre_q_singular_values",
-    "make_pre_q_svd_hook",
+  "classic_nesterov_momentum",
+  "extract_pre_q_matrix",
+  "extract_pre_q_singular_values",
+  "make_pre_q_matrix_hook",
+  "make_pre_q_svd_hook",
     "muon_post_nesterov_transform",
     "muon_transform",
-    "PreQSVDState",
+  "PreQSVDState",
+  "PreQMatrixState",
 ]

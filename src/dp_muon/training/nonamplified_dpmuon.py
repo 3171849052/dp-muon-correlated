@@ -14,6 +14,7 @@ import optax
 from dp_muon.optim import (
     ADAMW,
     MUON,
+    make_pre_q_matrix_hook,
     make_pre_q_svd_hook,
     muon_transform,
     vit_muon_parameter_labels,
@@ -74,6 +75,8 @@ def make_nonamplified_dpmuon_optimizer(
     use_bf16_ns: bool = True,
     pre_q_parameter_path: tuple[str | int, ...] | None = None,
     pre_q_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
+    pre_q_matrix_parameter_path: tuple[str | int, ...] | None = None,
+    pre_q_matrix_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
 ) -> optax.GradientTransformation:
   """Builds a single Optax partition with distinct Muon and AdamW settings."""
   _finite_scalar(muon_learning_rate, "muon_learning_rate", positive=True)
@@ -95,17 +98,39 @@ def make_nonamplified_dpmuon_optimizer(
     raise ValueError(
         "pre_q_parameter_path and pre_q_parameter_paths are mutually exclusive"
     )
+  if (pre_q_matrix_parameter_path is not None
+      and pre_q_matrix_parameter_paths is not None):
+    raise ValueError(
+        "pre_q_matrix_parameter_path and pre_q_matrix_parameter_paths are mutually exclusive"
+    )
+  if any(option is not None for option in (
+      pre_q_parameter_path, pre_q_parameter_paths,
+  )) and any(option is not None for option in (
+      pre_q_matrix_parameter_path, pre_q_matrix_parameter_paths,
+  )):
+    raise ValueError(
+        "pre-Q SVD and matrix hook options are mutually exclusive"
+    )
   if pre_q_parameter_paths is not None and not pre_q_parameter_paths:
     raise ValueError("pre_q_parameter_paths must not be empty")
+  if pre_q_matrix_parameter_paths is not None and not pre_q_matrix_parameter_paths:
+    raise ValueError("pre_q_matrix_parameter_paths must not be empty")
   if pre_q_parameter_paths is not None:
     pre_q_hook = optax.chain(*(
         make_pre_q_svd_hook(path) for path in pre_q_parameter_paths
     ))
-  else:
+  elif pre_q_matrix_parameter_paths is not None:
+    pre_q_hook = optax.chain(*(
+        make_pre_q_matrix_hook(path) for path in pre_q_matrix_parameter_paths
+    ))
+  elif pre_q_parameter_path is not None:
     pre_q_hook = (
         make_pre_q_svd_hook(pre_q_parameter_path)
-        if pre_q_parameter_path is not None else None
     )
+  elif pre_q_matrix_parameter_path is not None:
+    pre_q_hook = make_pre_q_matrix_hook(pre_q_matrix_parameter_path)
+  else:
+    pre_q_hook = None
   return optax.partition(
       {
           MUON: muon_transform(
@@ -166,6 +191,8 @@ def make_nonamplified_dpmuon_train_step(
     add_noise: bool = True,
     pre_q_parameter_path: tuple[str | int, ...] | None = None,
     pre_q_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
+    pre_q_matrix_parameter_path: tuple[str | int, ...] | None = None,
+    pre_q_matrix_parameter_paths: tuple[tuple[str | int, ...], ...] | None = None,
 ) -> tuple[
     Callable[[NonAmplifiedDPMuonState, Any], NonAmplifiedDPMuonState],
     optax.GradientTransformation,
@@ -195,6 +222,8 @@ def make_nonamplified_dpmuon_train_step(
       use_bf16_ns=use_bf16_ns,
       pre_q_parameter_path=pre_q_parameter_path,
       pre_q_parameter_paths=pre_q_parameter_paths,
+      pre_q_matrix_parameter_path=pre_q_matrix_parameter_path,
+      pre_q_matrix_parameter_paths=pre_q_matrix_parameter_paths,
   )
   clipped_query = make_clipped_gradient_query(
       loss_fn,
