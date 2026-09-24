@@ -2,6 +2,7 @@
 
 from .linear_workload import (
     adam_first_moment_workload_matrix,
+    momentum_trajectory_workload_matrix,
     decayed_prefix_sum_workload_coef,
     frozen_p_adamw_segment_workload_matrix,
     frozen_p_time_workload,
@@ -51,6 +52,7 @@ from .sgd_momentum import (
 )
 
 __all__ = [
+    "momentum_trajectory_workload_matrix",
     "MuonNesterovState",
     "adam_first_moment_workload_matrix",
     "SGDMomentumState",

@@ -1,0 +1,13 @@
+{
+  "samples": 3,
+  "seed": 0,
+  "parameter_name": "synthetic-smoke",
+  "paired_latents": true,
+  "noise_scale": "independent formal privacy calibration per strategy",
+  "energy": "squared parameter displacement from clean AdamW, summed over selected leaf",
+  "learning_rate": 0.005,
+  "beta1": 0.9,
+  "beta2": 0.999,
+  "eps": 1e-08,
+  "weight_decay": 0.01
+}

@@ -76,6 +76,19 @@ def decayed_prefix_sum_workload_coef(
   return jnp.asarray(rho) ** jnp.arange(int(horizon))
 
 
+def momentum_trajectory_workload_matrix(
+    horizon: int, beta1: float, learning_rate: float, weight_decay: float,
+) -> jax.Array:
+  """Returns ``P_rho @ H`` for EMA momentum, without bias correction or eta."""
+  horizon, beta = _validate_configuration(horizon, beta1)
+  coef = decayed_prefix_sum_workload_coef(horizon, learning_rate, weight_decay)
+  lag = jnp.arange(horizon)[:, None] - jnp.arange(horizon)[None, :]
+  causal = lag >= 0
+  decay = jnp.where(causal, coef[jnp.maximum(lag, 0)], 0.0)
+  moment = jnp.where(causal, (1.0 - beta) * beta ** jnp.maximum(lag, 0), 0.0)
+  return jnp.matmul(decay, moment, precision=jax.lax.Precision.HIGHEST)
+
+
 def adam_first_moment_workload_matrix(
     horizon: int,
     beta1: float,
@@ -326,6 +339,7 @@ def fixed_lr_nesterov_decayed_trajectory_workload_coef(
 
 
 __all__ = [
+    "momentum_trajectory_workload_matrix",
     "adam_first_moment_workload_matrix",
     "decayed_prefix_sum_workload_coef",
     "frozen_p_time_workload",

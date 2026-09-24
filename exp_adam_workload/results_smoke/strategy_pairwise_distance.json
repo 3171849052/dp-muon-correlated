@@ -1,0 +1,56 @@
+[
+  {
+    "strategy": "sgd",
+    "sgd": 0.0,
+    "sgd_wd": 2.1328547293140735e-05,
+    "momentum": 0.3162088071952848,
+    "momentum_wd": 0.3160899620346427,
+    "adam_momentum": 0.07485804150745178,
+    "adam_momentum_wd": 0.0748573416352351
+  },
+  {
+    "strategy": "sgd_wd",
+    "sgd": 2.1328723694224244e-05,
+    "sgd_wd": 0.0,
+    "momentum": 0.31622458271556464,
+    "momentum_wd": 0.31610573874399095,
+    "adam_momentum": 0.0748658383074512,
+    "adam_momentum_wd": 0.07486513931973797
+  },
+  {
+    "strategy": "momentum",
+    "sgd": 0.2746661370787342,
+    "sgd_wd": 0.2746775682894614,
+    "momentum": 0.0,
+    "momentum_wd": 0.00014780241414770023,
+    "adam_momentum": 0.232397660537136,
+    "adam_momentum_wd": 0.23239651404064138
+  },
+  {
+    "strategy": "momentum_wd",
+    "sgd": 0.27457983511813794,
+    "sgd_wd": 0.274591268920463,
+    "momentum": 0.0001478115276934979,
+    "momentum_wd": 0.0,
+    "adam_momentum": 0.2323311047073435,
+    "adam_momentum_wd": 0.23232995718107927
+  },
+  {
+    "strategy": "adam_momentum",
+    "sgd": 0.07309019268589902,
+    "sgd_wd": 0.07309720079471041,
+    "momentum": 0.2612289112677499,
+    "momentum_wd": 0.2611379966672384,
+    "adam_momentum": 0.0,
+    "adam_momentum_wd": 3.318850206348882e-06
+  },
+  {
+    "strategy": "adam_momentum_wd",
+    "sgd": 0.073089455108608,
+    "sgd_wd": 0.07309646408147819,
+    "momentum": 0.26122742870297067,
+    "momentum_wd": 0.2611365130919269,
+    "adam_momentum": 3.318847743723298e-06,
+    "adam_momentum_wd": 0.0
+  }
+]

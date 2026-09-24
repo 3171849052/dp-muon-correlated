@@ -1,0 +1,1240 @@
+Loading CIFAR-10 training:   0%|          | 0/5 [00:00<?, ?file/s]/media/data/data/lt/dp-muon-correlated/src/dp_muon/data/cifar10.py:49: VisibleDeprecationWarning: dtype(): align should be passed as Python or NumPy boolean but got `align=0`. Did you mean to pass a tuple to create a subarray type? (Deprecated NumPy 2.4)
+  values = pickle.load(source, encoding="bytes")
+Loading CIFAR-10 training:  60%|██████    | 3/5 [00:00<00:00, 24.30file/s]Loading CIFAR-10 training: 100%|██████████| 5/5 [00:00<00:00, 28.00file/s]
+Loading CIFAR-10 training:   0%|          | 0/5 [00:00<?, ?file/s]Loading CIFAR-10 training:  60%|██████    | 3/5 [00:00<00:00, 28.86file/s]Loading CIFAR-10 training: 100%|██████████| 5/5 [00:00<00:00, 31.16file/s]
+Loading CIFAR-10 test:   0%|          | 0/1 [00:00<?, ?file/s]Loading CIFAR-10 test: 100%|██████████| 1/1 [00:00<00:00, 64.57file/s]
+Training:   0%|          | 0/488 [00:00<?, ?logical batch/s]Training:   0%|          | 1/488 [01:36<13:03:09, 96.49s/logical batch]Training:   0%|          | 2/488 [01:37<5:25:47, 40.22s/logical batch] Training:   1%|          | 3/488 [01:37<2:59:06, 22.16s/logical batch]Training:   1%|          | 4/488 [01:38<1:50:12, 13.66s/logical batch]Training:   1%|          | 5/488 [01:39<1:12:17,  8.98s/logical batch]Training:   1%|          | 6/488 [01:40<49:45,  6.19s/logical batch]  Training:   1%|▏         | 7/488 [01:40<35:19,  4.41s/logical batch]Training:   2%|▏         | 8/488 [01:41<25:46,  3.22s/logical batch]Training:   2%|▏         | 9/488 [01:42<19:27,  2.44s/logical batch]Training:   2%|▏         | 10/488 [01:42<15:07,  1.90s/logical batch]Training:   2%|▏         | 11/488 [01:43<11:56,  1.50s/logical batch]Training:   2%|▏         | 12/488 [01:44<09:55,  1.25s/logical batch]Training:   3%|▎         | 13/488 [01:44<08:29,  1.07s/logical batch]Training:   3%|▎         | 14/488 [01:45<07:23,  1.07logical batch/s]Training:   3%|▎         | 15/488 [01:46<06:40,  1.18logical batch/s]Training:   3%|▎         | 16/488 [01:46<06:09,  1.28logical batch/s]Training:   3%|▎         | 17/488 [01:47<05:45,  1.36logical batch/s]Training:   4%|▎         | 18/488 [01:47<05:29,  1.43logical batch/s]Training:   4%|▍         | 19/488 [01:48<05:16,  1.48logical batch/s]Training:   4%|▍         | 20/488 [01:49<05:07,  1.52logical batch/s]Training:   4%|▍         | 21/488 [01:49<05:00,  1.55logical batch/s]Training:   5%|▍         | 22/488 [01:50<04:56,  1.57logical batch/s]Training:   5%|▍         | 23/488 [01:51<04:56,  1.57logical batch/s]Training:   5%|▍         | 24/488 [01:51<05:02,  1.53logical batch/s]Training:   5%|▌         | 25/488 [01:52<05:08,  1.50logical batch/s]Training:   5%|▌         | 26/488 [01:53<05:03,  1.52logical batch/s]Training:   6%|▌         | 27/488 [01:53<04:59,  1.54logical batch/s]Training:   6%|▌         | 28/488 [01:54<04:49,  1.59logical batch/s]Training:   6%|▌         | 29/488 [01:54<04:46,  1.60logical batch/s]Training:   6%|▌         | 30/488 [01:55<04:45,  1.61logical batch/s]Training:   6%|▋         | 31/488 [01:56<04:44,  1.61logical batch/s]Training:   7%|▋         | 32/488 [01:56<04:41,  1.62logical batch/s]Training:   7%|▋         | 33/488 [01:57<04:42,  1.61logical batch/s]Training:   7%|▋         | 34/488 [01:57<04:37,  1.64logical batch/s]Training:   7%|▋         | 35/488 [01:58<04:39,  1.62logical batch/s]Training:   7%|▋         | 36/488 [01:59<04:40,  1.61logical batch/s]Training:   8%|▊         | 37/488 [01:59<04:37,  1.63logical batch/s]Training:   8%|▊         | 38/488 [02:00<04:36,  1.63logical batch/s]Training:   8%|▊         | 39/488 [02:01<04:36,  1.62logical batch/s]Training:   8%|▊         | 40/488 [02:01<04:35,  1.62logical batch/s]Training:   8%|▊         | 41/488 [02:02<04:37,  1.61logical batch/s]Training:   9%|▊         | 42/488 [02:02<04:36,  1.62logical batch/s]Training:   9%|▉         | 43/488 [02:03<04:34,  1.62logical batch/s]Training:   9%|▉         | 44/488 [02:04<04:32,  1.63logical batch/s]Training:   9%|▉         | 45/488 [02:04<04:34,  1.62logical batch/s]Training:   9%|▉         | 46/488 [02:05<04:32,  1.62logical batch/s]Training:  10%|▉         | 47/488 [02:06<04:30,  1.63logical batch/s]Training:  10%|▉         | 48/488 [02:06<04:32,  1.62logical batch/s]Training:  10%|█         | 49/488 [02:07<04:31,  1.62logical batch/s]Training:  10%|█         | 50/488 [02:07<04:29,  1.62logical batch/s]Training:  10%|█         | 51/488 [02:08<04:27,  1.63logical batch/s]Training:  11%|█         | 52/488 [02:09<04:27,  1.63logical batch/s]Training:  11%|█         | 53/488 [02:09<04:26,  1.63logical batch/s]Training:  11%|█         | 54/488 [02:10<04:26,  1.63logical batch/s]Training:  11%|█▏        | 55/488 [02:10<04:23,  1.65logical batch/s]Training:  11%|█▏        | 56/488 [02:11<04:22,  1.65logical batch/s]Training:  12%|█▏        | 57/488 [02:12<04:22,  1.64logical batch/s]Training:  12%|█▏        | 58/488 [02:12<04:21,  1.64logical batch/s]Training:  12%|█▏        | 59/488 [02:13<04:20,  1.65logical batch/s]Training:  12%|█▏        | 60/488 [02:13<04:18,  1.66logical batch/s]Training:  12%|█▎        | 61/488 [02:14<04:16,  1.66logical batch/s]Training:  13%|█▎        | 62/488 [02:15<04:18,  1.65logical batch/s]Training:  13%|█▎        | 63/488 [02:15<04:18,  1.65logical batch/s]Training:  13%|█▎        | 64/488 [02:16<04:15,  1.66logical batch/s]Training:  13%|█▎        | 65/488 [02:16<04:16,  1.65logical batch/s]Training:  14%|█▎        | 66/488 [02:17<04:16,  1.64logical batch/s]Training:  14%|█▎        | 67/488 [02:18<04:17,  1.63logical batch/s]Training:  14%|█▍        | 68/488 [02:18<04:16,  1.64logical batch/s]Training:  14%|█▍        | 69/488 [02:19<04:16,  1.63logical batch/s]Training:  14%|█▍        | 70/488 [02:20<04:23,  1.59logical batch/s]Training:  15%|█▍        | 71/488 [02:20<04:26,  1.57logical batch/s]Training:  15%|█▍        | 72/488 [02:21<04:24,  1.57logical batch/s]Training:  15%|█▍        | 73/488 [02:22<04:22,  1.58logical batch/s]Training:  15%|█▌        | 74/488 [02:22<04:19,  1.59logical batch/s]Training:  15%|█▌        | 75/488 [02:23<04:20,  1.59logical batch/s]Training:  16%|█▌        | 76/488 [02:23<04:23,  1.56logical batch/s]Training:  16%|█▌        | 77/488 [02:24<04:29,  1.53logical batch/s]Training:  16%|█▌        | 78/488 [02:25<04:29,  1.52logical batch/s]Training:  16%|█▌        | 79/488 [02:25<04:30,  1.51logical batch/s]Training:  16%|█▋        | 80/488 [02:26<04:31,  1.51logical batch/s]Training:  17%|█▋        | 81/488 [02:27<04:32,  1.49logical batch/s]Training:  17%|█▋        | 82/488 [02:27<04:30,  1.50logical batch/s]Training:  17%|█▋        | 83/488 [02:28<04:27,  1.52logical batch/s]Training:  17%|█▋        | 84/488 [02:29<04:21,  1.54logical batch/s]Training:  17%|█▋        | 85/488 [02:29<04:17,  1.56logical batch/s]Training:  18%|█▊        | 86/488 [02:30<04:19,  1.55logical batch/s]Training:  18%|█▊        | 87/488 [02:31<04:26,  1.50logical batch/s]Training:  18%|█▊        | 88/488 [02:31<04:34,  1.46logical batch/s]Training:  18%|█▊        | 89/488 [02:32<04:42,  1.41logical batch/s]Training:  18%|█▊        | 90/488 [02:33<04:51,  1.36logical batch/s]Training:  19%|█▊        | 91/488 [02:34<04:53,  1.35logical batch/s]Training:  19%|█▉        | 92/488 [02:34<04:48,  1.37logical batch/s]Training:  19%|█▉        | 93/488 [02:35<04:35,  1.43logical batch/s]Training:  19%|█▉        | 94/488 [02:36<04:29,  1.46logical batch/s]Training:  19%|█▉        | 95/488 [02:36<04:22,  1.50logical batch/s]Training:  20%|█▉        | 96/488 [02:37<04:17,  1.52logical batch/s]Training:  20%|█▉        | 97/488 [02:38<04:10,  1.56logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:13<22:01, 13.63s/batch][A
+Evaluating:   2%|▏         | 2/98 [00:14<09:56,  6.22s/batch][A
+Evaluating:   3%|▎         | 3/98 [00:15<05:55,  3.74s/batch][A
+Evaluating:   4%|▍         | 4/98 [00:16<04:01,  2.57s/batch][A
+Evaluating:   5%|▌         | 5/98 [00:17<03:00,  1.95s/batch][A
+Evaluating:   6%|▌         | 6/98 [00:17<02:25,  1.58s/batch][A
+Evaluating:   7%|▋         | 7/98 [00:18<02:00,  1.32s/batch][A
+Evaluating:   8%|▊         | 8/98 [00:19<01:43,  1.15s/batch][A
+Evaluating:   9%|▉         | 9/98 [00:20<01:32,  1.04s/batch][A
+Evaluating:  10%|█         | 10/98 [00:21<01:25,  1.03batch/s][A
+Evaluating:  11%|█         | 11/98 [00:21<01:21,  1.07batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:22<01:18,  1.10batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:23<01:13,  1.16batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:24<01:13,  1.15batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:25<01:11,  1.15batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:26<01:08,  1.19batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:26<01:06,  1.21batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:27<01:08,  1.17batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:28<01:07,  1.18batch/s][A
+Evaluating:  20%|██        | 20/98 [00:29<01:04,  1.20batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:30<01:04,  1.20batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:31<01:03,  1.19batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:31<01:02,  1.21batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:32<01:01,  1.20batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:33<01:00,  1.20batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:34<00:59,  1.21batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:35<00:58,  1.21batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:35<00:55,  1.26batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:36<00:55,  1.23batch/s][A
+Evaluating:  31%|███       | 30/98 [00:37<00:57,  1.19batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:38<00:56,  1.19batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:39<00:56,  1.17batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:40<00:57,  1.13batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:41<00:56,  1.13batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:42<00:56,  1.11batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:43<00:55,  1.12batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:44<00:55,  1.09batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:44<00:54,  1.09batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:45<00:53,  1.10batch/s][A
+Evaluating:  41%|████      | 40/98 [00:46<00:52,  1.10batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:47<00:51,  1.10batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:48<00:52,  1.07batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:49<00:51,  1.07batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:50<00:51,  1.06batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:51<00:49,  1.06batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:52<00:49,  1.05batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:53<00:47,  1.06batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:54<00:47,  1.06batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:55<00:46,  1.06batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:56<00:43,  1.10batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:57<00:43,  1.08batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:58<00:42,  1.09batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:58<00:41,  1.08batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:59<00:40,  1.09batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [01:00<00:39,  1.08batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [01:01<00:39,  1.07batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [01:02<00:37,  1.10batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [01:03<00:38,  1.05batch/s][A
+Evaluating:  60%|██████    | 59/98 [01:04<00:37,  1.04batch/s][A
+Evaluating:  61%|██████    | 60/98 [01:05<00:36,  1.05batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [01:06<00:34,  1.07batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [01:07<00:34,  1.05batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [01:08<00:32,  1.08batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [01:09<00:30,  1.11batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [01:10<00:29,  1.13batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [01:10<00:29,  1.10batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [01:11<00:28,  1.10batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [01:12<00:27,  1.09batch/s][A
+Evaluating:  70%|███████   | 69/98 [01:13<00:26,  1.09batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [01:14<00:25,  1.10batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [01:15<00:24,  1.10batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [01:16<00:23,  1.12batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [01:17<00:22,  1.10batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [01:18<00:21,  1.10batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [01:19<00:20,  1.11batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [01:19<00:19,  1.15batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [01:20<00:18,  1.15batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:21<00:17,  1.17batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:22<00:16,  1.17batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:23<00:15,  1.19batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:24<00:14,  1.18batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:24<00:13,  1.19batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:25<00:12,  1.18batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:26<00:11,  1.20batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:27<00:10,  1.19batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:28<00:10,  1.18batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:29<00:09,  1.19batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:30<00:08,  1.19batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:30<00:07,  1.21batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:31<00:06,  1.19batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:32<00:05,  1.18batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:33<00:05,  1.18batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:34<00:04,  1.18batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:35<00:03,  1.18batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:35<00:02,  1.25batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:36<00:01,  1.23batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:37<00:00,  1.24batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:51<00:00,  4.83s/batch][AEvaluating: 100%|██████████| 98/98 [01:51<00:00,  1.14s/batch]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:18,  1.03batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:16,  1.11batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:14,  1.14batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:13,  1.20batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:04<00:11,  1.26batch/s][A
+Evaluating:  30%|███       | 6/20 [00:04<00:10,  1.31batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:05<00:09,  1.34batch/s][A
+Evaluating:  40%|████      | 8/20 [00:06<00:08,  1.36batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:07<00:08,  1.37batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:07<00:07,  1.36batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:08<00:06,  1.37batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:09<00:05,  1.38batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:09<00:05,  1.38batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:10<00:04,  1.38batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:11<00:03,  1.38batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:12<00:02,  1.34batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:12<00:02,  1.39batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:13<00:01,  1.38batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:14<00:00,  1.43batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:26<00:00,  4.23s/batch][AEvaluating: 100%|██████████| 20/20 [00:26<00:00,  1.33s/batch]
+{'step': 98, 'train_loss': 0.5493579281616211, 'test_loss': 0.575699105834961, 'test_accuracy': 0.8457, 'epoch': 1, 'effective_epoch': 1.00352, 'epsilon_spent': 1.3365104658900253, 'elapsed_seconds': 298.2739626131952, 'eval_seconds': 138.25190383195877}
+Training:  20%|██        | 98/488 [04:59<4:38:26, 42.84s/logical batch]Training:  20%|██        | 99/488 [05:00<3:15:59, 30.23s/logical batch]Training:  20%|██        | 100/488 [05:01<2:18:33, 21.43s/logical batch]Training:  21%|██        | 101/488 [05:01<1:38:24, 15.26s/logical batch]Training:  21%|██        | 102/488 [05:02<1:10:17, 10.93s/logical batch]Training:  21%|██        | 103/488 [05:03<50:45,  7.91s/logical batch]  Training:  21%|██▏       | 104/488 [05:04<37:01,  5.78s/logical batch]Training:  22%|██▏       | 105/488 [05:05<27:12,  4.26s/logical batch]Training:  22%|██▏       | 106/488 [05:06<20:32,  3.23s/logical batch]Training:  22%|██▏       | 107/488 [05:06<15:58,  2.52s/logical batch]Training:  22%|██▏       | 108/488 [05:07<12:43,  2.01s/logical batch]Training:  22%|██▏       | 109/488 [05:08<10:24,  1.65s/logical batch]Training:  23%|██▎       | 110/488 [05:09<08:41,  1.38s/logical batch]Training:  23%|██▎       | 111/488 [05:09<07:23,  1.18s/logical batch]Training:  23%|██▎       | 112/488 [05:10<06:26,  1.03s/logical batch]Training:  23%|██▎       | 113/488 [05:11<05:48,  1.08logical batch/s]Training:  23%|██▎       | 114/488 [05:12<05:22,  1.16logical batch/s]Training:  24%|██▎       | 115/488 [05:12<05:01,  1.24logical batch/s]Training:  24%|██▍       | 116/488 [05:13<04:50,  1.28logical batch/s]Training:  24%|██▍       | 117/488 [05:14<04:38,  1.33logical batch/s]Training:  24%|██▍       | 118/488 [05:14<04:34,  1.35logical batch/s]Training:  24%|██▍       | 119/488 [05:15<04:34,  1.35logical batch/s]Training:  25%|██▍       | 120/488 [05:16<04:29,  1.37logical batch/s]Training:  25%|██▍       | 121/488 [05:16<04:24,  1.39logical batch/s]Training:  25%|██▌       | 122/488 [05:17<04:22,  1.40logical batch/s]Training:  25%|██▌       | 123/488 [05:18<04:19,  1.41logical batch/s]Training:  25%|██▌       | 124/488 [05:19<04:18,  1.41logical batch/s]Training:  26%|██▌       | 125/488 [05:19<04:16,  1.41logical batch/s]Training:  26%|██▌       | 126/488 [05:20<04:13,  1.43logical batch/s]Training:  26%|██▌       | 127/488 [05:21<04:11,  1.44logical batch/s]Training:  26%|██▌       | 128/488 [05:21<04:10,  1.44logical batch/s]Training:  26%|██▋       | 129/488 [05:22<04:09,  1.44logical batch/s]Training:  27%|██▋       | 130/488 [05:23<04:07,  1.45logical batch/s]Training:  27%|██▋       | 131/488 [05:23<04:04,  1.46logical batch/s]Training:  27%|██▋       | 132/488 [05:24<04:05,  1.45logical batch/s]Training:  27%|██▋       | 133/488 [05:25<04:08,  1.43logical batch/s]Training:  27%|██▋       | 134/488 [05:26<04:12,  1.40logical batch/s]Training:  28%|██▊       | 135/488 [05:26<04:09,  1.42logical batch/s]Training:  28%|██▊       | 136/488 [05:27<04:07,  1.42logical batch/s]Training:  28%|██▊       | 137/488 [05:28<04:09,  1.41logical batch/s]Training:  28%|██▊       | 138/488 [05:28<04:09,  1.40logical batch/s]Training:  28%|██▊       | 139/488 [05:29<04:11,  1.39logical batch/s]Training:  29%|██▊       | 140/488 [05:30<04:13,  1.37logical batch/s]Training:  29%|██▉       | 141/488 [05:31<04:13,  1.37logical batch/s]Training:  29%|██▉       | 142/488 [05:31<04:10,  1.38logical batch/s]Training:  29%|██▉       | 143/488 [05:32<04:12,  1.37logical batch/s]Training:  30%|██▉       | 144/488 [05:33<04:11,  1.37logical batch/s]Training:  30%|██▉       | 145/488 [05:34<04:10,  1.37logical batch/s]Training:  30%|██▉       | 146/488 [05:34<04:10,  1.36logical batch/s]Training:  30%|███       | 147/488 [05:35<04:08,  1.37logical batch/s]Training:  30%|███       | 148/488 [05:36<04:05,  1.38logical batch/s]Training:  31%|███       | 149/488 [05:36<04:02,  1.40logical batch/s]Training:  31%|███       | 150/488 [05:37<04:01,  1.40logical batch/s]Training:  31%|███       | 151/488 [05:38<04:00,  1.40logical batch/s]Training:  31%|███       | 152/488 [05:39<03:57,  1.42logical batch/s]Training:  31%|███▏      | 153/488 [05:39<04:07,  1.35logical batch/s]Training:  32%|███▏      | 154/488 [05:40<04:06,  1.36logical batch/s]Training:  32%|███▏      | 155/488 [05:41<04:10,  1.33logical batch/s]Training:  32%|███▏      | 156/488 [05:42<04:05,  1.35logical batch/s]Training:  32%|███▏      | 157/488 [05:42<04:09,  1.33logical batch/s]Training:  32%|███▏      | 158/488 [05:43<04:14,  1.30logical batch/s]Training:  33%|███▎      | 159/488 [05:44<04:14,  1.29logical batch/s]Training:  33%|███▎      | 160/488 [05:45<04:20,  1.26logical batch/s]Training:  33%|███▎      | 161/488 [05:46<04:18,  1.27logical batch/s]Training:  33%|███▎      | 162/488 [05:46<04:14,  1.28logical batch/s]Training:  33%|███▎      | 163/488 [05:47<04:10,  1.30logical batch/s]Training:  34%|███▎      | 164/488 [05:48<04:10,  1.29logical batch/s]Training:  34%|███▍      | 165/488 [05:49<04:10,  1.29logical batch/s]Training:  34%|███▍      | 166/488 [05:49<04:16,  1.26logical batch/s]Training:  34%|███▍      | 167/488 [05:50<04:13,  1.27logical batch/s]Training:  34%|███▍      | 168/488 [05:51<04:09,  1.29logical batch/s]Training:  35%|███▍      | 169/488 [05:52<04:02,  1.31logical batch/s]Training:  35%|███▍      | 170/488 [05:52<03:57,  1.34logical batch/s]Training:  35%|███▌      | 171/488 [05:53<03:54,  1.35logical batch/s]Training:  35%|███▌      | 172/488 [05:54<03:50,  1.37logical batch/s]Training:  35%|███▌      | 173/488 [05:55<03:48,  1.38logical batch/s]Training:  36%|███▌      | 174/488 [05:55<03:46,  1.39logical batch/s]Training:  36%|███▌      | 175/488 [05:56<03:44,  1.39logical batch/s]Training:  36%|███▌      | 176/488 [05:57<03:45,  1.38logical batch/s]Training:  36%|███▋      | 177/488 [05:57<03:46,  1.37logical batch/s]Training:  36%|███▋      | 178/488 [05:58<03:52,  1.33logical batch/s]Training:  37%|███▋      | 179/488 [05:59<03:54,  1.32logical batch/s]Training:  37%|███▋      | 180/488 [06:00<03:55,  1.31logical batch/s]Training:  37%|███▋      | 181/488 [06:01<03:50,  1.33logical batch/s]Training:  37%|███▋      | 182/488 [06:01<03:42,  1.38logical batch/s]Training:  38%|███▊      | 183/488 [06:02<03:35,  1.41logical batch/s]Training:  38%|███▊      | 184/488 [06:03<03:30,  1.44logical batch/s]Training:  38%|███▊      | 185/488 [06:03<03:29,  1.44logical batch/s]Training:  38%|███▊      | 186/488 [06:04<03:29,  1.44logical batch/s]Training:  38%|███▊      | 187/488 [06:05<03:29,  1.44logical batch/s]Training:  39%|███▊      | 188/488 [06:05<03:26,  1.46logical batch/s]Training:  39%|███▊      | 189/488 [06:06<03:26,  1.45logical batch/s]Training:  39%|███▉      | 190/488 [06:07<03:27,  1.44logical batch/s]Training:  39%|███▉      | 191/488 [06:07<03:29,  1.42logical batch/s]Training:  39%|███▉      | 192/488 [06:08<03:31,  1.40logical batch/s]Training:  40%|███▉      | 193/488 [06:09<03:34,  1.38logical batch/s]Training:  40%|███▉      | 194/488 [06:10<03:39,  1.34logical batch/s]Training:  40%|███▉      | 195/488 [06:11<04:00,  1.22logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:58,  1.66batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<01:08,  1.41batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:02<01:12,  1.32batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:03<01:14,  1.27batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<01:12,  1.28batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:04<01:11,  1.28batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:05<01:12,  1.26batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:06<01:12,  1.24batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:07<01:12,  1.23batch/s][A
+Evaluating:  10%|█         | 10/98 [00:07<01:11,  1.22batch/s][A
+Evaluating:  11%|█         | 11/98 [00:08<01:12,  1.20batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:09<01:14,  1.15batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:10<01:16,  1.11batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:11<01:15,  1.11batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:12<01:14,  1.11batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:13<01:16,  1.08batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:14<01:15,  1.08batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:15<01:13,  1.08batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:16<01:10,  1.12batch/s][A
+Evaluating:  20%|██        | 20/98 [00:16<01:08,  1.14batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:17<01:09,  1.11batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:18<01:09,  1.10batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:19<01:09,  1.08batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:20<01:05,  1.12batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:21<01:06,  1.10batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:22<01:06,  1.09batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:23<01:05,  1.08batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:24<01:05,  1.07batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:25<01:04,  1.07batch/s][A
+Evaluating:  31%|███       | 30/98 [00:26<01:02,  1.09batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:27<01:00,  1.10batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:28<00:59,  1.10batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:28<00:59,  1.10batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:29<00:57,  1.12batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:30<00:56,  1.11batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:31<00:55,  1.11batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:32<00:54,  1.12batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:33<00:54,  1.10batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:34<00:52,  1.12batch/s][A
+Evaluating:  41%|████      | 40/98 [00:35<00:49,  1.18batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:35<00:46,  1.24batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:36<00:43,  1.28batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:37<00:41,  1.33batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:37<00:40,  1.34batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:38<00:38,  1.37batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:39<00:37,  1.38batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:39<00:36,  1.40batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:40<00:35,  1.41batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:41<00:34,  1.43batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:42<00:33,  1.44batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:42<00:32,  1.43batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:43<00:32,  1.40batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:44<00:32,  1.39batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:45<00:32,  1.37batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:45<00:31,  1.35batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:46<00:31,  1.32batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:47<00:31,  1.29batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:48<00:31,  1.26batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:49<00:31,  1.25batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:49<00:30,  1.26batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:50<00:29,  1.26batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:51<00:28,  1.25batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:52<00:27,  1.26batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:52<00:26,  1.26batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:53<00:26,  1.25batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:54<00:25,  1.25batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:55<00:24,  1.27batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:56<00:23,  1.26batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:57<00:24,  1.18batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:58<00:24,  1.16batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:58<00:22,  1.20batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:59<00:21,  1.23batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [01:00<00:20,  1.25batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [01:01<00:18,  1.27batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [01:01<00:18,  1.25batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [01:02<00:17,  1.22batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [01:03<00:17,  1.23batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:04<00:16,  1.25batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:05<00:15,  1.24batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:05<00:14,  1.25batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:06<00:13,  1.24batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:07<00:12,  1.25batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:08<00:11,  1.28batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:09<00:10,  1.28batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:09<00:10,  1.26batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:10<00:09,  1.31batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:11<00:08,  1.33batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:12<00:07,  1.31batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:12<00:06,  1.30batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:13<00:06,  1.26batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:14<00:05,  1.29batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:15<00:04,  1.30batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:15<00:03,  1.30batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:16<00:03,  1.30batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:17<00:02,  1.32batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:18<00:01,  1.31batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:18<00:00,  1.35batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:19<00:00,  1.42batch/s][AEvaluating: 100%|██████████| 98/98 [01:19<00:00,  1.23batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:15,  1.26batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:13,  1.30batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:13,  1.30batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:12,  1.30batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:03<00:11,  1.29batch/s][A
+Evaluating:  30%|███       | 6/20 [00:04<00:10,  1.28batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:05<00:10,  1.28batch/s][A
+Evaluating:  40%|████      | 8/20 [00:06<00:09,  1.29batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:06<00:08,  1.31batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:07<00:07,  1.29batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:08<00:06,  1.31batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:09<00:06,  1.33batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:09<00:05,  1.37batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:10<00:04,  1.36batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:11<00:03,  1.34batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:12<00:02,  1.35batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:12<00:02,  1.38batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:13<00:01,  1.38batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:14<00:00,  1.41batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:14<00:00,  1.66batch/s][AEvaluating: 100%|██████████| 20/20 [00:14<00:00,  1.37batch/s]
+{'step': 196, 'train_loss': 0.4458629504394531, 'test_loss': 0.5017928115844726, 'test_accuracy': 0.8805, 'epoch': 2, 'effective_epoch': 2.00704, 'epsilon_spent': 1.9128706270205869, 'elapsed_seconds': 467.1667719511315, 'eval_seconds': 94.16018230188638}
+Training:  40%|████      | 196/488 [07:48<2:25:00, 29.80s/logical batch]Training:  40%|████      | 197/488 [07:49<1:42:38, 21.16s/logical batch]Training:  41%|████      | 198/488 [07:50<1:12:56, 15.09s/logical batch]Training:  41%|████      | 199/488 [07:51<52:01, 10.80s/logical batch]  Training:  41%|████      | 200/488 [07:52<37:24,  7.79s/logical batch]Training:  41%|████      | 201/488 [07:52<27:12,  5.69s/logical batch]Training:  41%|████▏     | 202/488 [07:53<20:05,  4.21s/logical batch]Training:  42%|████▏     | 203/488 [07:54<14:58,  3.15s/logical batch]Training:  42%|████▏     | 204/488 [07:55<11:25,  2.41s/logical batch]Training:  42%|████▏     | 205/488 [07:55<08:56,  1.90s/logical batch]Training:  42%|████▏     | 206/488 [07:56<07:11,  1.53s/logical batch]Training:  42%|████▏     | 207/488 [07:57<05:58,  1.28s/logical batch]Training:  43%|████▎     | 208/488 [07:57<05:08,  1.10s/logical batch]Training:  43%|████▎     | 209/488 [07:58<04:31,  1.03logical batch/s]Training:  43%|████▎     | 210/488 [07:59<04:06,  1.13logical batch/s]Training:  43%|████▎     | 211/488 [07:59<03:48,  1.21logical batch/s]Training:  43%|████▎     | 212/488 [08:00<03:36,  1.27logical batch/s]Training:  44%|████▎     | 213/488 [08:01<03:26,  1.33logical batch/s]Training:  44%|████▍     | 214/488 [08:01<03:21,  1.36logical batch/s]Training:  44%|████▍     | 215/488 [08:02<03:15,  1.39logical batch/s]Training:  44%|████▍     | 216/488 [08:03<03:18,  1.37logical batch/s]Training:  44%|████▍     | 217/488 [08:04<03:31,  1.28logical batch/s]Training:  45%|████▍     | 218/488 [08:04<03:27,  1.30logical batch/s]Training:  45%|████▍     | 219/488 [08:05<03:26,  1.30logical batch/s]Training:  45%|████▌     | 220/488 [08:06<03:27,  1.29logical batch/s]Training:  45%|████▌     | 221/488 [08:07<03:21,  1.33logical batch/s]Training:  45%|████▌     | 222/488 [08:07<03:12,  1.38logical batch/s]Training:  46%|████▌     | 223/488 [08:08<03:09,  1.40logical batch/s]Training:  46%|████▌     | 224/488 [08:09<03:08,  1.40logical batch/s]Training:  46%|████▌     | 225/488 [08:10<03:23,  1.29logical batch/s]Training:  46%|████▋     | 226/488 [08:11<03:33,  1.23logical batch/s]Training:  47%|████▋     | 227/488 [08:12<03:40,  1.19logical batch/s]Training:  47%|████▋     | 228/488 [08:12<03:28,  1.25logical batch/s]Training:  47%|████▋     | 229/488 [08:13<03:27,  1.25logical batch/s]Training:  47%|████▋     | 230/488 [08:14<03:21,  1.28logical batch/s]Training:  47%|████▋     | 231/488 [08:15<03:17,  1.30logical batch/s]Training:  48%|████▊     | 232/488 [08:15<03:16,  1.30logical batch/s]Training:  48%|████▊     | 233/488 [08:16<03:18,  1.29logical batch/s]Training:  48%|████▊     | 234/488 [08:17<03:16,  1.29logical batch/s]Training:  48%|████▊     | 235/488 [08:18<03:09,  1.33logical batch/s]Training:  48%|████▊     | 236/488 [08:18<03:05,  1.36logical batch/s]Training:  49%|████▊     | 237/488 [08:19<03:06,  1.35logical batch/s]Training:  49%|████▉     | 238/488 [08:20<03:00,  1.39logical batch/s]Training:  49%|████▉     | 239/488 [08:20<02:55,  1.42logical batch/s]Training:  49%|████▉     | 240/488 [08:21<02:54,  1.42logical batch/s]Training:  49%|████▉     | 241/488 [08:22<02:51,  1.44logical batch/s]Training:  50%|████▉     | 242/488 [08:22<02:48,  1.46logical batch/s]Training:  50%|████▉     | 243/488 [08:23<02:46,  1.47logical batch/s]Training:  50%|█████     | 244/488 [08:24<02:45,  1.48logical batch/s]Training:  50%|█████     | 245/488 [08:24<02:45,  1.46logical batch/s]Training:  50%|█████     | 246/488 [08:25<02:44,  1.47logical batch/s]Training:  51%|█████     | 247/488 [08:26<02:42,  1.48logical batch/s]Training:  51%|█████     | 248/488 [08:26<02:41,  1.48logical batch/s]Training:  51%|█████     | 249/488 [08:27<02:40,  1.49logical batch/s]Training:  51%|█████     | 250/488 [08:28<02:39,  1.49logical batch/s]Training:  51%|█████▏    | 251/488 [08:28<02:38,  1.50logical batch/s]Training:  52%|█████▏    | 252/488 [08:29<02:38,  1.49logical batch/s]Training:  52%|█████▏    | 253/488 [08:30<02:37,  1.49logical batch/s]Training:  52%|█████▏    | 254/488 [08:30<02:36,  1.49logical batch/s]Training:  52%|█████▏    | 255/488 [08:31<02:35,  1.49logical batch/s]Training:  52%|█████▏    | 256/488 [08:32<02:34,  1.50logical batch/s]Training:  53%|█████▎    | 257/488 [08:32<02:34,  1.50logical batch/s]Training:  53%|█████▎    | 258/488 [08:33<02:33,  1.50logical batch/s]Training:  53%|█████▎    | 259/488 [08:34<02:32,  1.50logical batch/s]Training:  53%|█████▎    | 260/488 [08:34<02:30,  1.52logical batch/s]Training:  53%|█████▎    | 261/488 [08:35<02:28,  1.53logical batch/s]Training:  54%|█████▎    | 262/488 [08:36<02:28,  1.53logical batch/s]Training:  54%|█████▍    | 263/488 [08:36<02:26,  1.53logical batch/s]Training:  54%|█████▍    | 264/488 [08:37<02:27,  1.52logical batch/s]Training:  54%|█████▍    | 265/488 [08:38<02:28,  1.50logical batch/s]Training:  55%|█████▍    | 266/488 [08:38<02:29,  1.49logical batch/s]Training:  55%|█████▍    | 267/488 [08:39<02:30,  1.47logical batch/s]Training:  55%|█████▍    | 268/488 [08:40<02:31,  1.45logical batch/s]Training:  55%|█████▌    | 269/488 [08:41<02:33,  1.43logical batch/s]Training:  55%|█████▌    | 270/488 [08:41<02:36,  1.40logical batch/s]Training:  56%|█████▌    | 271/488 [08:42<02:36,  1.38logical batch/s]Training:  56%|█████▌    | 272/488 [08:43<02:37,  1.37logical batch/s]Training:  56%|█████▌    | 273/488 [08:44<02:41,  1.33logical batch/s]Training:  56%|█████▌    | 274/488 [08:44<02:39,  1.34logical batch/s]Training:  56%|█████▋    | 275/488 [08:45<02:39,  1.33logical batch/s]Training:  57%|█████▋    | 276/488 [08:46<02:40,  1.32logical batch/s]Training:  57%|█████▋    | 277/488 [08:47<02:38,  1.33logical batch/s]Training:  57%|█████▋    | 278/488 [08:47<02:34,  1.36logical batch/s]Training:  57%|█████▋    | 279/488 [08:48<02:31,  1.38logical batch/s]Training:  57%|█████▋    | 280/488 [08:49<02:29,  1.39logical batch/s]Training:  58%|█████▊    | 281/488 [08:49<02:28,  1.39logical batch/s]Training:  58%|█████▊    | 282/488 [08:50<02:26,  1.40logical batch/s]Training:  58%|█████▊    | 283/488 [08:51<02:23,  1.43logical batch/s]Training:  58%|█████▊    | 284/488 [08:51<02:23,  1.42logical batch/s]Training:  58%|█████▊    | 285/488 [08:52<02:25,  1.40logical batch/s]Training:  59%|█████▊    | 286/488 [08:53<02:26,  1.38logical batch/s]Training:  59%|█████▉    | 287/488 [08:54<02:28,  1.36logical batch/s]Training:  59%|█████▉    | 288/488 [08:55<02:31,  1.32logical batch/s]Training:  59%|█████▉    | 289/488 [08:55<02:30,  1.32logical batch/s]Training:  59%|█████▉    | 290/488 [08:56<02:28,  1.33logical batch/s]Training:  60%|█████▉    | 291/488 [08:57<02:26,  1.34logical batch/s]Training:  60%|█████▉    | 292/488 [08:58<02:32,  1.28logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:53,  1.80batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<00:58,  1.65batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<01:00,  1.58batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<01:03,  1.48batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<01:02,  1.48batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:03<01:02,  1.47batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<01:00,  1.50batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:05<01:00,  1.48batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:05<01:00,  1.47batch/s][A
+Evaluating:  10%|█         | 10/98 [00:06<01:02,  1.40batch/s][A
+Evaluating:  11%|█         | 11/98 [00:07<01:04,  1.34batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:08<01:03,  1.35batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:09<01:04,  1.33batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:09<01:04,  1.30batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:10<01:03,  1.30batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:11<01:03,  1.28batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:12<01:02,  1.30batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:12<01:00,  1.32batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:13<01:01,  1.29batch/s][A
+Evaluating:  20%|██        | 20/98 [00:14<01:00,  1.29batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:15<01:00,  1.27batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:16<00:59,  1.27batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:16<00:59,  1.26batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:17<00:58,  1.26batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:18<00:57,  1.28batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:19<00:56,  1.28batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:20<00:56,  1.26batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:20<00:56,  1.24batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:21<00:55,  1.24batch/s][A
+Evaluating:  31%|███       | 30/98 [00:22<00:55,  1.24batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:23<00:54,  1.24batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:24<00:52,  1.26batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:24<00:50,  1.28batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:25<00:49,  1.28batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:26<00:49,  1.27batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:27<00:48,  1.29batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:28<00:48,  1.26batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:28<00:47,  1.27batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:29<00:46,  1.26batch/s][A
+Evaluating:  41%|████      | 40/98 [00:30<00:45,  1.27batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:31<00:45,  1.26batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:32<00:44,  1.26batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:32<00:43,  1.26batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:33<00:42,  1.26batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:34<00:42,  1.25batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:35<00:41,  1.26batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:36<00:40,  1.26batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:36<00:39,  1.27batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:37<00:38,  1.27batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:38<00:38,  1.26batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:39<00:37,  1.25batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:39<00:36,  1.25batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:40<00:36,  1.24batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:41<00:35,  1.24batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:42<00:35,  1.23batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:43<00:33,  1.27batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:43<00:31,  1.29batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:44<00:30,  1.32batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:45<00:30,  1.29batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:46<00:29,  1.27batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:47<00:29,  1.25batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:47<00:29,  1.21batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:48<00:28,  1.22batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:49<00:27,  1.23batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:50<00:26,  1.24batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:51<00:25,  1.28batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:51<00:24,  1.27batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:52<00:22,  1.31batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:53<00:22,  1.31batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:54<00:20,  1.34batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:54<00:20,  1.32batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:55<00:19,  1.30batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:56<00:18,  1.34batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:57<00:17,  1.36batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [00:57<00:16,  1.37batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [00:58<00:16,  1.31batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [00:59<00:16,  1.30batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:00<00:15,  1.27batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:01<00:15,  1.25batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:01<00:14,  1.24batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:02<00:13,  1.25batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:03<00:12,  1.24batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:04<00:12,  1.18batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:05<00:11,  1.17batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:06<00:11,  1.12batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:07<00:10,  1.12batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:08<00:09,  1.12batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:08<00:09,  1.11batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:09<00:07,  1.15batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:10<00:06,  1.19batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:11<00:05,  1.20batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:12<00:04,  1.22batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:12<00:04,  1.21batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:13<00:03,  1.20batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:14<00:02,  1.23batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:15<00:01,  1.21batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:16<00:00,  1.21batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:16<00:00,  1.35batch/s][AEvaluating: 100%|██████████| 98/98 [01:16<00:00,  1.28batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:14,  1.31batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:14,  1.21batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:14,  1.18batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:14,  1.13batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:04<00:13,  1.13batch/s][A
+Evaluating:  30%|███       | 6/20 [00:05<00:12,  1.12batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:06<00:11,  1.11batch/s][A
+Evaluating:  40%|████      | 8/20 [00:07<00:10,  1.11batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:08<00:10,  1.09batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:08<00:09,  1.10batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:09<00:08,  1.10batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:10<00:06,  1.15batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:11<00:06,  1.16batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:12<00:05,  1.19batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:13<00:04,  1.20batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:13<00:03,  1.20batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:14<00:02,  1.23batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:15<00:01,  1.23batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:16<00:00,  1.32batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:16<00:00,  1.54batch/s][AEvaluating: 100%|██████████| 20/20 [00:16<00:00,  1.21batch/s]
+{'step': 293, 'train_loss': 0.41888343658447263, 'test_loss': 0.4845800796508789, 'test_accuracy': 0.8949, 'epoch': 3, 'effective_epoch': 3.00032, 'epsilon_spent': 2.352710020216793, 'elapsed_seconds': 633.478678336367, 'eval_seconds': 93.33010096289217}
+Training:  60%|██████    | 293/488 [10:34<1:35:47, 29.47s/logical batch]Training:  60%|██████    | 294/488 [10:35<1:07:39, 20.93s/logical batch]Training:  60%|██████    | 295/488 [10:36<47:53, 14.89s/logical batch]  Training:  61%|██████    | 296/488 [10:37<34:03, 10.64s/logical batch]Training:  61%|██████    | 297/488 [10:37<24:26,  7.68s/logical batch]Training:  61%|██████    | 298/488 [10:38<17:44,  5.60s/logical batch]Training:  61%|██████▏   | 299/488 [10:39<13:03,  4.15s/logical batch]Training:  61%|██████▏   | 300/488 [10:40<09:49,  3.14s/logical batch]Training:  62%|██████▏   | 301/488 [10:40<07:28,  2.40s/logical batch]Training:  62%|██████▏   | 302/488 [10:41<05:49,  1.88s/logical batch]Training:  62%|██████▏   | 303/488 [10:42<04:42,  1.53s/logical batch]Training:  62%|██████▏   | 304/488 [10:42<03:53,  1.27s/logical batch]Training:  62%|██████▎   | 305/488 [10:43<03:20,  1.09s/logical batch]Training:  63%|██████▎   | 306/488 [10:44<02:56,  1.03logical batch/s]Training:  63%|██████▎   | 307/488 [10:44<02:38,  1.14logical batch/s]Training:  63%|██████▎   | 308/488 [10:45<02:26,  1.23logical batch/s]Training:  63%|██████▎   | 309/488 [10:46<02:19,  1.28logical batch/s]Training:  64%|██████▎   | 310/488 [10:46<02:13,  1.34logical batch/s]Training:  64%|██████▎   | 311/488 [10:47<02:09,  1.36logical batch/s]Training:  64%|██████▍   | 312/488 [10:48<02:05,  1.40logical batch/s]Training:  64%|██████▍   | 313/488 [10:48<02:03,  1.41logical batch/s]Training:  64%|██████▍   | 314/488 [10:49<02:01,  1.43logical batch/s]Training:  65%|██████▍   | 315/488 [10:50<02:00,  1.44logical batch/s]Training:  65%|██████▍   | 316/488 [10:51<01:59,  1.44logical batch/s]Training:  65%|██████▍   | 317/488 [10:51<01:58,  1.44logical batch/s]Training:  65%|██████▌   | 318/488 [10:52<01:56,  1.45logical batch/s]Training:  65%|██████▌   | 319/488 [10:53<01:55,  1.46logical batch/s]Training:  66%|██████▌   | 320/488 [10:53<01:52,  1.50logical batch/s]Training:  66%|██████▌   | 321/488 [10:54<01:51,  1.50logical batch/s]Training:  66%|██████▌   | 322/488 [10:54<01:50,  1.51logical batch/s]Training:  66%|██████▌   | 323/488 [10:55<01:46,  1.54logical batch/s]Training:  66%|██████▋   | 324/488 [10:56<01:47,  1.53logical batch/s]Training:  67%|██████▋   | 325/488 [10:56<01:48,  1.51logical batch/s]Training:  67%|██████▋   | 326/488 [10:57<01:50,  1.47logical batch/s]Training:  67%|██████▋   | 327/488 [10:58<01:52,  1.44logical batch/s]Training:  67%|██████▋   | 328/488 [10:59<01:53,  1.41logical batch/s]Training:  67%|██████▋   | 329/488 [10:59<01:52,  1.41logical batch/s]Training:  68%|██████▊   | 330/488 [11:00<01:52,  1.41logical batch/s]Training:  68%|██████▊   | 331/488 [11:01<01:52,  1.40logical batch/s]Training:  68%|██████▊   | 332/488 [11:02<01:53,  1.38logical batch/s]Training:  68%|██████▊   | 333/488 [11:02<01:52,  1.37logical batch/s]Training:  68%|██████▊   | 334/488 [11:03<01:51,  1.38logical batch/s]Training:  69%|██████▊   | 335/488 [11:04<01:52,  1.37logical batch/s]Training:  69%|██████▉   | 336/488 [11:05<01:52,  1.35logical batch/s]Training:  69%|██████▉   | 337/488 [11:05<01:50,  1.36logical batch/s]Training:  69%|██████▉   | 338/488 [11:06<01:51,  1.34logical batch/s]Training:  69%|██████▉   | 339/488 [11:07<01:50,  1.34logical batch/s]Training:  70%|██████▉   | 340/488 [11:07<01:48,  1.37logical batch/s]Training:  70%|██████▉   | 341/488 [11:08<01:46,  1.38logical batch/s]Training:  70%|███████   | 342/488 [11:09<01:46,  1.37logical batch/s]Training:  70%|███████   | 343/488 [11:10<01:46,  1.36logical batch/s]Training:  70%|███████   | 344/488 [11:10<01:43,  1.39logical batch/s]Training:  71%|███████   | 345/488 [11:11<01:39,  1.44logical batch/s]Training:  71%|███████   | 346/488 [11:12<01:35,  1.49logical batch/s]Training:  71%|███████   | 347/488 [11:12<01:33,  1.51logical batch/s]Training:  71%|███████▏  | 348/488 [11:13<01:31,  1.52logical batch/s]Training:  72%|███████▏  | 349/488 [11:14<01:31,  1.52logical batch/s]Training:  72%|███████▏  | 350/488 [11:14<01:32,  1.50logical batch/s]Training:  72%|███████▏  | 351/488 [11:15<01:33,  1.47logical batch/s]Training:  72%|███████▏  | 352/488 [11:16<01:32,  1.47logical batch/s]Training:  72%|███████▏  | 353/488 [11:16<01:33,  1.45logical batch/s]Training:  73%|███████▎  | 354/488 [11:17<01:29,  1.49logical batch/s]Training:  73%|███████▎  | 355/488 [11:18<01:29,  1.48logical batch/s]Training:  73%|███████▎  | 356/488 [11:18<01:29,  1.48logical batch/s]Training:  73%|███████▎  | 357/488 [11:19<01:28,  1.47logical batch/s]Training:  73%|███████▎  | 358/488 [11:20<01:30,  1.44logical batch/s]Training:  74%|███████▎  | 359/488 [11:20<01:29,  1.44logical batch/s]Training:  74%|███████▍  | 360/488 [11:21<01:28,  1.44logical batch/s]Training:  74%|███████▍  | 361/488 [11:22<01:26,  1.46logical batch/s]Training:  74%|███████▍  | 362/488 [11:22<01:24,  1.49logical batch/s]Training:  74%|███████▍  | 363/488 [11:23<01:24,  1.48logical batch/s]Training:  75%|███████▍  | 364/488 [11:24<01:24,  1.48logical batch/s]Training:  75%|███████▍  | 365/488 [11:24<01:22,  1.49logical batch/s]Training:  75%|███████▌  | 366/488 [11:25<01:20,  1.51logical batch/s]Training:  75%|███████▌  | 367/488 [11:26<01:20,  1.51logical batch/s]Training:  75%|███████▌  | 368/488 [11:26<01:20,  1.50logical batch/s]Training:  76%|███████▌  | 369/488 [11:27<01:18,  1.52logical batch/s]Training:  76%|███████▌  | 370/488 [11:28<01:19,  1.48logical batch/s]Training:  76%|███████▌  | 371/488 [11:29<01:20,  1.45logical batch/s]Training:  76%|███████▌  | 372/488 [11:29<01:19,  1.45logical batch/s]Training:  76%|███████▋  | 373/488 [11:30<01:16,  1.50logical batch/s]Training:  77%|███████▋  | 374/488 [11:31<01:17,  1.47logical batch/s]Training:  77%|███████▋  | 375/488 [11:31<01:16,  1.48logical batch/s]Training:  77%|███████▋  | 376/488 [11:32<01:15,  1.48logical batch/s]Training:  77%|███████▋  | 377/488 [11:33<01:15,  1.48logical batch/s]Training:  77%|███████▋  | 378/488 [11:33<01:14,  1.48logical batch/s]Training:  78%|███████▊  | 379/488 [11:34<01:13,  1.49logical batch/s]Training:  78%|███████▊  | 380/488 [11:35<01:11,  1.51logical batch/s]Training:  78%|███████▊  | 381/488 [11:35<01:09,  1.54logical batch/s]Training:  78%|███████▊  | 382/488 [11:36<01:07,  1.56logical batch/s]Training:  78%|███████▊  | 383/488 [11:36<01:07,  1.56logical batch/s]Training:  79%|███████▊  | 384/488 [11:37<01:06,  1.57logical batch/s]Training:  79%|███████▉  | 385/488 [11:38<01:05,  1.57logical batch/s]Training:  79%|███████▉  | 386/488 [11:38<01:04,  1.58logical batch/s]Training:  79%|███████▉  | 387/488 [11:39<01:03,  1.59logical batch/s]Training:  80%|███████▉  | 388/488 [11:40<01:03,  1.58logical batch/s]Training:  80%|███████▉  | 389/488 [11:40<01:04,  1.54logical batch/s]Training:  80%|███████▉  | 390/488 [11:41<01:04,  1.53logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:45,  2.13batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<00:50,  1.92batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:53,  1.78batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<00:51,  1.82batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:02<00:51,  1.81batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:03<00:54,  1.70batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<00:54,  1.67batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:04<00:55,  1.62batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:05<00:55,  1.60batch/s][A
+Evaluating:  10%|█         | 10/98 [00:05<00:54,  1.61batch/s][A
+Evaluating:  11%|█         | 11/98 [00:06<00:55,  1.58batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:07<00:55,  1.56batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:07<00:55,  1.53batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:08<00:55,  1.52batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:09<00:54,  1.51batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:09<00:54,  1.51batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:10<00:54,  1.48batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:11<00:53,  1.48batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:11<00:53,  1.49batch/s][A
+Evaluating:  20%|██        | 20/98 [00:12<00:52,  1.48batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:13<00:52,  1.47batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:14<00:51,  1.47batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:14<00:51,  1.45batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:15<00:51,  1.43batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:16<00:52,  1.38batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:17<00:53,  1.34batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:17<00:52,  1.34batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:18<00:52,  1.33batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:19<00:52,  1.31batch/s][A
+Evaluating:  31%|███       | 30/98 [00:20<00:51,  1.31batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:20<00:51,  1.31batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:21<00:51,  1.29batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:22<00:49,  1.31batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:23<00:48,  1.32batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:23<00:47,  1.34batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:24<00:46,  1.33batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:25<00:45,  1.34batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:26<00:45,  1.33batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:27<00:47,  1.25batch/s][A
+Evaluating:  41%|████      | 40/98 [00:27<00:48,  1.20batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:28<00:49,  1.16batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:29<00:47,  1.17batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:30<00:48,  1.14batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:31<00:47,  1.14batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:32<00:46,  1.13batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:33<00:47,  1.09batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:34<00:46,  1.10batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:35<00:45,  1.10batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:36<00:45,  1.08batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:37<00:44,  1.08batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:38<00:43,  1.09batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:38<00:41,  1.10batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:39<00:40,  1.12batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:40<00:39,  1.13batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:41<00:38,  1.13batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:42<00:37,  1.13batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:43<00:36,  1.14batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:44<00:35,  1.12batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:45<00:34,  1.12batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:46<00:35,  1.07batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:46<00:33,  1.09batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:47<00:33,  1.09batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:48<00:31,  1.11batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:49<00:30,  1.11batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:50<00:29,  1.10batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:51<00:30,  1.06batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:52<00:28,  1.07batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:53<00:28,  1.06batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:54<00:27,  1.04batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:55<00:26,  1.07batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:56<00:25,  1.05batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:57<00:24,  1.05batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:58<00:23,  1.06batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:59<00:22,  1.04batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [01:00<00:21,  1.06batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [01:01<00:20,  1.06batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [01:02<00:19,  1.07batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:02<00:18,  1.08batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:03<00:17,  1.09batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:04<00:16,  1.07batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:05<00:16,  1.06batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:06<00:14,  1.08batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:07<00:13,  1.09batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:08<00:12,  1.09batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:09<00:11,  1.09batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:10<00:11,  1.06batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:11<00:10,  1.07batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:12<00:09,  1.06batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:13<00:08,  1.06batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:14<00:07,  1.06batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:15<00:06,  1.05batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:16<00:05,  1.03batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:17<00:04,  1.04batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:17<00:03,  1.10batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:18<00:02,  1.15batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:19<00:01,  1.21batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:20<00:00,  1.24batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:20<00:00,  1.30batch/s][AEvaluating: 100%|██████████| 98/98 [01:20<00:00,  1.21batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:17,  1.11batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:16,  1.08batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:15,  1.09batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:14,  1.11batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:04<00:13,  1.11batch/s][A
+Evaluating:  30%|███       | 6/20 [00:05<00:12,  1.09batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:06<00:11,  1.11batch/s][A
+Evaluating:  40%|████      | 8/20 [00:07<00:10,  1.11batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:08<00:09,  1.12batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:09<00:09,  1.09batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:09<00:08,  1.09batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:10<00:07,  1.10batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:11<00:06,  1.07batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:12<00:05,  1.05batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:13<00:04,  1.09batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:14<00:03,  1.14batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:15<00:02,  1.15batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:16<00:01,  1.23batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:16<00:00,  1.29batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:17<00:00,  1.51batch/s][AEvaluating: 100%|██████████| 20/20 [00:17<00:00,  1.17batch/s]
+{'step': 391, 'train_loss': 0.38667910980224607, 'test_loss': 0.4682247833251953, 'test_accuracy': 0.9035, 'epoch': 4, 'effective_epoch': 4.00384, 'epsilon_spent': 2.761570169237622, 'elapsed_seconds': 801.1367450542748, 'eval_seconds': 97.8668434144929}
+Training:  80%|████████  | 391/488 [13:22<49:48, 30.81s/logical batch]Training:  80%|████████  | 392/488 [13:23<34:56, 21.84s/logical batch]Training:  81%|████████  | 393/488 [13:24<24:34, 15.53s/logical batch]Training:  81%|████████  | 394/488 [13:24<17:21, 11.08s/logical batch]Training:  81%|████████  | 395/488 [13:25<12:20,  7.96s/logical batch]Training:  81%|████████  | 396/488 [13:26<08:51,  5.78s/logical batch]Training:  81%|████████▏ | 397/488 [13:27<06:28,  4.27s/logical batch]Training:  82%|████████▏ | 398/488 [13:27<04:44,  3.16s/logical batch]Training:  82%|████████▏ | 399/488 [13:28<03:32,  2.39s/logical batch]Training:  82%|████████▏ | 400/488 [13:28<02:44,  1.87s/logical batch]Training:  82%|████████▏ | 401/488 [13:29<02:09,  1.49s/logical batch]Training:  82%|████████▏ | 402/488 [13:30<01:44,  1.22s/logical batch]Training:  83%|████████▎ | 403/488 [13:30<01:27,  1.03s/logical batch]Training:  83%|████████▎ | 404/488 [13:31<01:15,  1.12logical batch/s]Training:  83%|████████▎ | 405/488 [13:31<01:06,  1.25logical batch/s]Training:  83%|████████▎ | 406/488 [13:32<01:00,  1.35logical batch/s]Training:  83%|████████▎ | 407/488 [13:33<00:57,  1.42logical batch/s]Training:  84%|████████▎ | 408/488 [13:33<00:54,  1.47logical batch/s]Training:  84%|████████▍ | 409/488 [13:34<00:52,  1.51logical batch/s]Training:  84%|████████▍ | 410/488 [13:34<00:49,  1.56logical batch/s]Training:  84%|████████▍ | 411/488 [13:35<00:47,  1.61logical batch/s]Training:  84%|████████▍ | 412/488 [13:36<00:46,  1.64logical batch/s]Training:  85%|████████▍ | 413/488 [13:36<00:45,  1.66logical batch/s]Training:  85%|████████▍ | 414/488 [13:37<00:44,  1.68logical batch/s]Training:  85%|████████▌ | 415/488 [13:37<00:44,  1.65logical batch/s]Training:  85%|████████▌ | 416/488 [13:38<00:43,  1.65logical batch/s]Training:  85%|████████▌ | 417/488 [13:39<00:43,  1.63logical batch/s]Training:  86%|████████▌ | 418/488 [13:39<00:42,  1.64logical batch/s]Training:  86%|████████▌ | 419/488 [13:40<00:41,  1.66logical batch/s]Training:  86%|████████▌ | 420/488 [13:40<00:40,  1.68logical batch/s]Training:  86%|████████▋ | 421/488 [13:41<00:39,  1.68logical batch/s]Training:  86%|████████▋ | 422/488 [13:42<00:42,  1.55logical batch/s]Training:  87%|████████▋ | 423/488 [13:43<00:45,  1.42logical batch/s]Training:  87%|████████▋ | 424/488 [13:43<00:48,  1.33logical batch/s]Training:  87%|████████▋ | 425/488 [13:44<00:47,  1.32logical batch/s]Training:  87%|████████▋ | 426/488 [13:45<00:46,  1.33logical batch/s]Training:  88%|████████▊ | 427/488 [13:46<00:45,  1.34logical batch/s]Training:  88%|████████▊ | 428/488 [13:46<00:44,  1.34logical batch/s]Training:  88%|████████▊ | 429/488 [13:47<00:44,  1.34logical batch/s]Training:  88%|████████▊ | 430/488 [13:48<00:43,  1.32logical batch/s]Training:  88%|████████▊ | 431/488 [13:49<00:41,  1.37logical batch/s]Training:  89%|████████▊ | 432/488 [13:49<00:39,  1.41logical batch/s]Training:  89%|████████▊ | 433/488 [13:50<00:38,  1.44logical batch/s]Training:  89%|████████▉ | 434/488 [13:51<00:37,  1.45logical batch/s]Training:  89%|████████▉ | 435/488 [13:51<00:36,  1.44logical batch/s]Training:  89%|████████▉ | 436/488 [13:52<00:38,  1.34logical batch/s]Training:  90%|████████▉ | 437/488 [13:53<00:36,  1.39logical batch/s]Training:  90%|████████▉ | 438/488 [13:53<00:34,  1.45logical batch/s]Training:  90%|████████▉ | 439/488 [13:54<00:32,  1.52logical batch/s]Training:  90%|█████████ | 440/488 [13:55<00:30,  1.58logical batch/s]Training:  90%|█████████ | 441/488 [13:55<00:28,  1.62logical batch/s]Training:  91%|█████████ | 442/488 [13:56<00:27,  1.65logical batch/s]Training:  91%|█████████ | 443/488 [13:56<00:27,  1.66logical batch/s]Training:  91%|█████████ | 444/488 [13:57<00:26,  1.65logical batch/s]Training:  91%|█████████ | 445/488 [13:58<00:26,  1.65logical batch/s]Training:  91%|█████████▏| 446/488 [13:58<00:25,  1.64logical batch/s]Training:  92%|█████████▏| 447/488 [13:59<00:25,  1.62logical batch/s]Training:  92%|█████████▏| 448/488 [13:59<00:24,  1.62logical batch/s]Training:  92%|█████████▏| 449/488 [14:00<00:24,  1.62logical batch/s]Training:  92%|█████████▏| 450/488 [14:01<00:23,  1.62logical batch/s]Training:  92%|█████████▏| 451/488 [14:01<00:22,  1.63logical batch/s]Training:  93%|█████████▎| 452/488 [14:02<00:22,  1.63logical batch/s]Training:  93%|█████████▎| 453/488 [14:03<00:21,  1.64logical batch/s]Training:  93%|█████████▎| 454/488 [14:03<00:20,  1.64logical batch/s]Training:  93%|█████████▎| 455/488 [14:04<00:20,  1.63logical batch/s]Training:  93%|█████████▎| 456/488 [14:04<00:19,  1.62logical batch/s]Training:  94%|█████████▎| 457/488 [14:05<00:19,  1.62logical batch/s]Training:  94%|█████████▍| 458/488 [14:06<00:18,  1.59logical batch/s]Training:  94%|█████████▍| 459/488 [14:06<00:18,  1.61logical batch/s]Training:  94%|█████████▍| 460/488 [14:07<00:17,  1.61logical batch/s]Training:  94%|█████████▍| 461/488 [14:07<00:16,  1.63logical batch/s]Training:  95%|█████████▍| 462/488 [14:08<00:15,  1.65logical batch/s]Training:  95%|█████████▍| 463/488 [14:09<00:15,  1.66logical batch/s]Training:  95%|█████████▌| 464/488 [14:09<00:14,  1.65logical batch/s]Training:  95%|█████████▌| 465/488 [14:10<00:13,  1.65logical batch/s]Training:  95%|█████████▌| 466/488 [14:10<00:13,  1.65logical batch/s]Training:  96%|█████████▌| 467/488 [14:11<00:12,  1.63logical batch/s]Training:  96%|█████████▌| 468/488 [14:12<00:12,  1.60logical batch/s]Training:  96%|█████████▌| 469/488 [14:12<00:11,  1.62logical batch/s]Training:  96%|█████████▋| 470/488 [14:13<00:11,  1.62logical batch/s]Training:  97%|█████████▋| 471/488 [14:14<00:10,  1.63logical batch/s]Training:  97%|█████████▋| 472/488 [14:14<00:09,  1.65logical batch/s]Training:  97%|█████████▋| 473/488 [14:15<00:08,  1.67logical batch/s]Training:  97%|█████████▋| 474/488 [14:15<00:08,  1.68logical batch/s]Training:  97%|█████████▋| 475/488 [14:16<00:07,  1.69logical batch/s]Training:  98%|█████████▊| 476/488 [14:17<00:07,  1.67logical batch/s]Training:  98%|█████████▊| 477/488 [14:17<00:06,  1.66logical batch/s]Training:  98%|█████████▊| 478/488 [14:18<00:05,  1.67logical batch/s]Training:  98%|█████████▊| 479/488 [14:18<00:05,  1.68logical batch/s]Training:  98%|█████████▊| 480/488 [14:19<00:04,  1.70logical batch/s]Training:  99%|█████████▊| 481/488 [14:19<00:04,  1.71logical batch/s]Training:  99%|█████████▉| 482/488 [14:20<00:03,  1.71logical batch/s]Training:  99%|█████████▉| 483/488 [14:21<00:02,  1.70logical batch/s]Training:  99%|█████████▉| 484/488 [14:21<00:02,  1.68logical batch/s]Training:  99%|█████████▉| 485/488 [14:22<00:01,  1.68logical batch/s]Training: 100%|█████████▉| 486/488 [14:22<00:01,  1.67logical batch/s]Training: 100%|█████████▉| 487/488 [14:23<00:00,  1.69logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:43,  2.23batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:00<00:45,  2.09batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:46,  2.05batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:01<00:44,  2.10batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:02<00:43,  2.15batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:02<00:43,  2.10batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:03<00:44,  2.04batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:03<00:47,  1.89batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:04<00:52,  1.71batch/s][A
+Evaluating:  10%|█         | 10/98 [00:05<00:54,  1.61batch/s][A
+Evaluating:  11%|█         | 11/98 [00:06<00:55,  1.56batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:06<00:56,  1.52batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:07<00:56,  1.52batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:08<00:55,  1.52batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:08<00:53,  1.54batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:09<00:53,  1.53batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:09<00:50,  1.60batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:10<00:48,  1.64batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:11<00:47,  1.65batch/s][A
+Evaluating:  20%|██        | 20/98 [00:11<00:45,  1.70batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:12<00:44,  1.71batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:12<00:44,  1.69batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:13<00:44,  1.67batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:14<00:45,  1.63batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:14<00:44,  1.65batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:15<00:43,  1.65batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:15<00:43,  1.63batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:16<00:43,  1.59batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:17<00:43,  1.60batch/s][A
+Evaluating:  31%|███       | 30/98 [00:17<00:45,  1.50batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:18<00:46,  1.45batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:19<00:46,  1.42batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:20<00:45,  1.44batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:20<00:43,  1.48batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:21<00:43,  1.43batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:22<00:44,  1.40batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:22<00:43,  1.42batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:23<00:42,  1.42batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:24<00:42,  1.39batch/s][A
+Evaluating:  41%|████      | 40/98 [00:25<00:41,  1.41batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:25<00:38,  1.48batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:26<00:36,  1.52batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:26<00:35,  1.54batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:27<00:34,  1.54batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:28<00:33,  1.57batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:28<00:33,  1.57batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:29<00:32,  1.59batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:30<00:31,  1.60batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:30<00:30,  1.62batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:31<00:29,  1.61batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:31<00:29,  1.61batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:32<00:28,  1.61batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:33<00:27,  1.62batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:33<00:27,  1.63batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:34<00:26,  1.63batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:34<00:25,  1.63batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:35<00:25,  1.63batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:36<00:24,  1.63batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:36<00:24,  1.61batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:37<00:23,  1.63batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:38<00:22,  1.61batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:38<00:22,  1.62batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:39<00:21,  1.61batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:39<00:21,  1.58batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:40<00:20,  1.60batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:41<00:19,  1.61batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:41<00:19,  1.61batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:42<00:18,  1.63batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:43<00:17,  1.63batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:43<00:16,  1.65batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:44<00:16,  1.63batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:44<00:15,  1.64batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:45<00:15,  1.62batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:46<00:14,  1.66batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [00:46<00:14,  1.64batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [00:47<00:13,  1.62batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [00:47<00:12,  1.62batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [00:48<00:12,  1.63batch/s][A
+Evaluating:  81%|████████  | 79/98 [00:49<00:11,  1.64batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [00:49<00:10,  1.65batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [00:50<00:10,  1.67batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [00:50<00:09,  1.64batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [00:51<00:09,  1.62batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [00:52<00:08,  1.63batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [00:52<00:08,  1.62batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [00:53<00:07,  1.63batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [00:54<00:06,  1.62batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [00:54<00:06,  1.64batch/s][A
+Evaluating:  91%|█████████ | 89/98 [00:55<00:05,  1.61batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [00:55<00:04,  1.63batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [00:56<00:04,  1.62batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [00:57<00:03,  1.63batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [00:57<00:03,  1.62batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [00:58<00:02,  1.63batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [00:58<00:01,  1.64batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [00:59<00:01,  1.63batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:00<00:00,  1.64batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:00<00:00,  1.80batch/s][AEvaluating: 100%|██████████| 98/98 [01:00<00:00,  1.62batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:11,  1.69batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:10,  1.68batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:01<00:10,  1.67batch/s][A
+Evaluating:  20%|██        | 4/20 [00:02<00:09,  1.69batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:02<00:08,  1.72batch/s][A
+Evaluating:  30%|███       | 6/20 [00:03<00:08,  1.71batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:04<00:07,  1.70batch/s][A
+Evaluating:  40%|████      | 8/20 [00:04<00:07,  1.68batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:05<00:06,  1.67batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:05<00:06,  1.66batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:06<00:05,  1.65batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:07<00:04,  1.65batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:07<00:04,  1.65batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:08<00:03,  1.64batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:08<00:03,  1.66batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:09<00:02,  1.65batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:10<00:01,  1.67batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:10<00:01,  1.67batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:11<00:00,  1.66batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:11<00:00,  1.89batch/s][AEvaluating: 100%|██████████| 20/20 [00:11<00:00,  1.70batch/s]
+{'step': 488, 'train_loss': 0.37719339874267577, 'test_loss': 0.4585549407958984, 'test_accuracy': 0.9087, 'epoch': 5, 'effective_epoch': 4.99712, 'epsilon_spent': 2.9999999999999867, 'elapsed_seconds': 936.4532034723088, 'eval_seconds': 72.32580472063273}
+Training: 100%|██████████| 488/488 [15:37<00:00, 22.60s/logical batch]Training: 100%|██████████| 488/488 [15:37<00:00,  1.92s/logical batch]
+Completed sgd seed=0
+Training:   0%|          | 0/488 [00:00<?, ?logical batch/s]Training:   0%|          | 1/488 [01:28<11:57:58, 88.46s/logical batch]Training:   0%|          | 2/488 [01:29<4:59:44, 37.00s/logical batch] Training:   1%|          | 3/488 [01:30<2:46:26, 20.59s/logical batch]Training:   1%|          | 4/488 [01:31<1:43:24, 12.82s/logical batch]Training:   1%|          | 5/488 [01:32<1:08:17,  8.48s/logical batch]Training:   1%|          | 6/488 [01:33<47:18,  5.89s/logical batch]  Training:   1%|▏         | 7/488 [01:33<33:59,  4.24s/logical batch]Training:   2%|▏         | 8/488 [01:34<25:15,  3.16s/logical batch]Training:   2%|▏         | 9/488 [01:35<19:24,  2.43s/logical batch]Training:   2%|▏         | 10/488 [01:36<15:10,  1.91s/logical batch]Training:   2%|▏         | 11/488 [01:37<12:16,  1.54s/logical batch]Training:   2%|▏         | 12/488 [01:37<10:14,  1.29s/logical batch]Training:   3%|▎         | 13/488 [01:38<09:00,  1.14s/logical batch]Training:   3%|▎         | 14/488 [01:39<08:13,  1.04s/logical batch]Training:   3%|▎         | 15/488 [01:40<07:40,  1.03logical batch/s]Training:   3%|▎         | 16/488 [01:40<07:18,  1.08logical batch/s]Training:   3%|▎         | 17/488 [01:41<07:02,  1.11logical batch/s]Training:   4%|▎         | 18/488 [01:42<06:44,  1.16logical batch/s]Training:   4%|▍         | 19/488 [01:43<06:36,  1.18logical batch/s]Training:   4%|▍         | 20/488 [01:44<06:32,  1.19logical batch/s]Training:   4%|▍         | 21/488 [01:45<06:31,  1.19logical batch/s]Training:   5%|▍         | 22/488 [01:45<06:22,  1.22logical batch/s]Training:   5%|▍         | 23/488 [01:46<06:25,  1.21logical batch/s]Training:   5%|▍         | 24/488 [01:47<06:13,  1.24logical batch/s]Training:   5%|▌         | 25/488 [01:48<06:01,  1.28logical batch/s]Training:   5%|▌         | 26/488 [01:48<05:56,  1.29logical batch/s]Training:   6%|▌         | 27/488 [01:49<06:00,  1.28logical batch/s]Training:   6%|▌         | 28/488 [01:50<05:54,  1.30logical batch/s]Training:   6%|▌         | 29/488 [01:51<05:52,  1.30logical batch/s]Training:   6%|▌         | 30/488 [01:52<05:56,  1.28logical batch/s]Training:   6%|▋         | 31/488 [01:52<06:02,  1.26logical batch/s]Training:   7%|▋         | 32/488 [01:53<06:13,  1.22logical batch/s]Training:   7%|▋         | 33/488 [01:54<06:12,  1.22logical batch/s]Training:   7%|▋         | 34/488 [01:55<06:18,  1.20logical batch/s]Training:   7%|▋         | 35/488 [01:56<06:22,  1.19logical batch/s]Training:   7%|▋         | 36/488 [01:57<06:21,  1.18logical batch/s]Training:   8%|▊         | 37/488 [01:57<06:15,  1.20logical batch/s]Training:   8%|▊         | 38/488 [01:58<06:17,  1.19logical batch/s]Training:   8%|▊         | 39/488 [01:59<06:09,  1.21logical batch/s]Training:   8%|▊         | 40/488 [02:00<05:49,  1.28logical batch/s]Training:   8%|▊         | 41/488 [02:00<05:39,  1.32logical batch/s]Training:   9%|▊         | 42/488 [02:01<05:42,  1.30logical batch/s]Training:   9%|▉         | 43/488 [02:02<05:37,  1.32logical batch/s]Training:   9%|▉         | 44/488 [02:03<05:34,  1.33logical batch/s]Training:   9%|▉         | 45/488 [02:03<05:35,  1.32logical batch/s]Training:   9%|▉         | 46/488 [02:04<05:40,  1.30logical batch/s]Training:  10%|▉         | 47/488 [02:05<05:46,  1.27logical batch/s]Training:  10%|▉         | 48/488 [02:06<05:47,  1.27logical batch/s]Training:  10%|█         | 49/488 [02:07<05:48,  1.26logical batch/s]Training:  10%|█         | 50/488 [02:08<05:48,  1.26logical batch/s]Training:  10%|█         | 51/488 [02:08<05:49,  1.25logical batch/s]Training:  11%|█         | 52/488 [02:09<05:49,  1.25logical batch/s]Training:  11%|█         | 53/488 [02:10<05:48,  1.25logical batch/s]Training:  11%|█         | 54/488 [02:11<05:47,  1.25logical batch/s]Training:  11%|█▏        | 55/488 [02:12<05:45,  1.25logical batch/s]Training:  11%|█▏        | 56/488 [02:12<05:40,  1.27logical batch/s]Training:  12%|█▏        | 57/488 [02:13<05:36,  1.28logical batch/s]Training:  12%|█▏        | 58/488 [02:14<05:31,  1.30logical batch/s]Training:  12%|█▏        | 59/488 [02:15<05:36,  1.27logical batch/s]Training:  12%|█▏        | 60/488 [02:15<05:32,  1.29logical batch/s]Training:  12%|█▎        | 61/488 [02:16<05:37,  1.26logical batch/s]Training:  13%|█▎        | 62/488 [02:17<05:34,  1.27logical batch/s]Training:  13%|█▎        | 63/488 [02:18<05:29,  1.29logical batch/s]Training:  13%|█▎        | 64/488 [02:18<05:22,  1.31logical batch/s]Training:  13%|█▎        | 65/488 [02:19<05:22,  1.31logical batch/s]Training:  14%|█▎        | 66/488 [02:20<05:20,  1.32logical batch/s]Training:  14%|█▎        | 67/488 [02:21<05:18,  1.32logical batch/s]Training:  14%|█▍        | 68/488 [02:21<05:14,  1.34logical batch/s]Training:  14%|█▍        | 69/488 [02:22<05:08,  1.36logical batch/s]Training:  14%|█▍        | 70/488 [02:23<05:05,  1.37logical batch/s]Training:  15%|█▍        | 71/488 [02:24<05:08,  1.35logical batch/s]Training:  15%|█▍        | 72/488 [02:24<05:09,  1.34logical batch/s]Training:  15%|█▍        | 73/488 [02:25<05:25,  1.27logical batch/s]Training:  15%|█▌        | 74/488 [02:26<05:34,  1.24logical batch/s]Training:  15%|█▌        | 75/488 [02:27<05:49,  1.18logical batch/s]Training:  16%|█▌        | 76/488 [02:28<05:31,  1.24logical batch/s]Training:  16%|█▌        | 77/488 [02:29<05:29,  1.25logical batch/s]Training:  16%|█▌        | 78/488 [02:29<05:27,  1.25logical batch/s]Training:  16%|█▌        | 79/488 [02:30<05:33,  1.23logical batch/s]Training:  16%|█▋        | 80/488 [02:31<05:31,  1.23logical batch/s]Training:  17%|█▋        | 81/488 [02:32<05:33,  1.22logical batch/s]Training:  17%|█▋        | 82/488 [02:33<05:41,  1.19logical batch/s]Training:  17%|█▋        | 83/488 [02:34<05:38,  1.20logical batch/s]Training:  17%|█▋        | 84/488 [02:34<05:29,  1.23logical batch/s]Training:  17%|█▋        | 85/488 [02:35<05:29,  1.22logical batch/s]Training:  18%|█▊        | 86/488 [02:36<05:17,  1.27logical batch/s]Training:  18%|█▊        | 87/488 [02:37<05:13,  1.28logical batch/s]Training:  18%|█▊        | 88/488 [02:37<05:08,  1.30logical batch/s]Training:  18%|█▊        | 89/488 [02:38<05:05,  1.31logical batch/s]Training:  18%|█▊        | 90/488 [02:39<05:13,  1.27logical batch/s]Training:  19%|█▊        | 91/488 [02:40<05:11,  1.28logical batch/s]Training:  19%|█▉        | 92/488 [02:41<05:14,  1.26logical batch/s]Training:  19%|█▉        | 93/488 [02:41<05:14,  1.26logical batch/s]Training:  19%|█▉        | 94/488 [02:42<05:13,  1.26logical batch/s]Training:  19%|█▉        | 95/488 [02:43<05:12,  1.26logical batch/s]Training:  20%|█▉        | 96/488 [02:44<05:09,  1.26logical batch/s]Training:  20%|█▉        | 97/488 [02:45<05:05,  1.28logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<01:00,  1.61batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<01:00,  1.59batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:57,  1.64batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<00:59,  1.59batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<00:59,  1.57batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:03<01:00,  1.52batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<01:02,  1.46batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:05<01:01,  1.46batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:06<01:08,  1.30batch/s][A
+Evaluating:  10%|█         | 10/98 [00:07<01:13,  1.21batch/s][A
+Evaluating:  11%|█         | 11/98 [00:08<01:16,  1.14batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:09<01:16,  1.13batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:10<01:16,  1.12batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:10<01:16,  1.10batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:11<01:16,  1.08batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:12<01:16,  1.07batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:13<01:16,  1.05batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:14<01:14,  1.07batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:15<01:12,  1.09batch/s][A
+Evaluating:  20%|██        | 20/98 [00:16<01:11,  1.09batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:17<01:11,  1.08batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:18<01:08,  1.11batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:19<01:08,  1.09batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:20<01:08,  1.07batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:21<01:06,  1.09batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:21<01:04,  1.12batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:22<01:02,  1.14batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:23<00:58,  1.19batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:24<00:58,  1.17batch/s][A
+Evaluating:  31%|███       | 30/98 [00:25<00:59,  1.15batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:26<00:57,  1.17batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:27<00:58,  1.13batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:27<00:56,  1.15batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:28<00:56,  1.12batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:29<00:57,  1.10batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:30<00:55,  1.11batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:31<00:56,  1.08batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:32<00:56,  1.07batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:33<00:55,  1.06batch/s][A
+Evaluating:  41%|████      | 40/98 [00:34<00:53,  1.08batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:35<00:51,  1.10batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:36<00:50,  1.12batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:37<00:49,  1.11batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:38<00:47,  1.13batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:38<00:45,  1.15batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:39<00:46,  1.13batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:40<00:45,  1.11batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:41<00:47,  1.06batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:42<00:46,  1.06batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:43<00:45,  1.06batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:44<00:44,  1.06batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:45<00:43,  1.05batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:46<00:40,  1.12batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:47<00:38,  1.15batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:47<00:35,  1.21batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:48<00:34,  1.21batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:49<00:33,  1.21batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:50<00:32,  1.24batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:51<00:31,  1.26batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:51<00:30,  1.23batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:52<00:30,  1.23batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:53<00:29,  1.24batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:54<00:28,  1.24batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:55<00:26,  1.29batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:55<00:25,  1.28batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:56<00:24,  1.28batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:57<00:24,  1.27batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:58<00:23,  1.27batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:58<00:22,  1.27batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:59<00:22,  1.26batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [01:00<00:21,  1.26batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [01:01<00:20,  1.25batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [01:02<00:20,  1.24batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [01:02<00:18,  1.27batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [01:03<00:18,  1.25batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [01:04<00:17,  1.26batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [01:05<00:16,  1.29batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:06<00:15,  1.32batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:06<00:14,  1.30batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:07<00:13,  1.30batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:08<00:13,  1.28batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:09<00:12,  1.28batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:09<00:11,  1.30batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:10<00:11,  1.26batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:11<00:10,  1.27batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:12<00:09,  1.24batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:13<00:08,  1.24batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:13<00:07,  1.29batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:14<00:06,  1.30batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:15<00:06,  1.29batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:16<00:05,  1.29batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:16<00:04,  1.30batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:17<00:03,  1.30batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:18<00:03,  1.29batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:19<00:02,  1.30batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:20<00:01,  1.27batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:20<00:00,  1.26batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:21<00:00,  1.42batch/s][AEvaluating: 100%|██████████| 98/98 [01:21<00:00,  1.20batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:15,  1.26batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:14,  1.29batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:12,  1.33batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:12,  1.31batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:03<00:11,  1.30batch/s][A
+Evaluating:  30%|███       | 6/20 [00:04<00:11,  1.27batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:05<00:10,  1.28batch/s][A
+Evaluating:  40%|████      | 8/20 [00:06<00:09,  1.31batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:06<00:08,  1.32batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:07<00:07,  1.29batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:08<00:06,  1.29batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:09<00:06,  1.33batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:09<00:05,  1.32batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:10<00:04,  1.33batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:11<00:03,  1.34batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:12<00:03,  1.32batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:12<00:02,  1.34batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:13<00:01,  1.33batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:14<00:00,  1.35batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:14<00:00,  1.51batch/s][AEvaluating: 100%|██████████| 20/20 [00:14<00:00,  1.34batch/s]
+{'step': 98, 'train_loss': 0.43869195404052735, 'test_loss': 0.4688574127197266, 'test_accuracy': 0.8764, 'epoch': 1, 'effective_epoch': 1.00352, 'epsilon_spent': 1.3365104658900253, 'elapsed_seconds': 262.2943073147908, 'eval_seconds': 96.31261196639389}
+Training:  20%|██        | 98/488 [04:23<3:15:25, 30.07s/logical batch]Training:  20%|██        | 99/488 [04:24<2:17:59, 21.28s/logical batch]Training:  20%|██        | 100/488 [04:24<1:37:51, 15.13s/logical batch]Training:  21%|██        | 101/488 [04:25<1:09:42, 10.81s/logical batch]Training:  21%|██        | 102/488 [04:26<50:10,  7.80s/logical batch]  Training:  21%|██        | 103/488 [04:27<36:34,  5.70s/logical batch]Training:  21%|██▏       | 104/488 [04:28<27:08,  4.24s/logical batch]Training:  22%|██▏       | 105/488 [04:28<20:29,  3.21s/logical batch]Training:  22%|██▏       | 106/488 [04:29<15:41,  2.47s/logical batch]Training:  22%|██▏       | 107/488 [04:30<12:23,  1.95s/logical batch]Training:  22%|██▏       | 108/488 [04:31<09:58,  1.58s/logical batch]Training:  22%|██▏       | 109/488 [04:31<08:20,  1.32s/logical batch]Training:  23%|██▎       | 110/488 [04:32<07:09,  1.14s/logical batch]Training:  23%|██▎       | 111/488 [04:33<06:17,  1.00s/logical batch]Training:  23%|██▎       | 112/488 [04:33<05:43,  1.09logical batch/s]Training:  23%|██▎       | 113/488 [04:34<05:11,  1.20logical batch/s]Training:  23%|██▎       | 114/488 [04:35<04:55,  1.26logical batch/s]Training:  24%|██▎       | 115/488 [04:35<04:45,  1.31logical batch/s]Training:  24%|██▍       | 116/488 [04:36<04:44,  1.31logical batch/s]Training:  24%|██▍       | 117/488 [04:37<04:44,  1.30logical batch/s]Training:  24%|██▍       | 118/488 [04:38<04:41,  1.31logical batch/s]Training:  24%|██▍       | 119/488 [04:38<04:38,  1.33logical batch/s]Training:  25%|██▍       | 120/488 [04:39<04:36,  1.33logical batch/s]Training:  25%|██▍       | 121/488 [04:40<04:40,  1.31logical batch/s]Training:  25%|██▌       | 122/488 [04:41<04:41,  1.30logical batch/s]Training:  25%|██▌       | 123/488 [04:42<04:37,  1.31logical batch/s]Training:  25%|██▌       | 124/488 [04:42<04:28,  1.35logical batch/s]Training:  26%|██▌       | 125/488 [04:43<04:31,  1.34logical batch/s]Training:  26%|██▌       | 126/488 [04:44<04:30,  1.34logical batch/s]Training:  26%|██▌       | 127/488 [04:44<04:29,  1.34logical batch/s]Training:  26%|██▌       | 128/488 [04:45<04:39,  1.29logical batch/s]Training:  26%|██▋       | 129/488 [04:46<04:36,  1.30logical batch/s]Training:  27%|██▋       | 130/488 [04:47<04:29,  1.33logical batch/s]Training:  27%|██▋       | 131/488 [04:48<04:33,  1.30logical batch/s]Training:  27%|██▋       | 132/488 [04:48<04:37,  1.28logical batch/s]Training:  27%|██▋       | 133/488 [04:49<04:43,  1.25logical batch/s]Training:  27%|██▋       | 134/488 [04:50<04:34,  1.29logical batch/s]Training:  28%|██▊       | 135/488 [04:51<04:26,  1.32logical batch/s]Training:  28%|██▊       | 136/488 [04:51<04:26,  1.32logical batch/s]Training:  28%|██▊       | 137/488 [04:52<04:35,  1.27logical batch/s]Training:  28%|██▊       | 138/488 [04:53<04:37,  1.26logical batch/s]Training:  28%|██▊       | 139/488 [04:54<04:34,  1.27logical batch/s]Training:  29%|██▊       | 140/488 [04:55<04:32,  1.28logical batch/s]Training:  29%|██▉       | 141/488 [04:55<04:26,  1.30logical batch/s]Training:  29%|██▉       | 142/488 [04:56<04:17,  1.34logical batch/s]Training:  29%|██▉       | 143/488 [04:57<04:19,  1.33logical batch/s]Training:  30%|██▉       | 144/488 [04:58<04:22,  1.31logical batch/s]Training:  30%|██▉       | 145/488 [04:58<04:17,  1.33logical batch/s]Training:  30%|██▉       | 146/488 [04:59<04:09,  1.37logical batch/s]Training:  30%|███       | 147/488 [05:00<04:11,  1.35logical batch/s]Training:  30%|███       | 148/488 [05:01<04:10,  1.36logical batch/s]Training:  31%|███       | 149/488 [05:01<04:06,  1.37logical batch/s]Training:  31%|███       | 150/488 [05:02<04:03,  1.39logical batch/s]Training:  31%|███       | 151/488 [05:03<03:56,  1.43logical batch/s]Training:  31%|███       | 152/488 [05:03<03:54,  1.43logical batch/s]Training:  31%|███▏      | 153/488 [05:04<03:54,  1.43logical batch/s]Training:  32%|███▏      | 154/488 [05:05<04:03,  1.37logical batch/s]Training:  32%|███▏      | 155/488 [05:06<04:06,  1.35logical batch/s]Training:  32%|███▏      | 156/488 [05:06<04:08,  1.33logical batch/s]Training:  32%|███▏      | 157/488 [05:07<04:07,  1.34logical batch/s]Training:  32%|███▏      | 158/488 [05:08<04:08,  1.33logical batch/s]Training:  33%|███▎      | 159/488 [05:09<04:14,  1.29logical batch/s]Training:  33%|███▎      | 160/488 [05:09<04:18,  1.27logical batch/s]Training:  33%|███▎      | 161/488 [05:10<04:16,  1.28logical batch/s]Training:  33%|███▎      | 162/488 [05:11<04:17,  1.27logical batch/s]Training:  33%|███▎      | 163/488 [05:12<04:22,  1.24logical batch/s]Training:  34%|███▎      | 164/488 [05:13<04:16,  1.26logical batch/s]Training:  34%|███▍      | 165/488 [05:13<04:09,  1.29logical batch/s]Training:  34%|███▍      | 166/488 [05:14<04:10,  1.29logical batch/s]Training:  34%|███▍      | 167/488 [05:15<04:10,  1.28logical batch/s]Training:  34%|███▍      | 168/488 [05:16<04:11,  1.27logical batch/s]Training:  35%|███▍      | 169/488 [05:16<04:00,  1.33logical batch/s]Training:  35%|███▍      | 170/488 [05:17<03:53,  1.36logical batch/s]Training:  35%|███▌      | 171/488 [05:18<03:49,  1.38logical batch/s]Training:  35%|███▌      | 172/488 [05:19<03:52,  1.36logical batch/s]Training:  35%|███▌      | 173/488 [05:19<03:52,  1.35logical batch/s]Training:  36%|███▌      | 174/488 [05:20<03:53,  1.34logical batch/s]Training:  36%|███▌      | 175/488 [05:21<03:55,  1.33logical batch/s]Training:  36%|███▌      | 176/488 [05:22<03:54,  1.33logical batch/s]Training:  36%|███▋      | 177/488 [05:22<03:54,  1.32logical batch/s]Training:  36%|███▋      | 178/488 [05:23<03:51,  1.34logical batch/s]Training:  37%|███▋      | 179/488 [05:24<03:52,  1.33logical batch/s]Training:  37%|███▋      | 180/488 [05:25<03:52,  1.33logical batch/s]Training:  37%|███▋      | 181/488 [05:25<03:52,  1.32logical batch/s]Training:  37%|███▋      | 182/488 [05:26<03:45,  1.36logical batch/s]Training:  38%|███▊      | 183/488 [05:27<03:45,  1.35logical batch/s]Training:  38%|███▊      | 184/488 [05:28<03:46,  1.34logical batch/s]Training:  38%|███▊      | 185/488 [05:28<03:43,  1.36logical batch/s]Training:  38%|███▊      | 186/488 [05:29<03:42,  1.36logical batch/s]Training:  38%|███▊      | 187/488 [05:30<03:45,  1.33logical batch/s]Training:  39%|███▊      | 188/488 [05:31<03:48,  1.31logical batch/s]Training:  39%|███▊      | 189/488 [05:31<03:45,  1.33logical batch/s]Training:  39%|███▉      | 190/488 [05:32<03:45,  1.32logical batch/s]Training:  39%|███▉      | 191/488 [05:33<03:46,  1.31logical batch/s]Training:  39%|███▉      | 192/488 [05:34<03:41,  1.34logical batch/s]Training:  40%|███▉      | 193/488 [05:34<03:45,  1.31logical batch/s]Training:  40%|███▉      | 194/488 [05:35<03:47,  1.29logical batch/s]Training:  40%|███▉      | 195/488 [05:36<03:47,  1.29logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<01:05,  1.48batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<01:00,  1.60batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:57,  1.65batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<00:56,  1.66batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<00:59,  1.57batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:03<01:02,  1.47batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<01:02,  1.45batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:05<01:04,  1.39batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:06<01:03,  1.40batch/s][A
+Evaluating:  10%|█         | 10/98 [00:06<01:04,  1.36batch/s][A
+Evaluating:  11%|█         | 11/98 [00:07<01:08,  1.27batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:08<01:09,  1.24batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:09<01:06,  1.28batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:10<01:04,  1.29batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:10<01:04,  1.29batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:11<01:02,  1.30batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:12<01:01,  1.31batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:13<01:02,  1.29batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:14<01:02,  1.27batch/s][A
+Evaluating:  20%|██        | 20/98 [00:14<01:01,  1.27batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:15<00:58,  1.31batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:16<00:56,  1.35batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:16<00:54,  1.38batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:17<00:53,  1.38batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:18<00:53,  1.37batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:19<00:52,  1.38batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:19<00:52,  1.35batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:20<00:51,  1.37batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:21<00:51,  1.34batch/s][A
+Evaluating:  31%|███       | 30/98 [00:22<00:52,  1.30batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:22<00:52,  1.28batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:23<00:51,  1.29batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:24<00:51,  1.27batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:25<00:50,  1.28batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:26<00:48,  1.30batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:26<00:45,  1.35batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:27<00:47,  1.29batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:28<00:48,  1.24batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:29<00:49,  1.20batch/s][A
+Evaluating:  41%|████      | 40/98 [00:30<00:48,  1.19batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:31<00:46,  1.22batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:31<00:45,  1.24batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:32<00:42,  1.28batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:33<00:42,  1.27batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:34<00:42,  1.23batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:34<00:41,  1.25batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:35<00:40,  1.25batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:36<00:39,  1.26batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:37<00:39,  1.25batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:38<00:38,  1.26batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:38<00:37,  1.26batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:39<00:36,  1.25batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:40<00:35,  1.25batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:41<00:35,  1.25batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:42<00:33,  1.28batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:42<00:32,  1.28batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:43<00:32,  1.28batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:44<00:31,  1.28batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:45<00:30,  1.29batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:45<00:29,  1.29batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:46<00:28,  1.29batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:47<00:30,  1.20batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:48<00:28,  1.23batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:49<00:27,  1.25batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:50<00:26,  1.23batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:50<00:25,  1.25batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:51<00:24,  1.26batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:52<00:23,  1.26batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:53<00:23,  1.25batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:53<00:21,  1.28batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:54<00:21,  1.27batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:55<00:20,  1.25batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:56<00:20,  1.22batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:57<00:19,  1.24batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [00:57<00:18,  1.26batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [00:58<00:17,  1.28batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [00:59<00:15,  1.32batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:00<00:15,  1.30batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:01<00:14,  1.30batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:01<00:13,  1.31batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:02<00:12,  1.32batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:03<00:12,  1.30batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:04<00:11,  1.30batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:04<00:10,  1.30batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:05<00:09,  1.30batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:06<00:08,  1.35batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:07<00:08,  1.32batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:07<00:07,  1.37batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:08<00:06,  1.38batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:09<00:05,  1.43batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:09<00:04,  1.40batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:10<00:04,  1.32batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:11<00:04,  1.24batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:12<00:03,  1.18batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:13<00:02,  1.15batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:14<00:01,  1.12batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:15<00:00,  1.14batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:15<00:00,  1.23batch/s][AEvaluating: 100%|██████████| 98/98 [01:15<00:00,  1.29batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:16,  1.18batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:16,  1.10batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:15,  1.12batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:14,  1.14batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:04<00:12,  1.18batch/s][A
+Evaluating:  30%|███       | 6/20 [00:05<00:12,  1.15batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:06<00:11,  1.18batch/s][A
+Evaluating:  40%|████      | 8/20 [00:06<00:09,  1.20batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:07<00:09,  1.17batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:08<00:08,  1.21batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:09<00:07,  1.20batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:10<00:06,  1.20batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:11<00:05,  1.18batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:11<00:05,  1.16batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:12<00:04,  1.14batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:13<00:03,  1.17batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:14<00:02,  1.13batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:15<00:01,  1.13batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:16<00:00,  1.11batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:17<00:00,  1.25batch/s][AEvaluating: 100%|██████████| 20/20 [00:17<00:00,  1.18batch/s]
+{'step': 196, 'train_loss': 0.39563556900024416, 'test_loss': 0.45848598861694334, 'test_accuracy': 0.8943, 'epoch': 2, 'effective_epoch': 2.00704, 'epsilon_spent': 1.9128706270205869, 'elapsed_seconds': 430.4860929707065, 'eval_seconds': 92.9461366571486}
+Training:  40%|████      | 196/488 [07:11<2:21:36, 29.10s/logical batch]Training:  40%|████      | 197/488 [07:12<1:40:09, 20.65s/logical batch]Training:  41%|████      | 198/488 [07:13<1:11:00, 14.69s/logical batch]Training:  41%|████      | 199/488 [07:14<50:50, 10.55s/logical batch]  Training:  41%|████      | 200/488 [07:15<36:46,  7.66s/logical batch]Training:  41%|████      | 201/488 [07:15<26:39,  5.57s/logical batch]Training:  41%|████▏     | 202/488 [07:16<19:35,  4.11s/logical batch]Training:  42%|████▏     | 203/488 [07:17<14:37,  3.08s/logical batch]Training:  42%|████▏     | 204/488 [07:17<11:10,  2.36s/logical batch]Training:  42%|████▏     | 205/488 [07:18<08:42,  1.85s/logical batch]Training:  42%|████▏     | 206/488 [07:19<06:58,  1.48s/logical batch]Training:  42%|████▏     | 207/488 [07:19<05:47,  1.24s/logical batch]Training:  43%|████▎     | 208/488 [07:20<04:59,  1.07s/logical batch]Training:  43%|████▎     | 209/488 [07:21<04:24,  1.06logical batch/s]Training:  43%|████▎     | 210/488 [07:21<04:01,  1.15logical batch/s]Training:  43%|████▎     | 211/488 [07:22<03:44,  1.23logical batch/s]Training:  43%|████▎     | 212/488 [07:23<03:35,  1.28logical batch/s]Training:  44%|████▎     | 213/488 [07:24<03:31,  1.30logical batch/s]Training:  44%|████▍     | 214/488 [07:24<03:25,  1.34logical batch/s]Training:  44%|████▍     | 215/488 [07:25<03:18,  1.37logical batch/s]Training:  44%|████▍     | 216/488 [07:26<03:12,  1.41logical batch/s]Training:  44%|████▍     | 217/488 [07:26<03:12,  1.41logical batch/s]Training:  45%|████▍     | 218/488 [07:27<03:13,  1.40logical batch/s]Training:  45%|████▍     | 219/488 [07:28<03:10,  1.41logical batch/s]Training:  45%|████▌     | 220/488 [07:28<03:08,  1.42logical batch/s]Training:  45%|████▌     | 221/488 [07:29<03:05,  1.44logical batch/s]Training:  45%|████▌     | 222/488 [07:30<03:02,  1.46logical batch/s]Training:  46%|████▌     | 223/488 [07:30<03:00,  1.47logical batch/s]Training:  46%|████▌     | 224/488 [07:31<03:00,  1.47logical batch/s]Training:  46%|████▌     | 225/488 [07:32<02:58,  1.47logical batch/s]Training:  46%|████▋     | 226/488 [07:32<02:55,  1.49logical batch/s]Training:  47%|████▋     | 227/488 [07:33<02:54,  1.49logical batch/s]Training:  47%|████▋     | 228/488 [07:34<02:53,  1.50logical batch/s]Training:  47%|████▋     | 229/488 [07:34<02:51,  1.51logical batch/s]Training:  47%|████▋     | 230/488 [07:35<02:50,  1.51logical batch/s]Training:  47%|████▋     | 231/488 [07:36<02:48,  1.53logical batch/s]Training:  48%|████▊     | 232/488 [07:36<02:48,  1.52logical batch/s]Training:  48%|████▊     | 233/488 [07:37<02:51,  1.48logical batch/s]Training:  48%|████▊     | 234/488 [07:38<02:51,  1.48logical batch/s]Training:  48%|████▊     | 235/488 [07:38<02:52,  1.47logical batch/s]Training:  48%|████▊     | 236/488 [07:39<02:50,  1.48logical batch/s]Training:  49%|████▊     | 237/488 [07:40<02:51,  1.46logical batch/s]Training:  49%|████▉     | 238/488 [07:41<02:58,  1.40logical batch/s]Training:  49%|████▉     | 239/488 [07:41<03:06,  1.33logical batch/s]Training:  49%|████▉     | 240/488 [07:42<03:09,  1.31logical batch/s]Training:  49%|████▉     | 241/488 [07:43<03:09,  1.30logical batch/s]Training:  50%|████▉     | 242/488 [07:44<03:05,  1.32logical batch/s]Training:  50%|████▉     | 243/488 [07:44<03:02,  1.34logical batch/s]Training:  50%|█████     | 244/488 [07:45<02:55,  1.39logical batch/s]Training:  50%|█████     | 245/488 [07:46<02:52,  1.41logical batch/s]Training:  50%|█████     | 246/488 [07:47<02:51,  1.41logical batch/s]Training:  51%|█████     | 247/488 [07:47<02:45,  1.45logical batch/s]Training:  51%|█████     | 248/488 [07:48<02:45,  1.45logical batch/s]Training:  51%|█████     | 249/488 [07:49<02:47,  1.43logical batch/s]Training:  51%|█████     | 250/488 [07:49<02:47,  1.42logical batch/s]Training:  51%|█████▏    | 251/488 [07:50<02:47,  1.42logical batch/s]Training:  52%|█████▏    | 252/488 [07:51<02:43,  1.44logical batch/s]Training:  52%|█████▏    | 253/488 [07:51<02:43,  1.44logical batch/s]Training:  52%|█████▏    | 254/488 [07:52<02:45,  1.42logical batch/s]Training:  52%|█████▏    | 255/488 [07:53<02:46,  1.40logical batch/s]Training:  52%|█████▏    | 256/488 [07:54<02:46,  1.39logical batch/s]Training:  53%|█████▎    | 257/488 [07:54<02:46,  1.39logical batch/s]Training:  53%|█████▎    | 258/488 [07:55<02:44,  1.40logical batch/s]Training:  53%|█████▎    | 259/488 [07:56<02:44,  1.39logical batch/s]Training:  53%|█████▎    | 260/488 [07:57<02:50,  1.34logical batch/s]Training:  53%|█████▎    | 261/488 [07:57<02:51,  1.33logical batch/s]Training:  54%|█████▎    | 262/488 [07:58<02:47,  1.35logical batch/s]Training:  54%|█████▍    | 263/488 [07:59<02:45,  1.36logical batch/s]Training:  54%|█████▍    | 264/488 [07:59<02:43,  1.37logical batch/s]Training:  54%|█████▍    | 265/488 [08:00<02:46,  1.34logical batch/s]Training:  55%|█████▍    | 266/488 [08:01<02:39,  1.39logical batch/s]Training:  55%|█████▍    | 267/488 [08:02<02:34,  1.43logical batch/s]Training:  55%|█████▍    | 268/488 [08:02<02:29,  1.47logical batch/s]Training:  55%|█████▌    | 269/488 [08:03<02:24,  1.52logical batch/s]Training:  55%|█████▌    | 270/488 [08:03<02:22,  1.53logical batch/s]Training:  56%|█████▌    | 271/488 [08:04<02:20,  1.54logical batch/s]Training:  56%|█████▌    | 272/488 [08:05<02:22,  1.52logical batch/s]Training:  56%|█████▌    | 273/488 [08:05<02:21,  1.52logical batch/s]Training:  56%|█████▌    | 274/488 [08:06<02:21,  1.51logical batch/s]Training:  56%|█████▋    | 275/488 [08:07<02:21,  1.51logical batch/s]Training:  57%|█████▋    | 276/488 [08:07<02:23,  1.48logical batch/s]Training:  57%|█████▋    | 277/488 [08:08<02:21,  1.49logical batch/s]Training:  57%|█████▋    | 278/488 [08:09<02:23,  1.47logical batch/s]Training:  57%|█████▋    | 279/488 [08:10<02:24,  1.44logical batch/s]Training:  57%|█████▋    | 280/488 [08:10<02:30,  1.38logical batch/s]Training:  58%|█████▊    | 281/488 [08:11<02:27,  1.41logical batch/s]Training:  58%|█████▊    | 282/488 [08:12<02:32,  1.35logical batch/s]Training:  58%|█████▊    | 283/488 [08:13<02:32,  1.34logical batch/s]Training:  58%|█████▊    | 284/488 [08:13<02:31,  1.35logical batch/s]Training:  58%|█████▊    | 285/488 [08:14<02:29,  1.36logical batch/s]Training:  59%|█████▊    | 286/488 [08:15<02:31,  1.34logical batch/s]Training:  59%|█████▉    | 287/488 [08:16<02:29,  1.34logical batch/s]Training:  59%|█████▉    | 288/488 [08:16<02:26,  1.36logical batch/s]Training:  59%|█████▉    | 289/488 [08:17<02:27,  1.35logical batch/s]Training:  59%|█████▉    | 290/488 [08:18<02:31,  1.31logical batch/s]Training:  60%|█████▉    | 291/488 [08:19<02:32,  1.29logical batch/s]Training:  60%|█████▉    | 292/488 [08:19<02:32,  1.29logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:58,  1.66batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<01:07,  1.42batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:02<01:05,  1.45batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<01:06,  1.42batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<01:04,  1.45batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:04<01:08,  1.35batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<01:05,  1.38batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:05<01:03,  1.41batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:06<01:02,  1.42batch/s][A
+Evaluating:  10%|█         | 10/98 [00:07<01:04,  1.36batch/s][A
+Evaluating:  11%|█         | 11/98 [00:07<01:05,  1.33batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:08<01:07,  1.27batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:09<01:08,  1.24batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:10<01:08,  1.22batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:11<01:07,  1.23batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:12<01:08,  1.20batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:12<01:04,  1.25batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:13<01:06,  1.20batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:14<01:04,  1.23batch/s][A
+Evaluating:  20%|██        | 20/98 [00:15<01:05,  1.19batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:16<01:05,  1.17batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:17<01:06,  1.15batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:18<01:02,  1.20batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:18<01:02,  1.19batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:19<01:00,  1.21batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:20<00:58,  1.22batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:21<00:56,  1.25batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:21<00:54,  1.29batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:22<00:52,  1.32batch/s][A
+Evaluating:  31%|███       | 30/98 [00:23<00:49,  1.37batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:24<00:49,  1.36batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:24<00:48,  1.37batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:25<00:46,  1.41batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:26<00:47,  1.36batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:26<00:45,  1.39batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:27<00:44,  1.38batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:28<00:44,  1.38batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:29<00:42,  1.40batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:29<00:41,  1.41batch/s][A
+Evaluating:  41%|████      | 40/98 [00:30<00:42,  1.38batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:31<00:40,  1.41batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:31<00:40,  1.39batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:32<00:40,  1.37batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:33<00:38,  1.39batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:34<00:38,  1.39batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:34<00:38,  1.36batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:35<00:38,  1.33batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:36<00:38,  1.29batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:37<00:38,  1.27batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:38<00:37,  1.26batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:39<00:39,  1.20batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:39<00:38,  1.20batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:40<00:37,  1.19batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:41<00:38,  1.13batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:42<00:38,  1.11batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:43<00:37,  1.11batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:44<00:37,  1.09batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:45<00:35,  1.11batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:46<00:34,  1.12batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:47<00:33,  1.13batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:47<00:32,  1.15batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:48<00:31,  1.15batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:49<00:29,  1.18batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:50<00:28,  1.19batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:51<00:28,  1.17batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:52<00:27,  1.17batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:53<00:26,  1.15batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:53<00:25,  1.16batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:54<00:24,  1.17batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:55<00:23,  1.17batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:56<00:23,  1.15batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:57<00:22,  1.17batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:58<00:21,  1.16batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:59<00:20,  1.16batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [01:00<00:20,  1.13batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [01:00<00:19,  1.13batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [01:01<00:19,  1.09batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [01:02<00:18,  1.11batch/s][A
+Evaluating:  81%|████████  | 79/98 [01:03<00:17,  1.11batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [01:04<00:16,  1.11batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [01:05<00:15,  1.11batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [01:06<00:14,  1.10batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [01:07<00:13,  1.12batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [01:08<00:12,  1.11batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [01:09<00:11,  1.13batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [01:10<00:10,  1.11batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [01:10<00:09,  1.11batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:11<00:08,  1.14batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:12<00:07,  1.15batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:13<00:06,  1.17batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:14<00:05,  1.19batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:15<00:05,  1.17batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:15<00:04,  1.16batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:16<00:03,  1.15batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:17<00:02,  1.20batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:18<00:01,  1.24batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:19<00:00,  1.21batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:19<00:00,  1.35batch/s][AEvaluating: 100%|██████████| 98/98 [01:19<00:00,  1.23batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:17,  1.09batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:14,  1.25batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:02<00:13,  1.24batch/s][A
+Evaluating:  20%|██        | 4/20 [00:03<00:13,  1.18batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:04<00:12,  1.22batch/s][A
+Evaluating:  30%|███       | 6/20 [00:04<00:11,  1.23batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:05<00:10,  1.26batch/s][A
+Evaluating:  40%|████      | 8/20 [00:06<00:09,  1.28batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:07<00:08,  1.28batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:07<00:07,  1.28batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:08<00:06,  1.29batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:09<00:06,  1.31batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:10<00:05,  1.31batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:11<00:04,  1.27batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:11<00:03,  1.27batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:12<00:03,  1.25batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:13<00:02,  1.13batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:14<00:01,  1.03batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:15<00:00,  1.06batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:16<00:00,  1.19batch/s][AEvaluating: 100%|██████████| 20/20 [00:16<00:00,  1.21batch/s]
+{'step': 293, 'train_loss': 0.3675167042541504, 'test_loss': 0.455171501159668, 'test_accuracy': 0.9024, 'epoch': 3, 'effective_epoch': 3.00032, 'epsilon_spent': 2.352710020216793, 'elapsed_seconds': 597.1313563967124, 'eval_seconds': 96.22927385009825}
+Training:  60%|██████    | 293/488 [09:58<1:37:39, 30.05s/logical batch]Training:  60%|██████    | 294/488 [09:59<1:08:56, 21.32s/logical batch]Training:  60%|██████    | 295/488 [10:00<48:47, 15.17s/logical batch]  Training:  61%|██████    | 296/488 [10:00<34:41, 10.84s/logical batch]Training:  61%|██████    | 297/488 [10:01<24:58,  7.84s/logical batch]Training:  61%|██████    | 298/488 [10:02<18:11,  5.75s/logical batch]Training:  61%|██████▏   | 299/488 [10:03<13:25,  4.26s/logical batch]Training:  61%|██████▏   | 300/488 [10:03<09:56,  3.17s/logical batch]Training:  62%|██████▏   | 301/488 [10:04<07:33,  2.42s/logical batch]Training:  62%|██████▏   | 302/488 [10:05<05:53,  1.90s/logical batch]Training:  62%|██████▏   | 303/488 [10:05<04:43,  1.53s/logical batch]Training:  62%|██████▏   | 304/488 [10:06<03:54,  1.27s/logical batch]Training:  62%|██████▎   | 305/488 [10:07<03:21,  1.10s/logical batch]Training:  63%|██████▎   | 306/488 [10:07<02:56,  1.03logical batch/s]Training:  63%|██████▎   | 307/488 [10:08<02:38,  1.14logical batch/s]Training:  63%|██████▎   | 308/488 [10:09<02:28,  1.22logical batch/s]Training:  63%|██████▎   | 309/488 [10:10<02:18,  1.29logical batch/s]Training:  64%|██████▎   | 310/488 [10:10<02:12,  1.34logical batch/s]Training:  64%|██████▎   | 311/488 [10:11<02:08,  1.38logical batch/s]Training:  64%|██████▍   | 312/488 [10:12<02:05,  1.40logical batch/s]Training:  64%|██████▍   | 313/488 [10:12<02:04,  1.40logical batch/s]Training:  64%|██████▍   | 314/488 [10:13<02:03,  1.41logical batch/s]Training:  65%|██████▍   | 315/488 [10:14<02:02,  1.41logical batch/s]Training:  65%|██████▍   | 316/488 [10:14<02:01,  1.41logical batch/s]Training:  65%|██████▍   | 317/488 [10:15<02:00,  1.41logical batch/s]Training:  65%|██████▌   | 318/488 [10:16<01:59,  1.43logical batch/s]Training:  65%|██████▌   | 319/488 [10:16<01:57,  1.43logical batch/s]Training:  66%|██████▌   | 320/488 [10:17<01:56,  1.44logical batch/s]Training:  66%|██████▌   | 321/488 [10:18<01:55,  1.44logical batch/s]Training:  66%|██████▌   | 322/488 [10:19<01:54,  1.45logical batch/s]Training:  66%|██████▌   | 323/488 [10:19<01:55,  1.43logical batch/s]Training:  66%|██████▋   | 324/488 [10:20<01:55,  1.42logical batch/s]Training:  67%|██████▋   | 325/488 [10:21<01:55,  1.41logical batch/s]Training:  67%|██████▋   | 326/488 [10:21<01:53,  1.42logical batch/s]Training:  67%|██████▋   | 327/488 [10:22<01:51,  1.44logical batch/s]Training:  67%|██████▋   | 328/488 [10:23<01:52,  1.42logical batch/s]Training:  67%|██████▋   | 329/488 [10:23<01:51,  1.42logical batch/s]Training:  68%|██████▊   | 330/488 [10:24<01:47,  1.47logical batch/s]Training:  68%|██████▊   | 331/488 [10:25<01:44,  1.50logical batch/s]Training:  68%|██████▊   | 332/488 [10:25<01:42,  1.51logical batch/s]Training:  68%|██████▊   | 333/488 [10:26<01:39,  1.55logical batch/s]Training:  68%|██████▊   | 334/488 [10:27<01:37,  1.57logical batch/s]Training:  69%|██████▊   | 335/488 [10:27<01:37,  1.57logical batch/s]Training:  69%|██████▉   | 336/488 [10:28<01:39,  1.53logical batch/s]Training:  69%|██████▉   | 337/488 [10:29<01:38,  1.53logical batch/s]Training:  69%|██████▉   | 338/488 [10:29<01:38,  1.53logical batch/s]Training:  69%|██████▉   | 339/488 [10:30<01:36,  1.54logical batch/s]Training:  70%|██████▉   | 340/488 [10:31<01:43,  1.43logical batch/s]Training:  70%|██████▉   | 341/488 [10:32<01:48,  1.36logical batch/s]Training:  70%|███████   | 342/488 [10:32<01:53,  1.29logical batch/s]Training:  70%|███████   | 343/488 [10:33<01:52,  1.29logical batch/s]Training:  70%|███████   | 344/488 [10:34<01:47,  1.34logical batch/s]Training:  71%|███████   | 345/488 [10:35<01:45,  1.35logical batch/s]Training:  71%|███████   | 346/488 [10:35<01:44,  1.36logical batch/s]Training:  71%|███████   | 347/488 [10:36<01:45,  1.34logical batch/s]Training:  71%|███████▏  | 348/488 [10:37<01:45,  1.33logical batch/s]Training:  72%|███████▏  | 349/488 [10:38<01:43,  1.34logical batch/s]Training:  72%|███████▏  | 350/488 [10:38<01:41,  1.36logical batch/s]Training:  72%|███████▏  | 351/488 [10:39<01:40,  1.36logical batch/s]Training:  72%|███████▏  | 352/488 [10:40<01:38,  1.38logical batch/s]Training:  72%|███████▏  | 353/488 [10:40<01:33,  1.45logical batch/s]Training:  73%|███████▎  | 354/488 [10:41<01:30,  1.48logical batch/s]Training:  73%|███████▎  | 355/488 [10:42<01:27,  1.52logical batch/s]Training:  73%|███████▎  | 356/488 [10:42<01:26,  1.52logical batch/s]Training:  73%|███████▎  | 357/488 [10:43<01:25,  1.53logical batch/s]Training:  73%|███████▎  | 358/488 [10:43<01:24,  1.55logical batch/s]Training:  74%|███████▎  | 359/488 [10:44<01:23,  1.55logical batch/s]Training:  74%|███████▍  | 360/488 [10:45<01:21,  1.57logical batch/s]Training:  74%|███████▍  | 361/488 [10:45<01:20,  1.57logical batch/s]Training:  74%|███████▍  | 362/488 [10:46<01:19,  1.58logical batch/s]Training:  74%|███████▍  | 363/488 [10:47<01:19,  1.57logical batch/s]Training:  75%|███████▍  | 364/488 [10:47<01:18,  1.57logical batch/s]Training:  75%|███████▍  | 365/488 [10:48<01:20,  1.53logical batch/s]Training:  75%|███████▌  | 366/488 [10:49<01:19,  1.53logical batch/s]Training:  75%|███████▌  | 367/488 [10:49<01:22,  1.48logical batch/s]Training:  75%|███████▌  | 368/488 [10:50<01:22,  1.46logical batch/s]Training:  76%|███████▌  | 369/488 [10:51<01:21,  1.46logical batch/s]Training:  76%|███████▌  | 370/488 [10:52<01:23,  1.41logical batch/s]Training:  76%|███████▌  | 371/488 [10:52<01:27,  1.34logical batch/s]Training:  76%|███████▌  | 372/488 [10:53<01:25,  1.36logical batch/s]Training:  76%|███████▋  | 373/488 [10:54<01:23,  1.37logical batch/s]Training:  77%|███████▋  | 374/488 [10:55<01:24,  1.35logical batch/s]Training:  77%|███████▋  | 375/488 [10:55<01:23,  1.36logical batch/s]Training:  77%|███████▋  | 376/488 [10:56<01:20,  1.38logical batch/s]Training:  77%|███████▋  | 377/488 [10:57<01:19,  1.40logical batch/s]Training:  77%|███████▋  | 378/488 [10:57<01:17,  1.41logical batch/s]Training:  78%|███████▊  | 379/488 [10:58<01:16,  1.43logical batch/s]Training:  78%|███████▊  | 380/488 [10:59<01:14,  1.45logical batch/s]Training:  78%|███████▊  | 381/488 [10:59<01:13,  1.47logical batch/s]Training:  78%|███████▊  | 382/488 [11:00<01:11,  1.48logical batch/s]Training:  78%|███████▊  | 383/488 [11:01<01:11,  1.47logical batch/s]Training:  79%|███████▊  | 384/488 [11:01<01:08,  1.51logical batch/s]Training:  79%|███████▉  | 385/488 [11:02<01:06,  1.54logical batch/s]Training:  79%|███████▉  | 386/488 [11:03<01:04,  1.59logical batch/s]Training:  79%|███████▉  | 387/488 [11:03<01:02,  1.60logical batch/s]Training:  80%|███████▉  | 388/488 [11:04<01:01,  1.62logical batch/s]Training:  80%|███████▉  | 389/488 [11:04<01:04,  1.54logical batch/s]Training:  80%|███████▉  | 390/488 [11:05<01:04,  1.51logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:57,  1.70batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<00:56,  1.69batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:59,  1.59batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:02<00:59,  1.58batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:03<01:03,  1.48batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:04<01:04,  1.42batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:04<01:05,  1.39batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:05<01:07,  1.34batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:06<01:08,  1.30batch/s][A
+Evaluating:  10%|█         | 10/98 [00:07<01:09,  1.27batch/s][A
+Evaluating:  11%|█         | 11/98 [00:07<01:05,  1.33batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:08<01:02,  1.37batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:09<01:00,  1.41batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:09<00:58,  1.42batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:10<00:57,  1.45batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:11<00:56,  1.46batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:11<00:54,  1.48batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:12<00:54,  1.48batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:13<00:53,  1.48batch/s][A
+Evaluating:  20%|██        | 20/98 [00:13<00:52,  1.48batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:14<00:51,  1.49batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:15<00:51,  1.49batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:15<00:50,  1.48batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:16<00:54,  1.36batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:17<00:55,  1.31batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:18<01:00,  1.19batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:19<01:00,  1.17batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:20<00:59,  1.17batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:21<00:57,  1.19batch/s][A
+Evaluating:  31%|███       | 30/98 [00:21<00:53,  1.27batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:22<00:50,  1.33batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:23<00:47,  1.38batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:23<00:46,  1.41batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:24<00:45,  1.42batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:25<00:43,  1.44batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:26<00:46,  1.34batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:26<00:43,  1.39batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:27<00:41,  1.43batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:28<00:40,  1.47batch/s][A
+Evaluating:  41%|████      | 40/98 [00:28<00:38,  1.49batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:29<00:37,  1.53batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:29<00:35,  1.56batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:30<00:35,  1.55batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:31<00:34,  1.56batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:31<00:33,  1.57batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:32<00:33,  1.57batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:33<00:32,  1.56batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:33<00:31,  1.57batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:34<00:30,  1.59batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:35<00:30,  1.59batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:35<00:29,  1.58batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:36<00:28,  1.59batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:36<00:28,  1.58batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:37<00:27,  1.57batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:38<00:27,  1.59batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:38<00:26,  1.57batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:39<00:26,  1.57batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:40<00:25,  1.59batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:40<00:24,  1.59batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:41<00:23,  1.59batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:41<00:23,  1.58batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:42<00:22,  1.57batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:43<00:22,  1.57batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:43<00:21,  1.57batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:44<00:20,  1.58batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:45<00:20,  1.58batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:45<00:19,  1.59batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:46<00:18,  1.59batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:47<00:18,  1.59batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:47<00:17,  1.61batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:48<00:16,  1.62batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:48<00:16,  1.61batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:49<00:15,  1.60batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:50<00:15,  1.60batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [00:50<00:14,  1.57batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [00:51<00:14,  1.47batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [00:52<00:13,  1.51batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [00:52<00:13,  1.52batch/s][A
+Evaluating:  81%|████████  | 79/98 [00:53<00:12,  1.53batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [00:54<00:11,  1.53batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [00:54<00:10,  1.55batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [00:55<00:11,  1.44batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [00:56<00:10,  1.41batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [00:57<00:10,  1.39batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [00:57<00:09,  1.38batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [00:58<00:08,  1.37batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [00:59<00:08,  1.34batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [01:00<00:07,  1.33batch/s][A
+Evaluating:  91%|█████████ | 89/98 [01:00<00:06,  1.38batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [01:01<00:05,  1.37batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [01:02<00:05,  1.36batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [01:02<00:04,  1.37batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [01:03<00:03,  1.34batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [01:04<00:02,  1.33batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [01:05<00:02,  1.35batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [01:05<00:01,  1.34batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:06<00:00,  1.35batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:07<00:00,  1.50batch/s][AEvaluating: 100%|██████████| 98/98 [01:07<00:00,  1.46batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:13,  1.46batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:11,  1.54batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:01<00:11,  1.54batch/s][A
+Evaluating:  20%|██        | 4/20 [00:02<00:10,  1.53batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:03<00:09,  1.54batch/s][A
+Evaluating:  30%|███       | 6/20 [00:03<00:09,  1.55batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:04<00:08,  1.56batch/s][A
+Evaluating:  40%|████      | 8/20 [00:05<00:07,  1.56batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:05<00:07,  1.57batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:06<00:06,  1.57batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:07<00:05,  1.57batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:07<00:05,  1.58batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:08<00:04,  1.59batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:08<00:03,  1.57batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:09<00:03,  1.57batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:10<00:02,  1.58batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:10<00:01,  1.60batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:11<00:01,  1.61batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:12<00:00,  1.64batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:12<00:00,  1.80batch/s][AEvaluating: 100%|██████████| 20/20 [00:12<00:00,  1.61batch/s]
+{'step': 391, 'train_loss': 0.3680048536682129, 'test_loss': 0.4761107437133789, 'test_accuracy': 0.9029, 'epoch': 4, 'effective_epoch': 4.00384, 'epsilon_spent': 2.761570169237622, 'elapsed_seconds': 746.2412670301273, 'eval_seconds': 79.64847757574171}
+Training:  80%|████████  | 391/488 [12:27<40:39, 25.15s/logical batch]Training:  80%|████████  | 392/488 [12:28<28:36, 17.88s/logical batch]Training:  81%|████████  | 393/488 [12:29<20:11, 12.75s/logical batch]Training:  81%|████████  | 394/488 [12:30<14:19,  9.14s/logical batch]Training:  81%|████████  | 395/488 [12:31<10:15,  6.62s/logical batch]Training:  81%|████████  | 396/488 [12:31<07:26,  4.85s/logical batch]Training:  81%|████████▏ | 397/488 [12:32<05:30,  3.64s/logical batch]Training:  82%|████████▏ | 398/488 [12:33<04:04,  2.72s/logical batch]Training:  82%|████████▏ | 399/488 [12:33<03:05,  2.08s/logical batch]Training:  82%|████████▏ | 400/488 [12:34<02:24,  1.64s/logical batch]Training:  82%|████████▏ | 401/488 [12:35<01:55,  1.33s/logical batch]Training:  82%|████████▏ | 402/488 [12:35<01:35,  1.11s/logical batch]Training:  83%|████████▎ | 403/488 [12:36<01:22,  1.03logical batch/s]Training:  83%|████████▎ | 404/488 [12:36<01:12,  1.16logical batch/s]Training:  83%|████████▎ | 405/488 [12:37<01:05,  1.26logical batch/s]Training:  83%|████████▎ | 406/488 [12:38<01:01,  1.33logical batch/s]Training:  83%|████████▎ | 407/488 [12:38<00:59,  1.37logical batch/s]Training:  84%|████████▎ | 408/488 [12:39<00:56,  1.40logical batch/s]Training:  84%|████████▍ | 409/488 [12:40<00:54,  1.44logical batch/s]Training:  84%|████████▍ | 410/488 [12:40<00:53,  1.45logical batch/s]Training:  84%|████████▍ | 411/488 [12:41<00:52,  1.46logical batch/s]Training:  84%|████████▍ | 412/488 [12:42<00:52,  1.45logical batch/s]Training:  85%|████████▍ | 413/488 [12:42<00:51,  1.46logical batch/s]Training:  85%|████████▍ | 414/488 [12:43<00:50,  1.46logical batch/s]Training:  85%|████████▌ | 415/488 [12:44<00:49,  1.47logical batch/s]Training:  85%|████████▌ | 416/488 [12:44<00:49,  1.46logical batch/s]Training:  85%|████████▌ | 417/488 [12:45<00:48,  1.46logical batch/s]Training:  86%|████████▌ | 418/488 [12:46<00:47,  1.47logical batch/s]Training:  86%|████████▌ | 419/488 [12:46<00:46,  1.48logical batch/s]Training:  86%|████████▌ | 420/488 [12:47<00:45,  1.49logical batch/s]Training:  86%|████████▋ | 421/488 [12:48<00:45,  1.47logical batch/s]Training:  86%|████████▋ | 422/488 [12:48<00:44,  1.48logical batch/s]Training:  87%|████████▋ | 423/488 [12:49<00:43,  1.49logical batch/s]Training:  87%|████████▋ | 424/488 [12:50<00:42,  1.50logical batch/s]Training:  87%|████████▋ | 425/488 [12:51<00:43,  1.46logical batch/s]Training:  87%|████████▋ | 426/488 [12:51<00:43,  1.43logical batch/s]Training:  88%|████████▊ | 427/488 [12:52<00:42,  1.42logical batch/s]Training:  88%|████████▊ | 428/488 [12:53<00:41,  1.43logical batch/s]Training:  88%|████████▊ | 429/488 [12:53<00:41,  1.43logical batch/s]Training:  88%|████████▊ | 430/488 [12:54<00:40,  1.42logical batch/s]Training:  88%|████████▊ | 431/488 [12:55<00:38,  1.50logical batch/s]Training:  89%|████████▊ | 432/488 [12:55<00:36,  1.54logical batch/s]Training:  89%|████████▊ | 433/488 [12:56<00:34,  1.58logical batch/s]Training:  89%|████████▉ | 434/488 [12:56<00:33,  1.59logical batch/s]Training:  89%|████████▉ | 435/488 [12:57<00:34,  1.53logical batch/s]Training:  89%|████████▉ | 436/488 [12:58<00:34,  1.51logical batch/s]Training:  90%|████████▉ | 437/488 [12:59<00:33,  1.52logical batch/s]Training:  90%|████████▉ | 438/488 [12:59<00:32,  1.52logical batch/s]Training:  90%|████████▉ | 439/488 [13:00<00:31,  1.54logical batch/s]Training:  90%|█████████ | 440/488 [13:00<00:30,  1.59logical batch/s]Training:  90%|█████████ | 441/488 [13:01<00:30,  1.55logical batch/s]Training:  91%|█████████ | 442/488 [13:02<00:29,  1.56logical batch/s]Training:  91%|█████████ | 443/488 [13:02<00:27,  1.61logical batch/s]Training:  91%|█████████ | 444/488 [13:03<00:27,  1.62logical batch/s]Training:  91%|█████████ | 445/488 [13:04<00:26,  1.61logical batch/s]Training:  91%|█████████▏| 446/488 [13:04<00:26,  1.59logical batch/s]Training:  92%|█████████▏| 447/488 [13:05<00:25,  1.59logical batch/s]Training:  92%|█████████▏| 448/488 [13:05<00:25,  1.59logical batch/s]Training:  92%|█████████▏| 449/488 [13:06<00:23,  1.63logical batch/s]Training:  92%|█████████▏| 450/488 [13:07<00:22,  1.66logical batch/s]Training:  92%|█████████▏| 451/488 [13:07<00:22,  1.65logical batch/s]Training:  93%|█████████▎| 452/488 [13:08<00:21,  1.66logical batch/s]Training:  93%|█████████▎| 453/488 [13:08<00:20,  1.68logical batch/s]Training:  93%|█████████▎| 454/488 [13:09<00:20,  1.67logical batch/s]Training:  93%|█████████▎| 455/488 [13:10<00:19,  1.68logical batch/s]Training:  93%|█████████▎| 456/488 [13:10<00:19,  1.68logical batch/s]Training:  94%|█████████▎| 457/488 [13:11<00:18,  1.69logical batch/s]Training:  94%|█████████▍| 458/488 [13:11<00:17,  1.68logical batch/s]Training:  94%|█████████▍| 459/488 [13:12<00:17,  1.67logical batch/s]Training:  94%|█████████▍| 460/488 [13:13<00:16,  1.67logical batch/s]Training:  94%|█████████▍| 461/488 [13:13<00:16,  1.66logical batch/s]Training:  95%|█████████▍| 462/488 [13:14<00:15,  1.66logical batch/s]Training:  95%|█████████▍| 463/488 [13:14<00:15,  1.60logical batch/s]Training:  95%|█████████▌| 464/488 [13:15<00:15,  1.57logical batch/s]Training:  95%|█████████▌| 465/488 [13:16<00:14,  1.55logical batch/s]Training:  95%|█████████▌| 466/488 [13:16<00:14,  1.53logical batch/s]Training:  96%|█████████▌| 467/488 [13:17<00:14,  1.49logical batch/s]Training:  96%|█████████▌| 468/488 [13:18<00:13,  1.45logical batch/s]Training:  96%|█████████▌| 469/488 [13:19<00:13,  1.45logical batch/s]Training:  96%|█████████▋| 470/488 [13:19<00:12,  1.48logical batch/s]Training:  97%|█████████▋| 471/488 [13:20<00:11,  1.50logical batch/s]Training:  97%|█████████▋| 472/488 [13:20<00:10,  1.52logical batch/s]Training:  97%|█████████▋| 473/488 [13:21<00:09,  1.54logical batch/s]Training:  97%|█████████▋| 474/488 [13:22<00:09,  1.54logical batch/s]Training:  97%|█████████▋| 475/488 [13:22<00:08,  1.55logical batch/s]Training:  98%|█████████▊| 476/488 [13:23<00:07,  1.55logical batch/s]Training:  98%|█████████▊| 477/488 [13:24<00:07,  1.55logical batch/s]Training:  98%|█████████▊| 478/488 [13:24<00:06,  1.55logical batch/s]Training:  98%|█████████▊| 479/488 [13:25<00:05,  1.54logical batch/s]Training:  98%|█████████▊| 480/488 [13:26<00:05,  1.53logical batch/s]Training:  99%|█████████▊| 481/488 [13:26<00:04,  1.53logical batch/s]Training:  99%|█████████▉| 482/488 [13:27<00:03,  1.54logical batch/s]Training:  99%|█████████▉| 483/488 [13:28<00:03,  1.54logical batch/s]Training:  99%|█████████▉| 484/488 [13:28<00:02,  1.53logical batch/s]Training:  99%|█████████▉| 485/488 [13:29<00:01,  1.54logical batch/s]Training: 100%|█████████▉| 486/488 [13:30<00:01,  1.53logical batch/s]Training: 100%|█████████▉| 487/488 [13:30<00:00,  1.54logical batch/s]
+Evaluating:   0%|          | 0/98 [00:00<?, ?batch/s][A
+Evaluating:   1%|          | 1/98 [00:00<00:50,  1.93batch/s][A
+Evaluating:   2%|▏         | 2/98 [00:01<00:48,  1.99batch/s][A
+Evaluating:   3%|▎         | 3/98 [00:01<00:45,  2.08batch/s][A
+Evaluating:   4%|▍         | 4/98 [00:01<00:45,  2.08batch/s][A
+Evaluating:   5%|▌         | 5/98 [00:02<00:46,  2.02batch/s][A
+Evaluating:   6%|▌         | 6/98 [00:03<00:48,  1.88batch/s][A
+Evaluating:   7%|▋         | 7/98 [00:03<00:50,  1.80batch/s][A
+Evaluating:   8%|▊         | 8/98 [00:04<00:51,  1.74batch/s][A
+Evaluating:   9%|▉         | 9/98 [00:04<00:52,  1.71batch/s][A
+Evaluating:  10%|█         | 10/98 [00:05<00:51,  1.71batch/s][A
+Evaluating:  11%|█         | 11/98 [00:06<00:51,  1.70batch/s][A
+Evaluating:  12%|█▏        | 12/98 [00:06<00:51,  1.68batch/s][A
+Evaluating:  13%|█▎        | 13/98 [00:07<00:50,  1.68batch/s][A
+Evaluating:  14%|█▍        | 14/98 [00:07<00:50,  1.68batch/s][A
+Evaluating:  15%|█▌        | 15/98 [00:08<00:49,  1.68batch/s][A
+Evaluating:  16%|█▋        | 16/98 [00:09<00:48,  1.68batch/s][A
+Evaluating:  17%|█▋        | 17/98 [00:09<00:49,  1.64batch/s][A
+Evaluating:  18%|█▊        | 18/98 [00:10<00:50,  1.60batch/s][A
+Evaluating:  19%|█▉        | 19/98 [00:11<00:50,  1.57batch/s][A
+Evaluating:  20%|██        | 20/98 [00:11<00:50,  1.55batch/s][A
+Evaluating:  21%|██▏       | 21/98 [00:12<00:50,  1.53batch/s][A
+Evaluating:  22%|██▏       | 22/98 [00:13<00:49,  1.52batch/s][A
+Evaluating:  23%|██▎       | 23/98 [00:13<00:49,  1.50batch/s][A
+Evaluating:  24%|██▍       | 24/98 [00:14<00:50,  1.46batch/s][A
+Evaluating:  26%|██▌       | 25/98 [00:15<00:49,  1.47batch/s][A
+Evaluating:  27%|██▋       | 26/98 [00:15<00:49,  1.46batch/s][A
+Evaluating:  28%|██▊       | 27/98 [00:16<00:48,  1.47batch/s][A
+Evaluating:  29%|██▊       | 28/98 [00:17<00:47,  1.48batch/s][A
+Evaluating:  30%|██▉       | 29/98 [00:17<00:45,  1.51batch/s][A
+Evaluating:  31%|███       | 30/98 [00:18<00:44,  1.54batch/s][A
+Evaluating:  32%|███▏      | 31/98 [00:19<00:43,  1.55batch/s][A
+Evaluating:  33%|███▎      | 32/98 [00:19<00:42,  1.56batch/s][A
+Evaluating:  34%|███▎      | 33/98 [00:20<00:40,  1.62batch/s][A
+Evaluating:  35%|███▍      | 34/98 [00:20<00:39,  1.62batch/s][A
+Evaluating:  36%|███▌      | 35/98 [00:21<00:39,  1.60batch/s][A
+Evaluating:  37%|███▋      | 36/98 [00:22<00:38,  1.61batch/s][A
+Evaluating:  38%|███▊      | 37/98 [00:22<00:37,  1.61batch/s][A
+Evaluating:  39%|███▉      | 38/98 [00:23<00:37,  1.61batch/s][A
+Evaluating:  40%|███▉      | 39/98 [00:23<00:36,  1.61batch/s][A
+Evaluating:  41%|████      | 40/98 [00:24<00:35,  1.61batch/s][A
+Evaluating:  42%|████▏     | 41/98 [00:25<00:35,  1.60batch/s][A
+Evaluating:  43%|████▎     | 42/98 [00:25<00:37,  1.51batch/s][A
+Evaluating:  44%|████▍     | 43/98 [00:26<00:36,  1.53batch/s][A
+Evaluating:  45%|████▍     | 44/98 [00:27<00:34,  1.56batch/s][A
+Evaluating:  46%|████▌     | 45/98 [00:27<00:33,  1.57batch/s][A
+Evaluating:  47%|████▋     | 46/98 [00:28<00:32,  1.58batch/s][A
+Evaluating:  48%|████▊     | 47/98 [00:29<00:32,  1.58batch/s][A
+Evaluating:  49%|████▉     | 48/98 [00:29<00:31,  1.60batch/s][A
+Evaluating:  50%|█████     | 49/98 [00:30<00:30,  1.60batch/s][A
+Evaluating:  51%|█████     | 50/98 [00:31<00:32,  1.50batch/s][A
+Evaluating:  52%|█████▏    | 51/98 [00:31<00:32,  1.45batch/s][A
+Evaluating:  53%|█████▎    | 52/98 [00:32<00:32,  1.43batch/s][A
+Evaluating:  54%|█████▍    | 53/98 [00:33<00:30,  1.48batch/s][A
+Evaluating:  55%|█████▌    | 54/98 [00:33<00:28,  1.52batch/s][A
+Evaluating:  56%|█████▌    | 55/98 [00:34<00:27,  1.54batch/s][A
+Evaluating:  57%|█████▋    | 56/98 [00:35<00:26,  1.56batch/s][A
+Evaluating:  58%|█████▊    | 57/98 [00:35<00:25,  1.58batch/s][A
+Evaluating:  59%|█████▉    | 58/98 [00:36<00:26,  1.52batch/s][A
+Evaluating:  60%|██████    | 59/98 [00:37<00:25,  1.54batch/s][A
+Evaluating:  61%|██████    | 60/98 [00:37<00:24,  1.54batch/s][A
+Evaluating:  62%|██████▏   | 61/98 [00:38<00:23,  1.56batch/s][A
+Evaluating:  63%|██████▎   | 62/98 [00:38<00:22,  1.58batch/s][A
+Evaluating:  64%|██████▍   | 63/98 [00:39<00:22,  1.58batch/s][A
+Evaluating:  65%|██████▌   | 64/98 [00:40<00:21,  1.60batch/s][A
+Evaluating:  66%|██████▋   | 65/98 [00:40<00:20,  1.59batch/s][A
+Evaluating:  67%|██████▋   | 66/98 [00:41<00:20,  1.58batch/s][A
+Evaluating:  68%|██████▊   | 67/98 [00:42<00:19,  1.59batch/s][A
+Evaluating:  69%|██████▉   | 68/98 [00:42<00:18,  1.59batch/s][A
+Evaluating:  70%|███████   | 69/98 [00:43<00:18,  1.59batch/s][A
+Evaluating:  71%|███████▏  | 70/98 [00:43<00:17,  1.60batch/s][A
+Evaluating:  72%|███████▏  | 71/98 [00:44<00:16,  1.61batch/s][A
+Evaluating:  73%|███████▎  | 72/98 [00:45<00:16,  1.60batch/s][A
+Evaluating:  74%|███████▍  | 73/98 [00:45<00:15,  1.63batch/s][A
+Evaluating:  76%|███████▌  | 74/98 [00:46<00:14,  1.63batch/s][A
+Evaluating:  77%|███████▋  | 75/98 [00:46<00:14,  1.60batch/s][A
+Evaluating:  78%|███████▊  | 76/98 [00:47<00:13,  1.59batch/s][A
+Evaluating:  79%|███████▊  | 77/98 [00:48<00:13,  1.59batch/s][A
+Evaluating:  80%|███████▉  | 78/98 [00:48<00:12,  1.59batch/s][A
+Evaluating:  81%|████████  | 79/98 [00:49<00:11,  1.60batch/s][A
+Evaluating:  82%|████████▏ | 80/98 [00:50<00:11,  1.60batch/s][A
+Evaluating:  83%|████████▎ | 81/98 [00:50<00:10,  1.61batch/s][A
+Evaluating:  84%|████████▎ | 82/98 [00:51<00:09,  1.62batch/s][A
+Evaluating:  85%|████████▍ | 83/98 [00:51<00:09,  1.61batch/s][A
+Evaluating:  86%|████████▌ | 84/98 [00:52<00:08,  1.62batch/s][A
+Evaluating:  87%|████████▋ | 85/98 [00:53<00:07,  1.64batch/s][A
+Evaluating:  88%|████████▊ | 86/98 [00:53<00:07,  1.63batch/s][A
+Evaluating:  89%|████████▉ | 87/98 [00:54<00:06,  1.63batch/s][A
+Evaluating:  90%|████████▉ | 88/98 [00:55<00:06,  1.64batch/s][A
+Evaluating:  91%|█████████ | 89/98 [00:55<00:05,  1.65batch/s][A
+Evaluating:  92%|█████████▏| 90/98 [00:56<00:04,  1.65batch/s][A
+Evaluating:  93%|█████████▎| 91/98 [00:56<00:04,  1.65batch/s][A
+Evaluating:  94%|█████████▍| 92/98 [00:57<00:03,  1.64batch/s][A
+Evaluating:  95%|█████████▍| 93/98 [00:58<00:03,  1.65batch/s][A
+Evaluating:  96%|█████████▌| 94/98 [00:58<00:02,  1.64batch/s][A
+Evaluating:  97%|█████████▋| 95/98 [00:59<00:01,  1.65batch/s][A
+Evaluating:  98%|█████████▊| 96/98 [00:59<00:01,  1.65batch/s][A
+Evaluating:  99%|█████████▉| 97/98 [01:00<00:00,  1.65batch/s][A
+Evaluating: 100%|██████████| 98/98 [01:00<00:00,  1.83batch/s][AEvaluating: 100%|██████████| 98/98 [01:00<00:00,  1.61batch/s]
+
+Evaluating:   0%|          | 0/20 [00:00<?, ?batch/s][A
+Evaluating:   5%|▌         | 1/20 [00:00<00:10,  1.83batch/s][A
+Evaluating:  10%|█         | 2/20 [00:01<00:10,  1.66batch/s][A
+Evaluating:  15%|█▌        | 3/20 [00:01<00:10,  1.60batch/s][A
+Evaluating:  20%|██        | 4/20 [00:02<00:09,  1.65batch/s][A
+Evaluating:  25%|██▌       | 5/20 [00:03<00:09,  1.65batch/s][A
+Evaluating:  30%|███       | 6/20 [00:03<00:08,  1.67batch/s][A
+Evaluating:  35%|███▌      | 7/20 [00:04<00:07,  1.66batch/s][A
+Evaluating:  40%|████      | 8/20 [00:04<00:07,  1.67batch/s][A
+Evaluating:  45%|████▌     | 9/20 [00:05<00:06,  1.67batch/s][A
+Evaluating:  50%|█████     | 10/20 [00:06<00:06,  1.65batch/s][A
+Evaluating:  55%|█████▌    | 11/20 [00:06<00:05,  1.62batch/s][A
+Evaluating:  60%|██████    | 12/20 [00:07<00:05,  1.59batch/s][A
+Evaluating:  65%|██████▌   | 13/20 [00:07<00:04,  1.57batch/s][A
+Evaluating:  70%|███████   | 14/20 [00:08<00:03,  1.57batch/s][A
+Evaluating:  75%|███████▌  | 15/20 [00:09<00:03,  1.58batch/s][A
+Evaluating:  80%|████████  | 16/20 [00:09<00:02,  1.55batch/s][A
+Evaluating:  85%|████████▌ | 17/20 [00:10<00:01,  1.52batch/s][A
+Evaluating:  90%|█████████ | 18/20 [00:11<00:01,  1.50batch/s][A
+Evaluating:  95%|█████████▌| 19/20 [00:11<00:00,  1.49batch/s][A
+Evaluating: 100%|██████████| 20/20 [00:12<00:00,  1.70batch/s][AEvaluating: 100%|██████████| 20/20 [00:12<00:00,  1.62batch/s]
+{'step': 488, 'train_loss': 0.3474908503723145, 'test_loss': 0.45266615295410156, 'test_accuracy': 0.9102, 'epoch': 5, 'effective_epoch': 4.99712, 'epsilon_spent': 2.9999999999999867, 'elapsed_seconds': 884.6191448802128, 'eval_seconds': 73.25098470877856}
+Training: 100%|██████████| 488/488 [14:45<00:00, 22.96s/logical batch]Training: 100%|██████████| 488/488 [14:45<00:00,  1.82s/logical batch]
+Completed sgd seed=4
+Training:   0%|          | 0/488 [00:00<?, ?logical batch/s]Training:   0%|          | 1/488 [01:22<11:10:19, 82.59s/logical batch]Training:   0%|          | 2/488 [01:23<4:39:16, 34.48s/logical batch] Training:   1%|          | 3/488 [01:24<2:33:54, 19.04s/logical batch]Training:   1%|          | 4/488 [01:24<1:35:07, 11.79s/logical batch]Training:   1%|          | 5/488 [01:25<1:02:37,  7.78s/logical batch]Training:   1%|          | 6/488 [01:26<43:11,  5.38s/logical batch]  Training:   1%|▏         | 7/488 [01:26<30:50,  3.85s/logical batch]Training:   2%|▏         | 8/488 [01:27<22:44,  2.84s/logical batch]Training:   2%|▏         | 9/488 [01:28<17:22,  2.18s/logical batch]Training:   2%|▏         | 10/488 [01:28<13:42,  1.72s/logical batch]Training:   2%|▏         | 11/488 [01:29<11:12,  1.41s/logical batch]Training:   2%|▏         | 12/488 [01:30<09:25,  1.19s/logical batch]Training:   3%|▎         | 13/488 [01:30<08:13,  1.04s/logical batch]Training:   3%|▎         | 14/488 [01:31<07:27,  1.06logical batch/s]Training:   3%|▎         | 15/488 [01:32<06:51,  1.15logical batch/s]Training:   3%|▎         | 16/488 [01:33<06:33,  1.20logical batch/s]Training:   3%|▎         | 17/488 [01:33<06:23,  1.23logical batch/s]Training:   4%|▎         | 18/488 [01:34<06:17,  1.25logical batch/s]Training:   4%|▍         | 19/488 [01:35<06:07,  1.28logical batch/s]Training:   4%|▍         | 20/488 [01:36<06:00,  1.30logical batch/s]Training:   4%|▍         | 21/488 [01:36<05:58,  1.30logical batch/s]Training:   5%|▍         | 22/488 [01:37<05:57,  1.30logical batch/s]Training:   5%|▍         | 23/488 [01:38<05:57,  1.30logical batch/s]Training:   5%|▍         | 24/488 [01:39<05:52,  1.32logical batch/s]Training:   5%|▌         | 25/488 [01:40<05:55,  1.30logical batch/s]Training:   5%|▌         | 26/488 [01:40<05:55,  1.30logical batch/s]Training:   6%|▌         | 27/488 [01:41<06:13,  1.23logical batch/s]Training:   6%|▌         | 28/488 [01:42<06:07,  1.25logical batch/s]Training:   6%|▌         | 29/488 [01:43<06:05,  1.26logical batch/s]Training:   6%|▌         | 30/488 [01:44<06:02,  1.26logical batch/s]Training:   6%|▋         | 31/488 [01:44<06:02,  1.26logical batch/s]Training:   7%|▋         | 32/488 [01:45<06:05,  1.25logical batch/s]Training:   7%|▋         | 33/488 [01:46<05:52,  1.29logical batch/s]Training:   7%|▋         | 34/488 [01:47<05:47,  1.31logical batch/s]Training:   7%|▋         | 35/488 [01:47<05:52,  1.28logical batch/s]Training:   7%|▋         | 36/488 [01:48<05:47,  1.30logical batch/s]Training:   8%|▊         | 37/488 [01:49<05:54,  1.27logical batch/s]Training:   8%|▊         | 38/488 [01:50<05:50,  1.28logical batch/s]Training:   8%|▊         | 39/488 [01:51<06:02,  1.24logical batch/s]Training:   8%|▊         | 40/488 [01:52<06:10,  1.21logical batch/s]Training:   8%|▊         | 41/488 [01:52<06:10,  1.21logical batch/s]Training:   9%|▊         | 42/488 [01:53<06:08,  1.21logical batch/s]Training:   9%|▉         | 43/488 [01:54<06:01,  1.23logical batch/s]Training:   9%|▉         | 44/488 [01:55<06:03,  1.22logical batch/s]Training:   9%|▉         | 45/488 [01:56<05:54,  1.25logical batch/s]Training:   9%|▉         | 46/488 [01:56<05:58,  1.23logical batch/s]Training:  10%|▉         | 47/488 [01:57<05:53,  1.25logical batch/s]Training:  10%|▉         | 48/488 [01:58<05:53,  1.25logical batch/s]Training:  10%|█         | 49/488 [01:59<05:44,  1.28logical batch/s]Training:  10%|█         | 50/488 [01:59<05:42,  1.28logical batch/s]Training:  10%|█         | 51/488 [02:00<05:40,  1.28logical batch/s]Training:  11%|█         | 52/488 [02:01<05:44,  1.27logical batch/s]Training:  11%|█         | 53/488 [02:02<05:44,  1.26logical batch/s]Training:  11%|█         | 54/488 [02:03<05:48,  1.24logical batch/s]Training:  11%|█▏        | 55/488 [02:04<05:51,  1.23logical batch/s]Training:  11%|█▏        | 56/488 [02:04<05:53,  1.22logical batch/s]Training:  12%|█▏        | 57/488 [02:05<05:53,  1.22logical batch/s]Training:  12%|█▏        | 58/488 [02:06<05:51,  1.22logical batch/s]Training:  12%|█▏        | 59/488 [02:07<05:50,  1.22logical batch/s]Training:  12%|█▏        | 60/488 [02:08<05:49,  1.22logical batch/s]Training:  12%|█▎        | 61/488 [02:08<05:45,  1.24logical batch/s]Training:  13%|█▎        | 62/488 [02:09<05:40,  1.25logical batch/s]Training:  13%|█▎        | 63/488 [02:10<05:32,  1.28logical batch/s]Training:  13%|█▎        | 64/488 [02:11<05:25,  1.30logical batch/s]Training:  13%|█▎        | 65/488 [02:11<05:28,  1.29logical batch/s]Training:  14%|█▎        | 66/488 [02:12<05:17,  1.33logical batch/s]Training:  14%|█▎        | 67/488 [02:13<05:07,  1.37logical batch/s]Training:  14%|█▍        | 68/488 [02:14<05:05,  1.37logical batch/s]Training:  14%|█▍        | 69/488 [02:14<05:08,  1.36logical batch/s]Training:  14%|█▍        | 70/488 [02:15<05:04,  1.37logical batch/s]Training:  15%|█▍        | 71/488 [02:16<05:06,  1.36logical batch/s]Training:  15%|█▍        | 72/488 [02:17<05:06,  1.36logical batch/s]Training:  15%|█▍        | 73/488 [02:17<05:03,  1.37logical batch/s]Training:  15%|█▌        | 74/488 [02:18<05:03,  1.36logical batch/s]Training:  15%|█▌        | 75/488 [02:19<05:06,  1.35logical batch/s]Training:  16%|█▌        | 76/488 [02:20<05:10,  1.33logical batch/s]Training:  16%|█▌        | 77/488 [02:20<05:12,  1.32logical batch/s]Training:  16%|█▌        | 78/488 [02:21<05:16,  1.30logical batch/s]Training:  16%|█▌        | 79/488 [02:22<05:17,  1.29logical batch/s]Training:  16%|█▋        | 80/488 [02:23<05:26,  1.25logical batch/s]Training:  17%|█▋        | 81/488 [02:24<05:31,  1.23logical batch/s]Training:  17%|█▋        | 82/488 [02:24<05:29,  1.23logical batch/s]Training:  17%|█▋        | 83/488 [02:25<05:30,  1.22logical batch/s]Training:  17%|█▋        | 84/488 [02:26<05:25,  1.24logical batch/s]Training:  17%|█▋        | 85/488 [02:27<05:09,  1.30logical batch/s]Training:  18%|█▊        | 86/488 [02:27<05:03,  1.32logical batch/s]Training:  18%|█▊        | 87/488 [02:28<04:56,  1.35logical batch/s]Training:  18%|█▊        | 88/488 [02:29<04:51,  1.37logical batch/s]Training:  18%|█▊        | 89/488 [02:30<05:01,  1.33logical batch/s]Training:  18%|█▊        | 90/488 [02:30<05:05,  1.30logical batch/s]Training:  19%|█▊        | 91/488 [02:31<05:17,  1.25logical batch/s]Training:  19%|█▉        | 92/488 [02:32<05:23,  1.22logical batch/s]Training:  19%|█▉        | 93/488 [02:33<05:21,  1.23logical batch/s]Training:  19%|█▉        | 94/488 [02:34<05:45,  1.14logical batch/s]

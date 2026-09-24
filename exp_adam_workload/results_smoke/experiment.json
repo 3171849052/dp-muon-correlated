@@ -1,0 +1,42 @@
+{
+  "smoke": true,
+  "config": {
+    "algorithm": "dp-adamw-correlated-naive",
+    "name": "cifar10_bandinv_dpadamw_vit_tiny",
+    "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
+    "data_dir": "data",
+    "epochs": 2,
+    "batch_size": 4,
+    "microbatch_size": 16,
+    "clip_norm": 1.0,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "learning_rate": 0.005,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-08,
+    "weight_decay": 0.01,
+    "seed": 0,
+    "checkpoint_dir": "checkpoints",
+    "eval_every": 1,
+    "adjacency": "add_remove",
+    "gpu": 1,
+    "schedule_mode": "fixed_cycle",
+    "bandwidth": 4,
+    "reduction": "mean",
+    "max_optimizer_steps": 5,
+    "force_refit": false,
+    "strategy_dir": "artifacts/strategies",
+    "log_dir": "logs"
+  },
+  "contract": {
+    "num_examples": 20,
+    "epochs": 2,
+    "batch_size": 4,
+    "horizon": 10,
+    "min_sep": 5,
+    "max_participations": 2,
+    "effective_epochs": 2.0
+  },
+  "workload_scale": "P_rho H; no overall learning-rate factor"
+}

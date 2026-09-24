@@ -1,0 +1,7 @@
+strategy,smoke,steps,synthetic_loss
+sgd,True,10,0.21507368981838226
+sgd_wd,True,10,0.21507306396961212
+momentum,True,10,0.2199603170156479
+momentum_wd,True,10,0.2199603170156479
+adam_momentum,True,10,0.21518445014953613
+adam_momentum_wd,True,10,0.2151845544576645

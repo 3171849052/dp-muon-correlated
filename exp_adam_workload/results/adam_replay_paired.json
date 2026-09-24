@@ -1,0 +1,107 @@
+[
+  {
+    "strategy_a": "sgd",
+    "strategy_b": "sgd_wd",
+    "ratio_difference": -0.00016646466523068115,
+    "ci95_low": -0.00016775430533613744,
+    "ci95_high": -0.00016511178011134608
+  },
+  {
+    "strategy_a": "sgd",
+    "strategy_b": "momentum",
+    "ratio_difference": 0.0035145918784876273,
+    "ci95_low": 0.0034806414094131584,
+    "ci95_high": 0.003548115802708249
+  },
+  {
+    "strategy_a": "sgd",
+    "strategy_b": "momentum_wd",
+    "ratio_difference": 0.0035116872561348766,
+    "ci95_low": 0.003477794479107378,
+    "ci95_high": 0.0035451473476436164
+  },
+  {
+    "strategy_a": "sgd",
+    "strategy_b": "adam_momentum",
+    "ratio_difference": -0.0002940403250717427,
+    "ci95_low": -0.00029648864776148505,
+    "ci95_high": -0.0002915527694585377
+  },
+  {
+    "strategy_a": "sgd",
+    "strategy_b": "adam_momentum_wd",
+    "ratio_difference": -0.00015174656188399194,
+    "ci95_low": -0.00015381202537201322,
+    "ci95_high": -0.00014980665653118868
+  },
+  {
+    "strategy_a": "sgd_wd",
+    "strategy_b": "momentum",
+    "ratio_difference": 0.0036810565437183085,
+    "ci95_low": 0.003645818513515006,
+    "ci95_high": 0.003715470437616332
+  },
+  {
+    "strategy_a": "sgd_wd",
+    "strategy_b": "momentum_wd",
+    "ratio_difference": 0.003678151921365558,
+    "ci95_low": 0.0036429597557066607,
+    "ci95_high": 0.0037125128332107364
+  },
+  {
+    "strategy_a": "sgd_wd",
+    "strategy_b": "adam_momentum",
+    "ratio_difference": -0.00012757565984106156,
+    "ci95_low": -0.00012968387262306534,
+    "ci95_high": -0.00012554821008388257
+  },
+  {
+    "strategy_a": "sgd_wd",
+    "strategy_b": "adam_momentum_wd",
+    "ratio_difference": 1.4718103346689215e-05,
+    "ci95_low": 1.2505753207830983e-05,
+    "ci95_high": 1.6947911395205625e-05
+  },
+  {
+    "strategy_a": "momentum",
+    "strategy_b": "momentum_wd",
+    "ratio_difference": -2.9046223527506854e-06,
+    "ci95_low": -2.9628563954137154e-06,
+    "ci95_high": -2.8461598951631807e-06
+  },
+  {
+    "strategy_a": "momentum",
+    "strategy_b": "adam_momentum",
+    "ratio_difference": -0.00380863220355937,
+    "ci95_low": -0.0038443789185974284,
+    "ci95_high": -0.003771815925463147
+  },
+  {
+    "strategy_a": "momentum",
+    "strategy_b": "adam_momentum_wd",
+    "ratio_difference": -0.0036663384403716193,
+    "ci95_low": -0.003701250892010553,
+    "ci95_high": -0.0036301913287648258
+  },
+  {
+    "strategy_a": "momentum_wd",
+    "strategy_b": "adam_momentum",
+    "ratio_difference": -0.0038057275812066194,
+    "ci95_low": -0.0038414073272285006,
+    "ci95_high": -0.0037689894848632983
+  },
+  {
+    "strategy_a": "momentum_wd",
+    "strategy_b": "adam_momentum_wd",
+    "ratio_difference": -0.0036634338180188686,
+    "ci95_low": -0.0036982796939796113,
+    "ci95_high": -0.0036273471131748848
+  },
+  {
+    "strategy_a": "adam_momentum",
+    "strategy_b": "adam_momentum_wd",
+    "ratio_difference": 0.00014229376318775078,
+    "ci95_low": 0.00014130980205881162,
+    "ci95_high": 0.0001432353974013853
+  }
+]
