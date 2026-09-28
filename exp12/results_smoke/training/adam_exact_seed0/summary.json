@@ -1,0 +1,10 @@
+{
+  "method": "adam_exact",
+  "seed": 0,
+  "final_test_accuracy": 0.15625,
+  "best_test_accuracy": 0.15625,
+  "final_test_loss": 2.5277084708213806,
+  "best_test_loss": 2.5277084708213806,
+  "accuracy_auc": 0.125,
+  "elapsed_seconds": 83.45584561582655
+}

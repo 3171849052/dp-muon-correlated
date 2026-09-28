@@ -45,3 +45,4 @@ htmlcov/
 *.npz
 *.pkl
 *.pkl.lock
+*.npy

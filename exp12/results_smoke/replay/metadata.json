@@ -1,0 +1,8 @@
+{
+  "draws": 2,
+  "seed": 1202,
+  "coordinates": 5501002,
+  "horizon": 4,
+  "paired_draws": true,
+  "global_energy_ratio": "sum ||noise||^2 / sum ||gradient||^2"
+}

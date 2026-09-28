@@ -1,0 +1,10 @@
+{
+  "method": "bandinv_momentum",
+  "seed": 0,
+  "final_test_accuracy": 0.140625,
+  "best_test_accuracy": 0.140625,
+  "final_test_loss": 2.5272094011306763,
+  "best_test_loss": 2.5272094011306763,
+  "accuracy_auc": 0.1171875,
+  "elapsed_seconds": 85.05633203592151
+}

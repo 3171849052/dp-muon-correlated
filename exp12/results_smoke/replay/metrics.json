@@ -1,0 +1,58 @@
+[
+  {
+    "method": "dp_adam",
+    "parameter_trajectory_rmse": 29.46075702903803,
+    "endpoint_rmse": 38.798870362595586,
+    "adam_direction_rmse": 2379.128786328442,
+    "update_cosine_similarity": 0.0008018044609257183,
+    "sign_agreement": 0.5003130338800095,
+    "preconditioner_rmse": 4434279241.9938,
+    "noise_gradient_ratio_mean": 500.08227347597597,
+    "noise_gradient_ratio_median": 465.63539980085034,
+    "noise_gradient_ratio_p10": 323.30966419827786,
+    "noise_gradient_ratio_p90": 745.5106806893016,
+    "global_energy_ratio": 193902.36146709922
+  },
+  {
+    "method": "bandinv_momentum",
+    "parameter_trajectory_rmse": 26.564028085553716,
+    "endpoint_rmse": 33.96781844569949,
+    "adam_direction_rmse": 2242.5025331616844,
+    "update_cosine_similarity": 0.000788965798247378,
+    "sign_agreement": 0.5002687010475546,
+    "preconditioner_rmse": 4434337708.710421,
+    "noise_gradient_ratio_mean": 746.4178884427406,
+    "noise_gradient_ratio_median": 747.9212970518623,
+    "noise_gradient_ratio_p10": 517.3888748711482,
+    "noise_gradient_ratio_p90": 972.3553252399428,
+    "global_energy_ratio": 456655.716433252
+  },
+  {
+    "method": "adam_exact",
+    "parameter_trajectory_rmse": 26.53389746277296,
+    "endpoint_rmse": 33.90968434260638,
+    "adam_direction_rmse": 2241.499165245716,
+    "update_cosine_similarity": 0.0007837563382977762,
+    "sign_agreement": 0.5002653153007398,
+    "preconditioner_rmse": 4434256389.430439,
+    "noise_gradient_ratio_mean": 752.7289091983125,
+    "noise_gradient_ratio_median": 754.6736905956839,
+    "noise_gradient_ratio_p10": 522.2703293372169,
+    "noise_gradient_ratio_p90": 979.2130273374179,
+    "global_energy_ratio": 464713.25859096996
+  },
+  {
+    "method": "adam_mf",
+    "parameter_trajectory_rmse": 26.533898318530216,
+    "endpoint_rmse": 33.90968560466868,
+    "adam_direction_rmse": 2241.49919602539,
+    "update_cosine_similarity": 0.0007837564724068869,
+    "sign_agreement": 0.5002653380238727,
+    "preconditioner_rmse": 4434256371.316643,
+    "noise_gradient_ratio_mean": 752.7287153688637,
+    "noise_gradient_ratio_median": 754.6734674724995,
+    "noise_gradient_ratio_p10": 522.270176611803,
+    "noise_gradient_ratio_p90": 979.212850060667,
+    "global_energy_ratio": 464713.0042488805
+  }
+]

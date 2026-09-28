@@ -1,0 +1,10 @@
+{
+  "method": "adam_mf",
+  "seed": 0,
+  "final_test_accuracy": 0.15625,
+  "best_test_accuracy": 0.15625,
+  "final_test_loss": 2.5279411673545837,
+  "best_test_loss": 2.5279411673545837,
+  "accuracy_auc": 0.125,
+  "elapsed_seconds": 85.7248556939885
+}

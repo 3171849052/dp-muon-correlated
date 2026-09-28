@@ -1,0 +1,26 @@
+[
+  {
+    "epoch": 1,
+    "step": 98,
+    "effective_epoch": 1.00352,
+    "epsilon_spent": 1.7933513447800997,
+    "train_loss": 2.122705810546875,
+    "test_loss": 2.108436993408203,
+    "test_accuracy": 0.2579,
+    "elapsed_seconds": 285.3251854358241,
+    "best_test_accuracy": 0.2579,
+    "best_test_loss": 2.108436993408203
+  },
+  {
+    "epoch": 2,
+    "step": 196,
+    "effective_epoch": 2.00704,
+    "epsilon_spent": 2.2491274890288007,
+    "train_loss": 2.051147626953125,
+    "test_loss": 2.039383905029297,
+    "test_accuracy": 0.2944,
+    "elapsed_seconds": 416.29587431345135,
+    "best_test_accuracy": 0.2944,
+    "best_test_loss": 2.039383905029297
+  }
+]

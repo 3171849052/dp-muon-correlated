@@ -1,0 +1,10 @@
+{
+  "pytest": "14 passed",
+  "fit_smoke": "passed",
+  "replay_smoke": "passed",
+  "training_smoke": "all four methods passed",
+  "shared_schedule": true,
+  "shared_initialization": true,
+  "privacy_epsilon": 3.0,
+  "formal_jobs": 40
+}

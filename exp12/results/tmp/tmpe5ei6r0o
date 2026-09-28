@@ -1,0 +1,3 @@
+eval "$(/home/longt29/miniconda3/bin/conda shell.posix hook)"
+conda activate  /home/longt29/miniconda3/envs/curve
+python -B exp12/replay.py

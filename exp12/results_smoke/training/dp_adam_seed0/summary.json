@@ -1,0 +1,10 @@
+{
+  "method": "dp_adam",
+  "seed": 0,
+  "final_test_accuracy": 0.09375,
+  "best_test_accuracy": 0.09375,
+  "final_test_loss": 2.7319064140319824,
+  "best_test_loss": 2.7319064140319824,
+  "accuracy_auc": 0.09375,
+  "elapsed_seconds": 112.91775085683912
+}
