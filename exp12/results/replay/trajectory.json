@@ -5,7 +5,7 @@
     "model": "pretrained_vit_tiny",
     "epochs": 5,
     "batch_size": 512,
-    "microbatch_size": 16,
+    "microbatch_size": 256,
     "clip_norm": 1.0,
     "optimizer": "adam",
     "learning_rate": 0.005,

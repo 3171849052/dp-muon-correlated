@@ -46,3 +46,4 @@ htmlcov/
 *.pkl
 *.pkl.lock
 *.npy
+/exp12/tmp/
