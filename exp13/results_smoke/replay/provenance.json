@@ -1,0 +1,9 @@
+{
+  "draws": 2,
+  "seed": 1202,
+  "coordinates": 5501002,
+  "horizon": 4,
+  "normalization": "mean over draws, steps, coordinates",
+  "reference": "clean Adam frozen clipped batch mean trajectory",
+  "pairing": "same latent keys across mechanisms"
+}

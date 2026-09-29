@@ -1,0 +1,18 @@
+[
+  {
+    "method": "iid_ime",
+    "negative_fraction": 0.5000958916211992,
+    "raw_second_moment_mse": 0.02953635053417651,
+    "projected_second_moment_mse": 0.014767067283781425,
+    "first_moment_mse": 0.007893380031156147,
+    "adam_direction_rmse": 6282911.569777703
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "negative_fraction": 0.5000455826047691,
+    "raw_second_moment_mse": 0.03117616174938332,
+    "projected_second_moment_mse": 0.015586615994027666,
+    "first_moment_mse": 0.00798901148780801,
+    "adam_direction_rmse": 6320710.92680694
+  }
+]

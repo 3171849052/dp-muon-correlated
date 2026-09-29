@@ -1,0 +1,252 @@
+[
+  {
+    "method": "nonprivate_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 0.45,
+    "sample_std": 0.3027650354097492,
+    "se": 0.09574271077563382,
+    "ci95_low": 0.2334149410331831,
+    "ci95_high": 0.666585058966817
+  },
+  {
+    "method": "nonprivate_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 0.45,
+    "sample_std": 0.3027650354097492,
+    "se": 0.09574271077563382,
+    "ci95_low": 0.2334149410331831,
+    "ci95_high": 0.666585058966817
+  },
+  {
+    "method": "nonprivate_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 0.45,
+    "sample_std": 0.3027650354097492,
+    "se": 0.09574271077563382,
+    "ci95_low": 0.2334149410331831,
+    "ci95_high": 0.666585058966817
+  },
+  {
+    "method": "nonprivate_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 0.45,
+    "sample_std": 0.3027650354097492,
+    "se": 0.09574271077563382,
+    "ci95_low": 0.2334149410331831,
+    "ci95_high": 0.666585058966817
+  },
+  {
+    "method": "nonprivate_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 0.45,
+    "sample_std": 0.3027650354097492,
+    "se": 0.09574271077563382,
+    "ci95_low": 0.2334149410331831,
+    "ci95_high": 0.666585058966817
+  },
+  {
+    "method": "iid_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 1.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 1.2334149410331832,
+    "ci95_high": 1.6665850589668167
+  },
+  {
+    "method": "iid_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 1.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 1.2334149410331832,
+    "ci95_high": 1.6665850589668167
+  },
+  {
+    "method": "iid_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 1.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 1.2334149410331832,
+    "ci95_high": 1.6665850589668167
+  },
+  {
+    "method": "iid_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 1.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 1.2334149410331832,
+    "ci95_high": 1.6665850589668167
+  },
+  {
+    "method": "iid_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 1.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 1.2334149410331832,
+    "ci95_high": 1.6665850589668167
+  },
+  {
+    "method": "bandmf_single_m",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 2.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 2.233414941033183,
+    "ci95_high": 2.666585058966817
+  },
+  {
+    "method": "bandmf_single_m",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 2.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 2.233414941033183,
+    "ci95_high": 2.666585058966817
+  },
+  {
+    "method": "bandmf_single_m",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 2.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 2.233414941033183,
+    "ci95_high": 2.666585058966817
+  },
+  {
+    "method": "bandmf_single_m",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 2.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 2.233414941033183,
+    "ci95_high": 2.666585058966817
+  },
+  {
+    "method": "bandmf_single_m",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 2.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 2.233414941033183,
+    "ci95_high": 2.666585058966817
+  },
+  {
+    "method": "iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 3.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 3.233414941033183,
+    "ci95_high": 3.666585058966817
+  },
+  {
+    "method": "iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 3.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 3.233414941033183,
+    "ci95_high": 3.666585058966817
+  },
+  {
+    "method": "iid_ime",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 3.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 3.233414941033183,
+    "ci95_high": 3.666585058966817
+  },
+  {
+    "method": "iid_ime",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 3.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 3.233414941033183,
+    "ci95_high": 3.666585058966817
+  },
+  {
+    "method": "iid_ime",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 3.45,
+    "sample_std": 0.30276503540974914,
+    "se": 0.0957427107756338,
+    "ci95_low": 3.233414941033183,
+    "ci95_high": 3.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 4.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 4.233414941033184,
+    "ci95_high": 4.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 4.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 4.233414941033184,
+    "ci95_high": 4.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 4.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 4.233414941033184,
+    "ci95_high": 4.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 4.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 4.233414941033184,
+    "ci95_high": 4.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 4.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 4.233414941033184,
+    "ci95_high": 4.666585058966817
+  }
+]

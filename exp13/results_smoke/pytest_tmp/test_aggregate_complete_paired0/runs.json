@@ -1,0 +1,452 @@
+[
+  {
+    "method": "nonprivate_adam",
+    "seed": 0,
+    "final_test_accuracy": 0.0,
+    "best_test_accuracy": 0.0,
+    "final_test_loss": 0.0,
+    "best_test_loss": 0.0,
+    "accuracy_auc": 0.0
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 1,
+    "final_test_accuracy": 0.1,
+    "best_test_accuracy": 0.1,
+    "final_test_loss": 0.1,
+    "best_test_loss": 0.1,
+    "accuracy_auc": 0.1
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 2,
+    "final_test_accuracy": 0.2,
+    "best_test_accuracy": 0.2,
+    "final_test_loss": 0.2,
+    "best_test_loss": 0.2,
+    "accuracy_auc": 0.2
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 3,
+    "final_test_accuracy": 0.3,
+    "best_test_accuracy": 0.3,
+    "final_test_loss": 0.3,
+    "best_test_loss": 0.3,
+    "accuracy_auc": 0.3
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 4,
+    "final_test_accuracy": 0.4,
+    "best_test_accuracy": 0.4,
+    "final_test_loss": 0.4,
+    "best_test_loss": 0.4,
+    "accuracy_auc": 0.4
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 5,
+    "final_test_accuracy": 0.5,
+    "best_test_accuracy": 0.5,
+    "final_test_loss": 0.5,
+    "best_test_loss": 0.5,
+    "accuracy_auc": 0.5
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 6,
+    "final_test_accuracy": 0.6,
+    "best_test_accuracy": 0.6,
+    "final_test_loss": 0.6,
+    "best_test_loss": 0.6,
+    "accuracy_auc": 0.6
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 7,
+    "final_test_accuracy": 0.7,
+    "best_test_accuracy": 0.7,
+    "final_test_loss": 0.7,
+    "best_test_loss": 0.7,
+    "accuracy_auc": 0.7
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 8,
+    "final_test_accuracy": 0.8,
+    "best_test_accuracy": 0.8,
+    "final_test_loss": 0.8,
+    "best_test_loss": 0.8,
+    "accuracy_auc": 0.8
+  },
+  {
+    "method": "nonprivate_adam",
+    "seed": 9,
+    "final_test_accuracy": 0.9,
+    "best_test_accuracy": 0.9,
+    "final_test_loss": 0.9,
+    "best_test_loss": 0.9,
+    "accuracy_auc": 0.9
+  },
+  {
+    "method": "iid_adam",
+    "seed": 0,
+    "final_test_accuracy": 1.0,
+    "best_test_accuracy": 1.0,
+    "final_test_loss": 1.0,
+    "best_test_loss": 1.0,
+    "accuracy_auc": 1.0
+  },
+  {
+    "method": "iid_adam",
+    "seed": 1,
+    "final_test_accuracy": 1.1,
+    "best_test_accuracy": 1.1,
+    "final_test_loss": 1.1,
+    "best_test_loss": 1.1,
+    "accuracy_auc": 1.1
+  },
+  {
+    "method": "iid_adam",
+    "seed": 2,
+    "final_test_accuracy": 1.2,
+    "best_test_accuracy": 1.2,
+    "final_test_loss": 1.2,
+    "best_test_loss": 1.2,
+    "accuracy_auc": 1.2
+  },
+  {
+    "method": "iid_adam",
+    "seed": 3,
+    "final_test_accuracy": 1.3,
+    "best_test_accuracy": 1.3,
+    "final_test_loss": 1.3,
+    "best_test_loss": 1.3,
+    "accuracy_auc": 1.3
+  },
+  {
+    "method": "iid_adam",
+    "seed": 4,
+    "final_test_accuracy": 1.4,
+    "best_test_accuracy": 1.4,
+    "final_test_loss": 1.4,
+    "best_test_loss": 1.4,
+    "accuracy_auc": 1.4
+  },
+  {
+    "method": "iid_adam",
+    "seed": 5,
+    "final_test_accuracy": 1.5,
+    "best_test_accuracy": 1.5,
+    "final_test_loss": 1.5,
+    "best_test_loss": 1.5,
+    "accuracy_auc": 1.5
+  },
+  {
+    "method": "iid_adam",
+    "seed": 6,
+    "final_test_accuracy": 1.6,
+    "best_test_accuracy": 1.6,
+    "final_test_loss": 1.6,
+    "best_test_loss": 1.6,
+    "accuracy_auc": 1.6
+  },
+  {
+    "method": "iid_adam",
+    "seed": 7,
+    "final_test_accuracy": 1.7,
+    "best_test_accuracy": 1.7,
+    "final_test_loss": 1.7,
+    "best_test_loss": 1.7,
+    "accuracy_auc": 1.7
+  },
+  {
+    "method": "iid_adam",
+    "seed": 8,
+    "final_test_accuracy": 1.8,
+    "best_test_accuracy": 1.8,
+    "final_test_loss": 1.8,
+    "best_test_loss": 1.8,
+    "accuracy_auc": 1.8
+  },
+  {
+    "method": "iid_adam",
+    "seed": 9,
+    "final_test_accuracy": 1.9,
+    "best_test_accuracy": 1.9,
+    "final_test_loss": 1.9,
+    "best_test_loss": 1.9,
+    "accuracy_auc": 1.9
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 0,
+    "final_test_accuracy": 2.0,
+    "best_test_accuracy": 2.0,
+    "final_test_loss": 2.0,
+    "best_test_loss": 2.0,
+    "accuracy_auc": 2.0
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 1,
+    "final_test_accuracy": 2.1,
+    "best_test_accuracy": 2.1,
+    "final_test_loss": 2.1,
+    "best_test_loss": 2.1,
+    "accuracy_auc": 2.1
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 2,
+    "final_test_accuracy": 2.2,
+    "best_test_accuracy": 2.2,
+    "final_test_loss": 2.2,
+    "best_test_loss": 2.2,
+    "accuracy_auc": 2.2
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 3,
+    "final_test_accuracy": 2.3,
+    "best_test_accuracy": 2.3,
+    "final_test_loss": 2.3,
+    "best_test_loss": 2.3,
+    "accuracy_auc": 2.3
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 4,
+    "final_test_accuracy": 2.4,
+    "best_test_accuracy": 2.4,
+    "final_test_loss": 2.4,
+    "best_test_loss": 2.4,
+    "accuracy_auc": 2.4
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 5,
+    "final_test_accuracy": 2.5,
+    "best_test_accuracy": 2.5,
+    "final_test_loss": 2.5,
+    "best_test_loss": 2.5,
+    "accuracy_auc": 2.5
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 6,
+    "final_test_accuracy": 2.6,
+    "best_test_accuracy": 2.6,
+    "final_test_loss": 2.6,
+    "best_test_loss": 2.6,
+    "accuracy_auc": 2.6
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 7,
+    "final_test_accuracy": 2.7,
+    "best_test_accuracy": 2.7,
+    "final_test_loss": 2.7,
+    "best_test_loss": 2.7,
+    "accuracy_auc": 2.7
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 8,
+    "final_test_accuracy": 2.8,
+    "best_test_accuracy": 2.8,
+    "final_test_loss": 2.8,
+    "best_test_loss": 2.8,
+    "accuracy_auc": 2.8
+  },
+  {
+    "method": "bandmf_single_m",
+    "seed": 9,
+    "final_test_accuracy": 2.9,
+    "best_test_accuracy": 2.9,
+    "final_test_loss": 2.9,
+    "best_test_loss": 2.9,
+    "accuracy_auc": 2.9
+  },
+  {
+    "method": "iid_ime",
+    "seed": 0,
+    "final_test_accuracy": 3.0,
+    "best_test_accuracy": 3.0,
+    "final_test_loss": 3.0,
+    "best_test_loss": 3.0,
+    "accuracy_auc": 3.0
+  },
+  {
+    "method": "iid_ime",
+    "seed": 1,
+    "final_test_accuracy": 3.1,
+    "best_test_accuracy": 3.1,
+    "final_test_loss": 3.1,
+    "best_test_loss": 3.1,
+    "accuracy_auc": 3.1
+  },
+  {
+    "method": "iid_ime",
+    "seed": 2,
+    "final_test_accuracy": 3.2,
+    "best_test_accuracy": 3.2,
+    "final_test_loss": 3.2,
+    "best_test_loss": 3.2,
+    "accuracy_auc": 3.2
+  },
+  {
+    "method": "iid_ime",
+    "seed": 3,
+    "final_test_accuracy": 3.3,
+    "best_test_accuracy": 3.3,
+    "final_test_loss": 3.3,
+    "best_test_loss": 3.3,
+    "accuracy_auc": 3.3
+  },
+  {
+    "method": "iid_ime",
+    "seed": 4,
+    "final_test_accuracy": 3.4,
+    "best_test_accuracy": 3.4,
+    "final_test_loss": 3.4,
+    "best_test_loss": 3.4,
+    "accuracy_auc": 3.4
+  },
+  {
+    "method": "iid_ime",
+    "seed": 5,
+    "final_test_accuracy": 3.5,
+    "best_test_accuracy": 3.5,
+    "final_test_loss": 3.5,
+    "best_test_loss": 3.5,
+    "accuracy_auc": 3.5
+  },
+  {
+    "method": "iid_ime",
+    "seed": 6,
+    "final_test_accuracy": 3.6,
+    "best_test_accuracy": 3.6,
+    "final_test_loss": 3.6,
+    "best_test_loss": 3.6,
+    "accuracy_auc": 3.6
+  },
+  {
+    "method": "iid_ime",
+    "seed": 7,
+    "final_test_accuracy": 3.7,
+    "best_test_accuracy": 3.7,
+    "final_test_loss": 3.7,
+    "best_test_loss": 3.7,
+    "accuracy_auc": 3.7
+  },
+  {
+    "method": "iid_ime",
+    "seed": 8,
+    "final_test_accuracy": 3.8,
+    "best_test_accuracy": 3.8,
+    "final_test_loss": 3.8,
+    "best_test_loss": 3.8,
+    "accuracy_auc": 3.8
+  },
+  {
+    "method": "iid_ime",
+    "seed": 9,
+    "final_test_accuracy": 3.9,
+    "best_test_accuracy": 3.9,
+    "final_test_loss": 3.9,
+    "best_test_loss": 3.9,
+    "accuracy_auc": 3.9
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 0,
+    "final_test_accuracy": 4.0,
+    "best_test_accuracy": 4.0,
+    "final_test_loss": 4.0,
+    "best_test_loss": 4.0,
+    "accuracy_auc": 4.0
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 1,
+    "final_test_accuracy": 4.1,
+    "best_test_accuracy": 4.1,
+    "final_test_loss": 4.1,
+    "best_test_loss": 4.1,
+    "accuracy_auc": 4.1
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 2,
+    "final_test_accuracy": 4.2,
+    "best_test_accuracy": 4.2,
+    "final_test_loss": 4.2,
+    "best_test_loss": 4.2,
+    "accuracy_auc": 4.2
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 3,
+    "final_test_accuracy": 4.3,
+    "best_test_accuracy": 4.3,
+    "final_test_loss": 4.3,
+    "best_test_loss": 4.3,
+    "accuracy_auc": 4.3
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 4,
+    "final_test_accuracy": 4.4,
+    "best_test_accuracy": 4.4,
+    "final_test_loss": 4.4,
+    "best_test_loss": 4.4,
+    "accuracy_auc": 4.4
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 5,
+    "final_test_accuracy": 4.5,
+    "best_test_accuracy": 4.5,
+    "final_test_loss": 4.5,
+    "best_test_loss": 4.5,
+    "accuracy_auc": 4.5
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 6,
+    "final_test_accuracy": 4.6,
+    "best_test_accuracy": 4.6,
+    "final_test_loss": 4.6,
+    "best_test_loss": 4.6,
+    "accuracy_auc": 4.6
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 7,
+    "final_test_accuracy": 4.7,
+    "best_test_accuracy": 4.7,
+    "final_test_loss": 4.7,
+    "best_test_loss": 4.7,
+    "accuracy_auc": 4.7
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 8,
+    "final_test_accuracy": 4.8,
+    "best_test_accuracy": 4.8,
+    "final_test_loss": 4.8,
+    "best_test_loss": 4.8,
+    "accuracy_auc": 4.8
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 9,
+    "final_test_accuracy": 4.9,
+    "best_test_accuracy": 4.9,
+    "final_test_loss": 4.9,
+    "best_test_loss": 4.9,
+    "accuracy_auc": 4.9
+  }
+]

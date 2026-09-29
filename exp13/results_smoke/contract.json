@@ -1,0 +1,6 @@
+{
+  "horizon": 4,
+  "max_participations": 1,
+  "min_sep": 4,
+  "effective_epochs": 1.0
+}

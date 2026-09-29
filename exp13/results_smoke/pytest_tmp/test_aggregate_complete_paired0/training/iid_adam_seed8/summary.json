@@ -1,0 +1,1 @@
+{"method": "iid_adam", "seed": 8, "final_test_accuracy": 1.8, "best_test_accuracy": 1.8, "final_test_loss": 1.8, "best_test_loss": 1.8, "accuracy_auc": 1.8}
