@@ -7,7 +7,7 @@ def calibration(c, p, method):
     mu = 1 / calibrate_gdp_noise_multiplier(c.epsilon, c.delta)
     a1 = c.clip_norm / c.batch_size
     a2 = (2 * c.batch_size - 1) * c.clip_norm**2 / c.batch_size**2
-    dual = method in ('iid_ime', 'bandmf_ime_sep')
+    dual = method in ('iid_ime', 'bandmf_ime_sep', 'iid_ime_abs', 'bandmf_ime_sep_abs')
     channel_mu = mu / math.sqrt(2) if dual else mu
     private = method != 'nonprivate_adam'
     return dict(mu=mu, mu1=channel_mu if private else 0., mu2=channel_mu if dual else 0.,

@@ -200,6 +200,106 @@
     "ci95_high": 4.0
   },
   {
+    "comparison": "iid_ime_abs - nonprivate_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "iid_ime_abs - nonprivate_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "iid_ime_abs - nonprivate_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "iid_ime_abs - nonprivate_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "iid_ime_abs - nonprivate_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - nonprivate_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 6.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 6.0,
+    "ci95_high": 6.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - nonprivate_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 6.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 6.0,
+    "ci95_high": 6.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - nonprivate_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 6.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 6.0,
+    "ci95_high": 6.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - nonprivate_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 6.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 6.0,
+    "ci95_high": 6.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - nonprivate_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 6.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 6.0,
+    "ci95_high": 6.0
+  },
+  {
     "comparison": "bandmf_single_m - iid_adam",
     "metric": "final_test_accuracy",
     "n": 10,
@@ -350,6 +450,106 @@
     "ci95_high": 3.0
   },
   {
+    "comparison": "iid_ime_abs - iid_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_adam",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_adam",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_adam",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_adam",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_adam",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 5.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 5.0,
+    "ci95_high": 5.0
+  },
+  {
     "comparison": "iid_ime - bandmf_single_m",
     "metric": "final_test_accuracy",
     "n": 10,
@@ -450,6 +650,106 @@
     "ci95_high": 2.0
   },
   {
+    "comparison": "iid_ime_abs - bandmf_single_m",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_single_m",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_single_m",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_single_m",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_single_m",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_single_m",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_single_m",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_single_m",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_single_m",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_single_m",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 4.0,
+    "sample_std": 2.0934566115783667e-16,
+    "se": 6.62009107532606e-17,
+    "ci95_low": 4.0,
+    "ci95_high": 4.0
+  },
+  {
     "comparison": "bandmf_ime_sep - iid_ime",
     "metric": "final_test_accuracy",
     "n": 10,
@@ -498,5 +798,255 @@
     "se": 9.362222582871201e-17,
     "ci95_low": 0.9999999999999998,
     "ci95_high": 1.0000000000000002
+  },
+  {
+    "comparison": "iid_ime_abs - iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 1.9999999999999998,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 1.9999999999999998,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_ime",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 1.9999999999999998,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_ime",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 1.9999999999999998,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "iid_ime_abs - iid_ime",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 1.9999999999999998,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 3.0,
+    "sample_std": 2.9605947323337506e-16,
+    "se": 9.362222582871201e-17,
+    "ci95_low": 3.0,
+    "ci95_high": 3.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_ime_sep",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_ime_sep",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_ime_sep",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_ime_sep",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "iid_ime_abs - bandmf_ime_sep",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_ime_sep",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 2.0,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_ime_sep",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 2.0,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_ime_sep",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 2.0,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_ime_sep",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 2.0,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - bandmf_ime_sep",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 2.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 2.0,
+    "ci95_high": 2.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime_abs",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime_abs",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime_abs",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime_abs",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_abs - iid_ime_abs",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
   }
 ]

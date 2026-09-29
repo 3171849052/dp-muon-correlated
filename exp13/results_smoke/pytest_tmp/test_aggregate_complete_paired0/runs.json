@@ -448,5 +448,185 @@
     "final_test_loss": 4.9,
     "best_test_loss": 4.9,
     "accuracy_auc": 4.9
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 0,
+    "final_test_accuracy": 5.0,
+    "best_test_accuracy": 5.0,
+    "final_test_loss": 5.0,
+    "best_test_loss": 5.0,
+    "accuracy_auc": 5.0
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 1,
+    "final_test_accuracy": 5.1,
+    "best_test_accuracy": 5.1,
+    "final_test_loss": 5.1,
+    "best_test_loss": 5.1,
+    "accuracy_auc": 5.1
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 2,
+    "final_test_accuracy": 5.2,
+    "best_test_accuracy": 5.2,
+    "final_test_loss": 5.2,
+    "best_test_loss": 5.2,
+    "accuracy_auc": 5.2
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 3,
+    "final_test_accuracy": 5.3,
+    "best_test_accuracy": 5.3,
+    "final_test_loss": 5.3,
+    "best_test_loss": 5.3,
+    "accuracy_auc": 5.3
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 4,
+    "final_test_accuracy": 5.4,
+    "best_test_accuracy": 5.4,
+    "final_test_loss": 5.4,
+    "best_test_loss": 5.4,
+    "accuracy_auc": 5.4
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 5,
+    "final_test_accuracy": 5.5,
+    "best_test_accuracy": 5.5,
+    "final_test_loss": 5.5,
+    "best_test_loss": 5.5,
+    "accuracy_auc": 5.5
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 6,
+    "final_test_accuracy": 5.6,
+    "best_test_accuracy": 5.6,
+    "final_test_loss": 5.6,
+    "best_test_loss": 5.6,
+    "accuracy_auc": 5.6
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 7,
+    "final_test_accuracy": 5.7,
+    "best_test_accuracy": 5.7,
+    "final_test_loss": 5.7,
+    "best_test_loss": 5.7,
+    "accuracy_auc": 5.7
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 8,
+    "final_test_accuracy": 5.8,
+    "best_test_accuracy": 5.8,
+    "final_test_loss": 5.8,
+    "best_test_loss": 5.8,
+    "accuracy_auc": 5.8
+  },
+  {
+    "method": "iid_ime_abs",
+    "seed": 9,
+    "final_test_accuracy": 5.9,
+    "best_test_accuracy": 5.9,
+    "final_test_loss": 5.9,
+    "best_test_loss": 5.9,
+    "accuracy_auc": 5.9
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 0,
+    "final_test_accuracy": 6.0,
+    "best_test_accuracy": 6.0,
+    "final_test_loss": 6.0,
+    "best_test_loss": 6.0,
+    "accuracy_auc": 6.0
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 1,
+    "final_test_accuracy": 6.1,
+    "best_test_accuracy": 6.1,
+    "final_test_loss": 6.1,
+    "best_test_loss": 6.1,
+    "accuracy_auc": 6.1
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 2,
+    "final_test_accuracy": 6.2,
+    "best_test_accuracy": 6.2,
+    "final_test_loss": 6.2,
+    "best_test_loss": 6.2,
+    "accuracy_auc": 6.2
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 3,
+    "final_test_accuracy": 6.3,
+    "best_test_accuracy": 6.3,
+    "final_test_loss": 6.3,
+    "best_test_loss": 6.3,
+    "accuracy_auc": 6.3
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 4,
+    "final_test_accuracy": 6.4,
+    "best_test_accuracy": 6.4,
+    "final_test_loss": 6.4,
+    "best_test_loss": 6.4,
+    "accuracy_auc": 6.4
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 5,
+    "final_test_accuracy": 6.5,
+    "best_test_accuracy": 6.5,
+    "final_test_loss": 6.5,
+    "best_test_loss": 6.5,
+    "accuracy_auc": 6.5
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 6,
+    "final_test_accuracy": 6.6,
+    "best_test_accuracy": 6.6,
+    "final_test_loss": 6.6,
+    "best_test_loss": 6.6,
+    "accuracy_auc": 6.6
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 7,
+    "final_test_accuracy": 6.7,
+    "best_test_accuracy": 6.7,
+    "final_test_loss": 6.7,
+    "best_test_loss": 6.7,
+    "accuracy_auc": 6.7
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 8,
+    "final_test_accuracy": 6.8,
+    "best_test_accuracy": 6.8,
+    "final_test_loss": 6.8,
+    "best_test_loss": 6.8,
+    "accuracy_auc": 6.8
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "seed": 9,
+    "final_test_accuracy": 6.9,
+    "best_test_accuracy": 6.9,
+    "final_test_loss": 6.9,
+    "best_test_loss": 6.9,
+    "accuracy_auc": 6.9
   }
 ]

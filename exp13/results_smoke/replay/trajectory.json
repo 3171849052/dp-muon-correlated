@@ -39,9 +39,7 @@
       1,
       2,
       3
-    ],
-    "K_fit": 16,
-    "K_eval": 64
+    ]
   },
   "contract": {
     "horizon": 4,
@@ -50,6 +48,8 @@
     "effective_epochs": 1.0
   },
   "seed": 0,
+  "schedule_sha256": "011372db4e7c5820020949d3ddb0d49337583c120902c5d106ada21602a76f5c",
+  "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
   "gradient": "all parameters, post global per-example clipping, mean, pre optimizer",
   "shapes": [
     [

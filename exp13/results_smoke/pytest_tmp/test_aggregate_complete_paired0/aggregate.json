@@ -248,5 +248,105 @@
     "se": 0.09574271077563383,
     "ci95_low": 4.233414941033184,
     "ci95_high": 4.666585058966817
+  },
+  {
+    "method": "iid_ime_abs",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 5.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 5.233414941033184,
+    "ci95_high": 5.666585058966817
+  },
+  {
+    "method": "iid_ime_abs",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 5.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 5.233414941033184,
+    "ci95_high": 5.666585058966817
+  },
+  {
+    "method": "iid_ime_abs",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 5.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 5.233414941033184,
+    "ci95_high": 5.666585058966817
+  },
+  {
+    "method": "iid_ime_abs",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 5.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 5.233414941033184,
+    "ci95_high": 5.666585058966817
+  },
+  {
+    "method": "iid_ime_abs",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 5.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 5.233414941033184,
+    "ci95_high": 5.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "metric": "final_test_accuracy",
+    "n": 10,
+    "mean": 6.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 6.233414941033184,
+    "ci95_high": 6.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "metric": "best_test_accuracy",
+    "n": 10,
+    "mean": 6.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 6.233414941033184,
+    "ci95_high": 6.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "metric": "final_test_loss",
+    "n": 10,
+    "mean": 6.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 6.233414941033184,
+    "ci95_high": 6.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "metric": "best_test_loss",
+    "n": 10,
+    "mean": 6.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 6.233414941033184,
+    "ci95_high": 6.666585058966817
+  },
+  {
+    "method": "bandmf_ime_sep_abs",
+    "metric": "accuracy_auc",
+    "n": 10,
+    "mean": 6.45,
+    "sample_std": 0.30276503540974925,
+    "se": 0.09574271077563383,
+    "ci95_low": 6.233414941033184,
+    "ci95_high": 6.666585058966817
   }
 ]

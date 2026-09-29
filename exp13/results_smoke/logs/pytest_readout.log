@@ -1,0 +1,21 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+cachedir: results_smoke/pytest_cache
+rootdir: /media/data/data/lt/dp-muon-correlated/exp13
+configfile: pytest.ini
+plugins: hypothesis-6.163.0, anyio-4.14.2
+collected 28 items
+
+exp13/tests/test_core.py .....................                           [ 75%]
+exp13/tests/test_readout.py .......                                      [100%]
+
+=============================== warnings summary ===============================
+tests/test_core.py::test_strategy[0.9]
+tests/test_core.py::test_strategy[0.999]
+tests/test_core.py::test_channel_noise_pairing_and_independence
+  /media/data/data/lt/jax_privacy/jax_privacy/matrix_factorization/banded.py:114: RuntimeWarning: divide by zero encountered in divide
+    ratios = (2 * k - 1) / (2 * k)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 28 passed, 3 warnings in 15.80s ========================
+

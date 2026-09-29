@@ -10,7 +10,7 @@ from dp_muon.training.cifar10_driver import build_fixed_cycle_logical_schedule
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / 'exp13'
-METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep')
+METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep', 'iid_ime_abs', 'bandmf_ime_sep_abs')
 GPUS = (1, 2, 3)
 
 def configuration(smoke=False):

@@ -5,5 +5,7 @@
   "horizon": 4,
   "normalization": "mean over draws, steps, coordinates",
   "reference": "clean Adam frozen clipped batch mean trajectory",
-  "pairing": "same latent keys across mechanisms"
+  "pairing": "same latent keys across mechanisms and relu/abs; ratios computed within draw",
+  "quantiles": "exact pooled absolute coordinate direction magnitudes over steps and draws",
+  "moment_readout": "bias-corrected; raw means unprojected v_hat_raw"
 }

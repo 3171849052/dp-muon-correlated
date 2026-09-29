@@ -20,16 +20,21 @@ def init(g):
     return jnp.array(0), zero, zero
 
 
-def moments(state, first, second, c):
+def readout_for_method(method):
+    return "abs" if method in ("iid_ime_abs", "bandmf_ime_sep_abs") else "relu"
+
+
+def moments(state, first, second, c, second_moment_readout="relu"):
     t, m, v = state
     t = t + 1
     m = jax.tree.map(lambda old, x: c.beta1*old+(1-c.beta1)*x, m, first)
     v = jax.tree.map(lambda old, x: c.beta2*old+(1-c.beta2)*x, v, second)
     mh = jax.tree.map(lambda x:x/(1-c.beta1**t), m)
     vh = jax.tree.map(lambda x:x/(1-c.beta2**t), v)
-    projected = jax.tree.map(lambda x:jnp.maximum(x,0), vh)
-    direction = jax.tree.map(lambda a,b:a/(jnp.sqrt(b)+c.adam_eps), mh, projected)
-    return (t,m,v), (mh,vh,projected,direction)
+    transform = {"relu": lambda x:jnp.maximum(x,0), "abs": jnp.abs}[second_moment_readout]
+    v_hat_use = jax.tree.map(transform, vh)
+    direction = jax.tree.map(lambda a,b:a/(jnp.sqrt(b)+c.adam_eps), mh, v_hat_use)
+    return (t,m,v), (mh,vh,v_hat_use,direction)
 
 
 def channels(c,p,method,root,key):
@@ -41,7 +46,7 @@ def channels(c,p,method,root,key):
 def private_inputs(g, states, privatizers, method):
     one,two=privatizers
     first,s1=one.update(g,states[0])
-    if method in ('iid_ime','bandmf_ime_sep'):
+    if method in ('iid_ime','bandmf_ime_sep','iid_ime_abs','bandmf_ime_sep_abs'):
         second,s2=two.update(square_mean(g),states[1])
     else:
         second,s2=square_mean(first),states[1]

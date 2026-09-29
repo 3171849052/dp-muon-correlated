@@ -63,7 +63,7 @@ def test_raw_linear_projection_no_feedback():
 def test_partition(gpus):
     assigned=[item for gpu in gpus for item in jobs(gpu,gpus)]
     expected=list(itertools.product(METHODS,range(10)))
-    assert len(set(assigned))==len(assigned)==50
+    assert len(set(assigned))==len(assigned)==len(expected)
     assert set(assigned)==set(expected)
     for gpu in gpus:
         assert jobs(gpu,gpus)==expected[gpus.index(gpu)::len(gpus)]
@@ -130,12 +130,12 @@ def test_aggregate_complete_paired_runs(tmp_path, monkeypatch):
             (dest/'summary.json').write_text(json.dumps(record))
     module.aggregate()
     paired=json.loads((tmp_path/'paired_differences.json').read_text())
-    assert len(paired)==10*5
+    assert len(paired)==len(module.PAIRS)*5
     selected=next(r for r in paired if r['comparison']=='bandmf_ime_sep - bandmf_single_m')
     assert selected['mean']==pytest.approx(2)
     assert selected['n']==10
     assert selected['se']==pytest.approx(0,abs=1e-14)
-    assert len(json.loads((tmp_path/'paired_seed_differences.json').read_text()))==500
+    assert len(json.loads((tmp_path/'paired_seed_differences.json').read_text()))==len(module.PAIRS)*10*5
     (tmp_path/'training/nonprivate_adam_seed0/summary.json').unlink()
     with pytest.raises(FileNotFoundError): module.aggregate()
 
