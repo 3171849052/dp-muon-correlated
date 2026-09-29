@@ -1,0 +1,252 @@
+[
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 1.5700924586837752e-16,
+    "se": 9.06493303673679e-17,
+    "ci95_low": 0.9999999999999996,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 1.5700924586837752e-16,
+    "se": 9.06493303673679e-17,
+    "ci95_low": 0.9999999999999996,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 1.5700924586837752e-16,
+    "se": 9.06493303673679e-17,
+    "ci95_low": 0.9999999999999996,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 1.5700924586837752e-16,
+    "se": 9.06493303673679e-17,
+    "ci95_low": 0.9999999999999996,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 1.5700924586837752e-16,
+    "se": 9.06493303673679e-17,
+    "ci95_low": 0.9999999999999996,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 0.9999999999999999,
+    "sample_std": 2.603703785810335e-16,
+    "se": 1.5032490816276447e-16,
+    "ci95_low": 0.9999999999999992,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 0.9999999999999999,
+    "sample_std": 2.603703785810335e-16,
+    "se": 1.5032490816276447e-16,
+    "ci95_low": 0.9999999999999992,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 0.9999999999999999,
+    "sample_std": 2.603703785810335e-16,
+    "se": 1.5032490816276447e-16,
+    "ci95_low": 0.9999999999999992,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 0.9999999999999999,
+    "sample_std": 2.603703785810335e-16,
+    "se": 1.5032490816276447e-16,
+    "ci95_low": 0.9999999999999992,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 0.9999999999999999,
+    "sample_std": 2.603703785810335e-16,
+    "se": 1.5032490816276447e-16,
+    "ci95_low": 0.9999999999999992,
+    "ci95_high": 1.0000000000000004
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 1.0,
+    "sample_std": 0.0,
+    "se": 0.0,
+    "ci95_low": 1.0,
+    "ci95_high": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 3.0,
+    "sample_std": 3.1401849173675503e-16,
+    "se": 1.812986607347358e-16,
+    "ci95_low": 2.999999999999999,
+    "ci95_high": 3.000000000000001
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 3.0,
+    "sample_std": 3.1401849173675503e-16,
+    "se": 1.812986607347358e-16,
+    "ci95_low": 2.999999999999999,
+    "ci95_high": 3.000000000000001
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 3.0,
+    "sample_std": 3.1401849173675503e-16,
+    "se": 1.812986607347358e-16,
+    "ci95_low": 2.999999999999999,
+    "ci95_high": 3.000000000000001
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 3.0,
+    "sample_std": 3.1401849173675503e-16,
+    "se": 1.812986607347358e-16,
+    "ci95_low": 2.999999999999999,
+    "ci95_high": 3.000000000000001
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 3.0,
+    "sample_std": 3.1401849173675503e-16,
+    "se": 1.812986607347358e-16,
+    "ci95_low": 2.999999999999999,
+    "ci95_high": 3.000000000000001
+  }
+]

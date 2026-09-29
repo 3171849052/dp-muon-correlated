@@ -1,0 +1,452 @@
+[
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 1.0000000000000002
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 1.0000000000000002
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 1.0000000000000002
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 1.0000000000000002
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 1.0000000000000002
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 0.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 0.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 1.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 2.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 2.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 2.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 2.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 2.9999999999999996
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 3.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 3.0
+  }
+]

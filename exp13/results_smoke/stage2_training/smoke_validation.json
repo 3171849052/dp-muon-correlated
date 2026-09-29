@@ -1,0 +1,12 @@
+{
+  "jobs": 21,
+  "jobs_per_gpu": 7,
+  "aggregate_rows": 35,
+  "paired_rows": 25,
+  "n_per_statistic": 3,
+  "all_metrics_finite": true,
+  "launcher_exit_code": 0,
+  "steps_per_smoke_run": 4,
+  "pytest": "37 passed",
+  "formal_experiment_started": false
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "workload": "H_m_raw",
+    "strategy": "C_m_raw",
+    "objective": 0.0180206261575222
+  },
+  {
+    "workload": "H_m_raw",
+    "strategy": "C_m_bc",
+    "objective": 0.019589310511946678
+  },
+  {
+    "workload": "H_m_raw",
+    "strategy": "C_v_raw",
+    "objective": 0.018241526558995247
+  },
+  {
+    "workload": "H_m_raw",
+    "strategy": "C_v_bc",
+    "objective": 0.019315799698233604
+  },
+  {
+    "workload": "H_m_bc",
+    "strategy": "C_m_raw",
+    "objective": 0.333124577999115
+  },
+  {
+    "workload": "H_m_bc",
+    "strategy": "C_m_bc",
+    "objective": 0.2916029393672943
+  },
+  {
+    "workload": "H_m_bc",
+    "strategy": "C_v_raw",
+    "objective": 0.37662914395332336
+  },
+  {
+    "workload": "H_m_bc",
+    "strategy": "C_v_bc",
+    "objective": 0.29201236367225647
+  },
+  {
+    "workload": "H_v_raw",
+    "strategy": "C_m_raw",
+    "objective": 2.4112457595037995e-06
+  },
+  {
+    "workload": "H_v_raw",
+    "strategy": "C_m_bc",
+    "objective": 2.7976293495157734e-06
+  },
+  {
+    "workload": "H_v_raw",
+    "strategy": "C_v_raw",
+    "objective": 2.3825773496355396e-06
+  },
+  {
+    "workload": "H_v_raw",
+    "strategy": "C_v_bc",
+    "objective": 2.7339913231116952e-06
+  },
+  {
+    "workload": "H_v_bc",
+    "strategy": "C_m_raw",
+    "objective": 0.32383057475090027
+  },
+  {
+    "workload": "H_v_bc",
+    "strategy": "C_m_bc",
+    "objective": 0.2866857945919037
+  },
+  {
+    "workload": "H_v_bc",
+    "strategy": "C_v_raw",
+    "objective": 0.3658049702644348
+  },
+  {
+    "workload": "H_v_bc",
+    "strategy": "C_v_bc",
+    "objective": 0.28642213344573975
+  }
+]

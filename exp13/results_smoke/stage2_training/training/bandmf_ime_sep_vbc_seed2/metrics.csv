@@ -1,0 +1,2 @@
+epoch,step,effective_epoch,epsilon_full_mechanism,epsilon_spent,train_loss,test_loss,test_accuracy,elapsed_seconds,best_test_accuracy,best_test_loss
+1,4,1.0,3.0,,3.0005000829696655,3.177618443965912,0.0625,221.35924450214952,0.0625,3.177618443965912

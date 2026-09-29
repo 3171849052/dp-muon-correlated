@@ -10,7 +10,7 @@ from dp_muon.training.cifar10_driver import build_fixed_cycle_logical_schedule
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / 'exp13'
-METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep')
+METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep_raw', 'bandmf_ime_sep_vbc', 'bandmf_ime_sep_bc')
 GPUS = (1, 2, 3)
 
 def configuration(smoke=False):
@@ -33,8 +33,9 @@ def schedule(c, p, n, seed):
     return build_fixed_cycle_logical_schedule(num_examples=n, batch_size=c.batch_size,
         horizon=p.horizon, min_sep=p.min_sep, max_participations=p.max_participations, seed=seed)
 
-def output(smoke=False):
+def output(smoke=False, stage="stage1_numerical"):
     path = HERE / ('results_smoke' if smoke else 'results')
+    path = path / stage
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -53,3 +54,9 @@ def jobs(gpu, gpus=GPUS):
     seeds = configuration().seeds
     ordered = [(method, seed) for method in METHODS for seed in seeds]
     return [(method, seed) for i, (method, seed) in enumerate(ordered) if i % len(gpus) == rank]
+
+
+def config_hash(c, p):
+    import hashlib
+    payload = dict(config=vars(c), participation=vars(p))
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()

@@ -20,7 +20,7 @@ def init(g):
     return jnp.array(0), zero, zero
 
 
-IME_METHODS = ("iid_ime", "bandmf_ime_sep")
+IME_METHODS = ("iid_ime", "bandmf_ime_sep_raw", "bandmf_ime_sep_vbc", "bandmf_ime_sep_bc")
 
 
 def uses_ime(method):
@@ -53,3 +53,18 @@ def private_inputs(g, states, privatizers, method):
     else:
         second,s2=square_mean(first),states[1]
     return first,second,(s1,s2)
+
+
+def batch_mean_loss(params, batch, model):
+    logits = model.apply(params, batch['image'])
+    return -jnp.mean(jnp.take_along_axis(jax.nn.log_softmax(logits), batch['label'][:,None], axis=1))
+
+
+def clean_step(c, model):
+    opt = optimizer(c)
+    @jax.jit
+    def step(params, state, batch):
+        g = jax.grad(lambda parameters: batch_mean_loss(parameters, batch, model))(params)
+        updates, state = opt.update(g, state, params)
+        return optax.apply_updates(params, updates), state
+    return step, opt

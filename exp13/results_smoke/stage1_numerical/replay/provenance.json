@@ -1,0 +1,14 @@
+{
+  "draws": 2,
+  "seed": 1202,
+  "coordinates": 262144,
+  "horizon": 4,
+  "normalization": "uncorrected state errors averaged over draws, steps, and coordinates",
+  "reference": "clipped DP-query gradients evaluated along a clean Adam parameter trajectory",
+  "fitting_objective": "sigma^2 * mean(banded.per_query_error(strategy, A=ema(beta, corrected)))",
+  "iid_strategy": "identity represented as a one-band column-normalized strategy",
+  "moment_readout": "IME denominator uses abs(v_hat_raw); abs is excluded from raw recurrence",
+  "quantile_coordinates": 8192,
+  "runtime_seconds": 13.397239959798753,
+  "quantiles": "quantiles are computed from a deterministic coordinate subsample."
+}

@@ -1,0 +1,10 @@
+{
+  "method": "bandmf_ime_sep_raw",
+  "seed": 1,
+  "final_test_accuracy": 0.109375,
+  "best_test_accuracy": 0.109375,
+  "final_test_loss": 2.585316240787506,
+  "best_test_loss": 2.585316240787506,
+  "accuracy_auc": 0.1015625,
+  "elapsed_seconds": 225.82993368897587
+}

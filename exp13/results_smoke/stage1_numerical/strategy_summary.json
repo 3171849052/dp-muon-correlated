@@ -1,0 +1,62 @@
+[
+  {
+    "strategy": "C_m_raw",
+    "horizon": 4,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 1,
+    "sensitivity_squared": 1,
+    "objective": 0.015053166076540947,
+    "beta": 0.9,
+    "corrected": false,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "raw EMA",
+    "config_hash": "bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c"
+  },
+  {
+    "strategy": "C_m_bc",
+    "horizon": 4,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 1,
+    "sensitivity_squared": 1,
+    "objective": 0.47935056686401367,
+    "beta": 0.9,
+    "corrected": true,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "bias-corrected EMA",
+    "config_hash": "bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c"
+  },
+  {
+    "strategy": "C_v_raw",
+    "horizon": 4,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 1,
+    "sensitivity_squared": 1,
+    "objective": 1.7160047036668402e-06,
+    "beta": 0.999,
+    "corrected": false,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "raw EMA",
+    "config_hash": "bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c"
+  },
+  {
+    "strategy": "C_v_bc",
+    "horizon": 4,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 1,
+    "sensitivity_squared": 1,
+    "objective": 0.4765596091747284,
+    "beta": 0.999,
+    "corrected": true,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "bias-corrected EMA",
+    "config_hash": "bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c"
+  }
+]

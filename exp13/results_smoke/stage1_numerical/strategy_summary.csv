@@ -1,0 +1,5 @@
+strategy,horizon,bandwidth,min_sep,max_participations,sensitivity_squared,objective,beta,corrected,jax_privacy_version,fit_steps,workload,config_hash
+C_m_raw,4,4,4,1,1,0.015053166076540947,0.9,False,2.3.0.dev0,5,raw EMA,bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c
+C_m_bc,4,4,4,1,1,0.47935056686401367,0.9,True,2.3.0.dev0,5,bias-corrected EMA,bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c
+C_v_raw,4,4,4,1,1,1.7160047036668402e-06,0.999,False,2.3.0.dev0,5,raw EMA,bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c
+C_v_bc,4,4,4,1,1,0.4765596091747284,0.999,True,2.3.0.dev0,5,bias-corrected EMA,bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c

@@ -1,0 +1,47 @@
+{
+  "config": {
+    "data_dir": "data",
+    "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
+    "model": "pretrained_vit_tiny",
+    "epochs": 1,
+    "batch_size": 16,
+    "microbatch_size": 16,
+    "clip_norm": 1.0,
+    "optimizer": "adam",
+    "learning_rate": 0.005,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "adam_eps": 1e-08,
+    "weight_decay": 0,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "adjacency": "add_remove",
+    "schedule": "fixed_cycle",
+    "bandwidth": 4,
+    "reduction": "mean",
+    "fit_steps": 5,
+    "replay_seed": 1202,
+    "replay_draws": 2,
+    "replay_chunk": 32768,
+    "replay_num_coordinates": 262144,
+    "replay_quantile_coordinates": 8192,
+    "replay_coordinate_seed": 1203,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "gpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "config_hash": "bd93ed53b8aa9c510d6d67ed5c86a1801e918ba309117430997f0528db02e84c",
+  "runtime_seconds": 92.45165627077222,
+  "timings": {
+    "fit_strategies.py": 21.36092307139188,
+    "collect_trajectory.py": 49.022645770572126,
+    "replay.py": 21.847324940375984
+  }
+}

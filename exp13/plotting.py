@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-os.environ.setdefault('MPLCONFIGDIR',str(Path(__file__).resolve().parent/'results_smoke/matplotlib'))
+os.environ.setdefault('MPLCONFIGDIR',str(Path(__file__).resolve().parent/'results_smoke/stage1_numerical/matplotlib'))
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

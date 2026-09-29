@@ -18,18 +18,22 @@ def main(smoke=False):
     p = contract(c, smoke)
     dest = root/'strategies'; dest.mkdir(exist_ok=True)
     strategies = {}
-    for name, beta in [('C_m', c.beta1), ('C_v', c.beta2)]:
-        strategy, metadata = fit(beta, c, p)
-        save(dest/f'{name}.npz', strategy, metadata)
-        strategies[name] = strategy
-    rows = [dict(workload=moment, strategy=name,
-                 objective=float(jnp.mean(banded.per_query_error(strategy, A=ema(beta)))))
-            for moment,beta in [('m',c.beta1),('v',c.beta2)] for name,strategy in strategies.items()]
-    gain = 1 - rows[3]['objective']/rows[2]['objective']
+    summaries = []
+    for channel,beta in [('m',c.beta1),('v',c.beta2)]:
+        for corrected in (False,True):
+            name = f"C_{channel}_{'bc' if corrected else 'raw'}"
+            strategy, metadata = fit(beta, c, p, corrected)
+            save(dest/f'{name}.npz', strategy, metadata)
+            strategies[name] = strategy
+            summaries.append(dict(strategy=name, **metadata))
+    rows = [dict(workload=f"H_{channel}_{'bc' if corrected else 'raw'}", strategy=name,
+                 objective=float(jnp.mean(banded.per_query_error(strategy, A=ema(beta,corrected)))))
+            for channel,beta in [('m',c.beta1),('v',c.beta2)] for corrected in (False,True)
+            for name,strategy in strategies.items()]
     table(root/'cross_eval', rows)
-    write_json(root/'specialization_gain.json', dict(second_moment_specialization_gain=gain))
+    table(root/'strategy_summary', summaries)
     write_json(root/'contract.json', asdict(p))
-    print(rows, '\nsecond-moment specialization gain:', gain, flush=True)
+    print(rows, flush=True)
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(); parser.add_argument('--smoke',action='store_true')

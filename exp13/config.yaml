@@ -19,7 +19,10 @@ bandwidth: 4
 reduction: mean
 fit_steps: 1000
 replay_seed: 1202
-replay_draws: 10
-replay_chunk: 8192
+replay_draws: 3
+replay_chunk: 32768
+replay_num_coordinates: 262144
+replay_quantile_coordinates: 8192
+replay_coordinate_seed: 1203
 seeds: [0,1,2]
 gpus: [1, 2, 3]

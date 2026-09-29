@@ -1,0 +1,62 @@
+[
+  {
+    "strategy": "C_m_raw",
+    "horizon": 8,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 2,
+    "sensitivity_squared": 2,
+    "objective": 0.0180206261575222,
+    "beta": 0.9,
+    "corrected": false,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "raw EMA",
+    "config_hash": "b573bc08a9ef37c71e06796c2f915d3a39990f13cc634b4565388b37d7099345"
+  },
+  {
+    "strategy": "C_m_bc",
+    "horizon": 8,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 2,
+    "sensitivity_squared": 2,
+    "objective": 0.2916029393672943,
+    "beta": 0.9,
+    "corrected": true,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "bias-corrected EMA",
+    "config_hash": "b573bc08a9ef37c71e06796c2f915d3a39990f13cc634b4565388b37d7099345"
+  },
+  {
+    "strategy": "C_v_raw",
+    "horizon": 8,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 2,
+    "sensitivity_squared": 2,
+    "objective": 2.3825773496355396e-06,
+    "beta": 0.999,
+    "corrected": false,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "raw EMA",
+    "config_hash": "b573bc08a9ef37c71e06796c2f915d3a39990f13cc634b4565388b37d7099345"
+  },
+  {
+    "strategy": "C_v_bc",
+    "horizon": 8,
+    "bandwidth": 4,
+    "min_sep": 4,
+    "max_participations": 2,
+    "sensitivity_squared": 2,
+    "objective": 0.28642213344573975,
+    "beta": 0.999,
+    "corrected": true,
+    "jax_privacy_version": "2.3.0.dev0",
+    "fit_steps": 5,
+    "workload": "bias-corrected EMA",
+    "config_hash": "b573bc08a9ef37c71e06796c2f915d3a39990f13cc634b4565388b37d7099345"
+  }
+]

@@ -1,0 +1,26 @@
+comparison,metric,n,mean,sample_std,se,ci95_low,ci95_high
+bandmf_single_m - iid_adam,final_test_accuracy,3,1.0,1.5700924586837752e-16,9.06493303673679e-17,0.9999999999999996,1.0000000000000004
+bandmf_single_m - iid_adam,best_test_accuracy,3,1.0,1.5700924586837752e-16,9.06493303673679e-17,0.9999999999999996,1.0000000000000004
+bandmf_single_m - iid_adam,final_test_loss,3,1.0,1.5700924586837752e-16,9.06493303673679e-17,0.9999999999999996,1.0000000000000004
+bandmf_single_m - iid_adam,best_test_loss,3,1.0,1.5700924586837752e-16,9.06493303673679e-17,0.9999999999999996,1.0000000000000004
+bandmf_single_m - iid_adam,accuracy_auc,3,1.0,1.5700924586837752e-16,9.06493303673679e-17,0.9999999999999996,1.0000000000000004
+bandmf_ime_sep_raw - iid_ime,final_test_accuracy,3,0.9999999999999999,2.603703785810335e-16,1.5032490816276447e-16,0.9999999999999992,1.0000000000000004
+bandmf_ime_sep_raw - iid_ime,best_test_accuracy,3,0.9999999999999999,2.603703785810335e-16,1.5032490816276447e-16,0.9999999999999992,1.0000000000000004
+bandmf_ime_sep_raw - iid_ime,final_test_loss,3,0.9999999999999999,2.603703785810335e-16,1.5032490816276447e-16,0.9999999999999992,1.0000000000000004
+bandmf_ime_sep_raw - iid_ime,best_test_loss,3,0.9999999999999999,2.603703785810335e-16,1.5032490816276447e-16,0.9999999999999992,1.0000000000000004
+bandmf_ime_sep_raw - iid_ime,accuracy_auc,3,0.9999999999999999,2.603703785810335e-16,1.5032490816276447e-16,0.9999999999999992,1.0000000000000004
+bandmf_ime_sep_vbc - bandmf_ime_sep_raw,final_test_accuracy,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_vbc - bandmf_ime_sep_raw,best_test_accuracy,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_vbc - bandmf_ime_sep_raw,final_test_loss,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_vbc - bandmf_ime_sep_raw,best_test_loss,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_vbc - bandmf_ime_sep_raw,accuracy_auc,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - bandmf_ime_sep_vbc,final_test_accuracy,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - bandmf_ime_sep_vbc,best_test_accuracy,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - bandmf_ime_sep_vbc,final_test_loss,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - bandmf_ime_sep_vbc,best_test_loss,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - bandmf_ime_sep_vbc,accuracy_auc,3,1.0,0.0,0.0,1.0,1.0
+bandmf_ime_sep_bc - iid_ime,final_test_accuracy,3,3.0,3.1401849173675503e-16,1.812986607347358e-16,2.999999999999999,3.000000000000001
+bandmf_ime_sep_bc - iid_ime,best_test_accuracy,3,3.0,3.1401849173675503e-16,1.812986607347358e-16,2.999999999999999,3.000000000000001
+bandmf_ime_sep_bc - iid_ime,final_test_loss,3,3.0,3.1401849173675503e-16,1.812986607347358e-16,2.999999999999999,3.000000000000001
+bandmf_ime_sep_bc - iid_ime,best_test_loss,3,3.0,3.1401849173675503e-16,1.812986607347358e-16,2.999999999999999,3.000000000000001
+bandmf_ime_sep_bc - iid_ime,accuracy_auc,3,3.0,3.1401849173675503e-16,1.812986607347358e-16,2.999999999999999,3.000000000000001

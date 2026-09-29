@@ -1,0 +1,452 @@
+[
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 0.078125
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 0.078125
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": -0.3921242952346802
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": -0.3921242952346802
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 0.0390625
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.38529056310653687
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": -0.38529056310653687
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 0.03125
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 0.03125
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": -0.015612542629241943
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": -0.015612542629241943
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 0.031279683113098145
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 0.031279683113098145
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": -0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.03125
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.03125
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 0.08561044931411743
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 0.08561044931411743
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 0.078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 0.078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": -0.12406355142593384
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": -0.12406355142593384
+  },
+  {
+    "comparison": "bandmf_ime_sep_raw - iid_ime",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 0.0390625
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 0.047860682010650635
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 0.047860682010650635
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": -0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": -0.03125
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": -0.03125
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.13023018836975098
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": -0.13023018836975098
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": -0.09375
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": -0.09375
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 0.6008498668670654
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 0.6008498668670654
+  },
+  {
+    "comparison": "bandmf_ime_sep_vbc - bandmf_ime_sep_raw",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": -0.046875
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": -0.013275563716888428
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": -0.013275563716888428
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.03321504592895508
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": -0.03321504592895508
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 0.03193098306655884
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 0.03193098306655884
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - bandmf_ime_sep_vbc",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 0.0
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 0.06586480140686035
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 0.06586480140686035
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": -0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.07783478498458862
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": -0.07783478498458862
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.0078125
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": -0.015625
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 0.5087172985076904
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 0.5087172985076904
+  },
+  {
+    "comparison": "bandmf_ime_sep_bc - iid_ime",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": -0.0078125
+  }
+]

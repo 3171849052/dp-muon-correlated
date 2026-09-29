@@ -1,0 +1,15 @@
+[
+  {
+    "epoch": 1,
+    "step": 4,
+    "effective_epoch": 1.0,
+    "epsilon_full_mechanism": 3.0,
+    "epsilon_spent": null,
+    "train_loss": 2.586982011795044,
+    "test_loss": 2.613243579864502,
+    "test_accuracy": 0.140625,
+    "elapsed_seconds": 118.65856663230807,
+    "best_test_accuracy": 0.140625,
+    "best_test_loss": 2.613243579864502
+  }
+]

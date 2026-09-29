@@ -1,10 +1,15 @@
-"""Linear moment-state workloads, without optimizer readout factors."""
+"""Streaming raw and bias-corrected EMA utility workloads."""
 import jax.numpy as jnp
 from jax_privacy.matrix_factorization.streaming_matrix import StreamingMatrix
 
 
-def ema(beta):
+def ema(beta, corrected=False):
+    def initialize(value):
+        return jnp.zeros_like(value), jnp.array(0)
     def next_value(value, state):
-        state = beta * state + (1 - beta) * value
-        return state, state
-    return StreamingMatrix.from_array_implementation(jnp.zeros_like, next_value)
+        old, t = state
+        raw = beta * old + (1 - beta) * value
+        t = t + 1
+        result = raw / (1 - beta**t) if corrected else raw
+        return result, (raw, t)
+    return StreamingMatrix.from_array_implementation(initialize, next_value)

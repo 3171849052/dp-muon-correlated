@@ -18,10 +18,14 @@ from dp_muon.training.cifar10_driver import cross_entropy_loss, evaluate_classif
 from dp_muon.training.cifar10_experiment import derive_fixed_cycle_participation
 from exp13.common import ROOT, METHODS, configuration, dataset, output, schedule, table, write_json
 from exp13.adam import init, moments, channels, private_inputs, uses_ime
-from exp13.privacy import calibration
+from exp13.privacy import calibration, iid_calibration
+from exp13.adam import clean_step
+from exp13.strategies import validate, strategy_names
+from dp_muon.training.nonamplified_dpadamw import make_nonamplified_dpadamw_train_step, init_nonamplified_dpadamw_state
+from dp_muon.privacy.nonamplified import epsilon_spent_for_iid_prefix
 
 
-def setup(c,smoke,seed):
+def setup(c,smoke,seed, clipped=True):
     x,y=dataset(c,smoke)
     p=derive_fixed_cycle_participation(len(x),c.epochs,c.batch_size)
     batches=schedule(c,p,len(x),seed)
@@ -30,30 +34,58 @@ def setup(c,smoke,seed):
     params=load_pretrained_vit_tiny(ROOT/c.pretrained,key=pk)
     query=make_clipped_gradient_query(lambda params,b: cross_entropy_loss(params,b,model),
         clip_norm=c.clip_norm,normalize_by=float(c.batch_size),batch_argnums=1,
-        keep_batch_dim=True,microbatch_size=c.microbatch_size)
+        keep_batch_dim=True,microbatch_size=c.microbatch_size) if clipped else None
     return x,y,p,batches,model,params,nk,query
 
 def train(method='iid_adam',seed=0,smoke=False):
-    c,root=configuration(smoke),output(smoke)
+    c,root=configuration(smoke),output(smoke, "stage2_training")
+    strategy_root=output(smoke)
+    from exp13.common import contract
+    validate(strategy_root,c,contract(c,smoke))
     dest=root/'training'/f'{method}_seed{seed}'; dest.mkdir(parents=True,exist_ok=True)
     start=time.monotonic()
-    x,y,p,batches,model,params,key,query=setup(c,smoke,seed)
+    x,y,p,batches,model,params,key,query=setup(c,smoke,seed, clipped=method not in ("nonprivate_adam", "iid_adam"))
     tx,ty=dataset(c,smoke,False)
-    state=init(params)
-    privatizers=channels(c,p,method,root,key)
-    noise_state=tuple(priv.init(params) for priv in privatizers)
-    cal=calibration(c,p,method)
-    @jax.jit
-    def step(params,state,noise_state,batch):
-        g=query(params,batch)
-        first,second,noise_state=private_inputs(g,noise_state,privatizers,method)
-        state,readout=moments(state,first,second,c,method=method)
-        params=jax.tree.map(lambda x,d:x-c.learning_rate*d,params,readout[3])
-        return params,state,noise_state
-    strategy_meta={'method':method, 'first_strategy':'C_m' if method.startswith('bandmf') else 'identity',
-                   'second_strategy':'C_v' if method == 'bandmf_ime_sep' else None}
+    if method == 'nonprivate_adam':
+        update, opt = clean_step(c,model)
+        state = opt.init(params)
+        cal = None
+        def step(params,state,noise_state,batch):
+            params,state = update(params,state,batch)
+            return params,state,None
+        noise_state = None
+    elif method == 'iid_adam':
+        canonical = iid_calibration(c,p)
+        update,opt = make_nonamplified_dpadamw_train_step(
+            lambda params,b: cross_entropy_loss(params,b,model), canonical,
+            learning_rate=c.learning_rate,beta1=c.beta1,beta2=c.beta2,
+            eps=c.adam_eps,weight_decay=0,microbatch_size=c.microbatch_size)
+        update = jax.jit(update)
+        state = init_nonamplified_dpadamw_state(params,key,opt)
+        cal = asdict(canonical)
+        def step(params,state,noise_state,batch):
+            state = update(state,batch)
+            return state.params,state,None
+        noise_state = None
+    else:
+        state=init(params)
+        privatizers=channels(c,p,method,strategy_root,key)
+        noise_state=tuple(priv.init(params) for priv in privatizers)
+        cal=calibration(c,p,method)
+        @jax.jit
+        def step(params,state,noise_state,batch):
+            g=query(params,batch)
+            first,second,noise_state=private_inputs(g,noise_state,privatizers,method)
+            state,readout=moments(state,first,second,c,method=method)
+            params=jax.tree.map(lambda x,d:x-c.learning_rate*d,params,readout[3])
+            return params,state,noise_state
+    names = strategy_names(method)
+    strategy_meta=dict(method=method,first_strategy=names[0] or 'identity',second_strategy=names[1])
     metadata=dict(method=method,seed=seed,config=vars(c),contract=asdict(p),
-        privacy_calibration=cal,strategy=strategy_meta,
+        privacy_calibration=cal,privacy=cal,clipping=method != "nonprivate_adam",
+        noise=method != "nonprivate_adam",optimizer="clean_adam" if method == "nonprivate_adam" else method,
+        privacy_accounting=None if cal is None else "non_amplified_fixed_cycle_gdp",
+        sampling_amplification=False,strategy=strategy_meta,
         optimizer_second_moment=('abs(v_hat_raw)' if uses_ime(method) else 'v_hat_raw'),
         schedule_sha256=hashlib.sha256(np.asarray(batches).tobytes()).hexdigest(),
         pretrained_sha256=hashlib.sha256((ROOT/c.pretrained).read_bytes()).hexdigest())
@@ -68,7 +100,9 @@ def train(method='iid_adam',seed=0,smoke=False):
         if progress>=next_epoch or t==p.horizon:
             train_metrics=evaluate_classifier_metrics(params,model,x,y,batch_size=c.batch_size)
             test=evaluate_classifier_metrics(params,model,tx,ty,batch_size=c.batch_size)
-            row=dict(epoch=next_epoch,step=t,effective_epoch=progress,epsilon_full_mechanism=cal['epsilon'],
+            row=dict(epoch=next_epoch,step=t,effective_epoch=progress,epsilon_full_mechanism=None if cal is None else c.epsilon,
+                epsilon_spent=(epsilon_spent_for_iid_prefix(prefix_steps=t,horizon=p.horizon,min_sep=p.min_sep,
+                    max_participations=p.max_participations,calibration=canonical) if method=='iid_adam' else None),
                 train_loss=train_metrics['test_loss'],**test,elapsed_seconds=time.monotonic()-start)
             rows.append(row)
             row['best_test_accuracy']=max(r['test_accuracy'] for r in rows)
@@ -85,23 +119,8 @@ def train(method='iid_adam',seed=0,smoke=False):
     write_json(dest/'summary.json',summary)
     return summary
 
-def smoke_ime_diagnostics(seed):
-    import json
-    root=output(True)
-    rows=[]
-    for method in ('iid_ime','bandmf_ime_sep'):
-        metric=json.loads((root/'training'/f'{method}_seed{seed}'/'metrics.json').read_text())[-1]
-        rows.append(dict(method=method,seed=seed,optimizer_second_moment='abs(v_hat_raw)',
-            **{k:metric[k] for k in ('train_loss','test_loss','test_accuracy')},
-            loss_at_least_1e10=max(metric['train_loss'],metric['test_loss'])>=1e10))
-    table(root/'ime_training_diagnostics',rows)
-    for row in rows: print('IME smoke diagnostic',row,flush=True)
-
 if __name__=='__main__':
     p=argparse.ArgumentParser(); p.add_argument('--smoke',action='store_true')
     p.add_argument('--method',choices=METHODS,default='iid_adam'); p.add_argument('--seed',type=int,default=0)
     a=p.parse_args()
-    if a.smoke:
-        for m in METHODS: train(m,a.seed,True)
-        smoke_ime_diagnostics(a.seed)
-    else: train(a.method,a.seed)
+    train(a.method,a.seed,a.smoke)

@@ -1,0 +1,93 @@
+{
+  "method": "bandmf_ime_sep_vbc",
+  "seed": 2,
+  "config": {
+    "data_dir": "data",
+    "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
+    "model": "pretrained_vit_tiny",
+    "epochs": 1,
+    "batch_size": 16,
+    "microbatch_size": 16,
+    "clip_norm": 1.0,
+    "optimizer": "adam",
+    "learning_rate": 0.005,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "adam_eps": 1e-08,
+    "weight_decay": 0,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "adjacency": "add_remove",
+    "schedule": "fixed_cycle",
+    "bandwidth": 4,
+    "reduction": "mean",
+    "fit_steps": 5,
+    "replay_seed": 1202,
+    "replay_draws": 2,
+    "replay_chunk": 32768,
+    "replay_num_coordinates": 262144,
+    "replay_quantile_coordinates": 8192,
+    "replay_coordinate_seed": 1203,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "gpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "contract": {
+    "horizon": 4,
+    "max_participations": 1,
+    "min_sep": 4,
+    "effective_epochs": 1.0
+  },
+  "privacy_calibration": {
+    "mu": 0.7191174352217926,
+    "mu1": 0.5084928149148074,
+    "mu2": 0.5084928149148074,
+    "a1": 0.0625,
+    "a2": 0.12109375,
+    "temporal_sensitivity_squared": 1,
+    "sigma1": 0.12291225788602582,
+    "sigma2": 0.23814249965417503,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "amplification": false,
+    "adjacency": "fixed-denominator zero-out/add-remove"
+  },
+  "privacy": {
+    "mu": 0.7191174352217926,
+    "mu1": 0.5084928149148074,
+    "mu2": 0.5084928149148074,
+    "a1": 0.0625,
+    "a2": 0.12109375,
+    "temporal_sensitivity_squared": 1,
+    "sigma1": 0.12291225788602582,
+    "sigma2": 0.23814249965417503,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "amplification": false,
+    "adjacency": "fixed-denominator zero-out/add-remove"
+  },
+  "clipping": true,
+  "noise": true,
+  "optimizer": "bandmf_ime_sep_vbc",
+  "privacy_accounting": "non_amplified_fixed_cycle_gdp",
+  "sampling_amplification": false,
+  "strategy": {
+    "method": "bandmf_ime_sep_vbc",
+    "first_strategy": "C_m_raw",
+    "second_strategy": "C_v_bc"
+  },
+  "optimizer_second_moment": "abs(v_hat_raw)",
+  "schedule_sha256": "0b4c8e6b3a4aa55633e6c5e2ea73b8afa40fd0be847d7621a7aaa85e063b0ff8",
+  "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
+  "initial_test_metrics": {
+    "test_loss": 2.4378055930137634,
+    "test_accuracy": 0.140625
+  }
+}

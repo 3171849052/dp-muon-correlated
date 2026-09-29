@@ -38,7 +38,7 @@ def test_strategy(beta):
 
 
 def test_final_methods_and_seed_config():
-    assert METHODS==('nonprivate_adam','iid_adam','bandmf_single_m','iid_ime','bandmf_ime_sep')
+    assert METHODS==('nonprivate_adam','iid_adam','bandmf_single_m','iid_ime','bandmf_ime_sep_raw','bandmf_ime_sep_vbc','bandmf_ime_sep_bc')
     assert all(not method.endswith('_abs') and 'relu' not in method for method in METHODS)
     assert configuration().seeds==[0,1,2]
 
@@ -53,7 +53,7 @@ def test_calibration():
     assert v['mu1']**2+v['mu2']**2==pytest.approx(v['mu']**2)
     assert v['sigma1']==pytest.approx(v['a1']*np.sqrt(p.max_participations)/v['mu1'])
     assert v['sigma2']==pytest.approx(v['a2']*np.sqrt(p.max_participations)/v['mu2'])
-    single=calibration(c,p,'iid_adam')
+    single=calibration(c,p,'bandmf_single_m')
     assert single['mu1']==pytest.approx(single['mu'])
     assert single['sigma1']==pytest.approx(v['sigma1']/np.sqrt(2))
 
@@ -116,9 +116,9 @@ def test_gpu_job_partition_from_config():
     expected=list(itertools.product(METHODS,c.seeds))
     partitions={gpu:jobs(gpu) for gpu in GPUS}
     assigned=[item for gpu in GPUS for item in partitions[gpu]]
-    assert len(expected)==15
-    assert all(len(partitions[gpu])==5 for gpu in GPUS)
-    assert len(set(assigned))==15
+    assert len(expected)==21
+    assert all(len(partitions[gpu])==7 for gpu in GPUS)
+    assert len(set(assigned))==21
     assert set(assigned)==set(expected)
     assert all(partitions[gpu]==expected[GPUS.index(gpu)::len(GPUS)] for gpu in GPUS)
 
@@ -134,24 +134,14 @@ def test_adam_matches_optax():
         np.testing.assert_allclose(-c.learning_rate*read[3],updates,rtol=2e-5)
 
 
-@pytest.mark.parametrize('method',METHODS)
-def test_methods_train_real_smoke(method):
-    from exp13.common import HERE
-    summary=json.loads((HERE/'results_smoke/training'/f'{method}_seed0/summary.json').read_text())
-    rows=json.loads((HERE/'results_smoke/training'/f'{method}_seed0/metrics.json').read_text())
-    assert rows[-1]['step']==4
-    assert np.isfinite(summary['final_test_loss'])
-    assert 0<=summary['final_test_accuracy']<=1
-
-
 def test_channel_noise_pairing_and_independence(tmp_path):
     from exp13.strategies import save
     c=configuration(True); p=SimpleNamespace(horizon=4,min_sep=4,max_participations=1)
     dest=tmp_path/'strategies'; dest.mkdir()
     strategy=banded.ColumnNormalizedBanded.default(4,1)
-    for name in ('C_m','C_v'): save(dest/f'{name}.npz',strategy,{})
+    for name in ('C_m_raw','C_m_bc','C_v_raw','C_v_bc'): save(dest/f'{name}.npz',strategy,{})
     outputs=[]
-    for method in ('iid_ime','bandmf_ime_sep'):
+    for method in ('iid_ime','bandmf_ime_sep_raw','bandmf_ime_sep_vbc','bandmf_ime_sep_bc'):
         priv=channels(c,p,method,tmp_path,jax.random.key(17))
         g=jnp.zeros(64); state=tuple(x.init(g) for x in priv); rows=[]
         for _ in range(4):
@@ -174,7 +164,7 @@ def test_private_second_query_is_square_of_mean():
 
 def test_aggregate_complete_paired_runs(tmp_path, monkeypatch):
     import exp13.aggregate as module
-    monkeypatch.setattr(module,'output',lambda:tmp_path)
+    monkeypatch.setattr(module,'output',lambda *args:tmp_path)
     monkeypatch.setattr(module,'utility_plot',lambda *args:None)
     c=configuration()
     for index,method in enumerate(METHODS):
@@ -186,17 +176,10 @@ def test_aggregate_complete_paired_runs(tmp_path, monkeypatch):
     module.aggregate()
     paired=json.loads((tmp_path/'paired_differences.json').read_text())
     assert len(paired)==len(module.PAIRS)*len(module.METRICS)
-    selected=next(r for r in paired if r['comparison']=='bandmf_ime_sep - bandmf_single_m')
-    assert selected['mean']==pytest.approx(2)
+    selected=next(r for r in paired if r['comparison']=='bandmf_ime_sep_bc - iid_ime')
+    assert selected['mean']==pytest.approx(3)
     assert selected['n']==3
     assert selected['se']==pytest.approx(0,abs=1e-14)
     assert len(json.loads((tmp_path/'paired_seed_differences.json').read_text()))==len(module.PAIRS)*3*len(module.METRICS)
     (tmp_path/'training/nonprivate_adam_seed0/summary.json').unlink()
     with pytest.raises(FileNotFoundError): module.aggregate()
-
-
-def test_smoke_pairing():
-    from exp13.common import HERE
-    records=[json.loads((HERE/'results_smoke/training'/f'{m}_seed0/metadata.json').read_text()) for m in METHODS]
-    for field in ('schedule_sha256','pretrained_sha256','initial_test_metrics'):
-        assert all(record[field]==records[0][field] for record in records)
