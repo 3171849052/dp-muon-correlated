@@ -34,7 +34,7 @@ def load(root, name):
 
 
 def noising(root, method, channel):
-    if (method == 'bandmf_single_m' and channel == 1) or method in ('bandmf_ime_sep', 'bandmf_ime_sep_abs'):
+    if (method == 'bandmf_single_m' and channel == 1) or method == 'bandmf_ime_sep':
         name = 'C_v' if channel == 2 else 'C_m'
         return load(root, name).inverse_as_streaming_matrix()
     return streaming_matrix.identity()

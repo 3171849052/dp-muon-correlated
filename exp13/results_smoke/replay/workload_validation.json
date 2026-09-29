@@ -1,0 +1,42 @@
+[
+  {
+    "method": "iid_ime",
+    "channel": "first",
+    "beta": 0.9,
+    "strategy": "identity",
+    "sigma": 0.12291225788602582,
+    "theoretical_state_mse": 0.00031248346203938127,
+    "empirical_state_mse": 0.00031239746373164294,
+    "empirical_over_theoretical": 0.9997247908507635
+  },
+  {
+    "method": "iid_ime",
+    "channel": "second",
+    "beta": 0.999,
+    "strategy": "identity",
+    "sigma": 0.23814249965417503,
+    "theoretical_state_mse": 1.41496499850291e-07,
+    "empirical_state_mse": 1.4149680902225193e-07,
+    "empirical_over_theoretical": 1.0000021850149032
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "channel": "first",
+    "beta": 0.9,
+    "strategy": "C_m",
+    "sigma": 0.12291225788602582,
+    "theoretical_state_mse": 0.00022741455177310854,
+    "empirical_state_mse": 0.00022738267993078958,
+    "empirical_over_theoretical": 0.9998598513504503
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "channel": "second",
+    "beta": 0.999,
+    "strategy": "C_v",
+    "sigma": 0.23814249965417503,
+    "theoretical_state_mse": 9.731780181709837e-08,
+    "empirical_state_mse": 9.732988221633333e-08,
+    "empirical_over_theoretical": 1.0001241334987987
+  }
+]

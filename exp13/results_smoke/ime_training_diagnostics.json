@@ -1,0 +1,20 @@
+[
+  {
+    "method": "iid_ime",
+    "seed": 0,
+    "optimizer_second_moment": "abs(v_hat_raw)",
+    "train_loss": 2.3948132395744324,
+    "test_loss": 2.4463080167770386,
+    "test_accuracy": 0.140625,
+    "loss_at_least_1e10": false
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "seed": 0,
+    "optimizer_second_moment": "abs(v_hat_raw)",
+    "train_loss": 2.291544020175934,
+    "test_loss": 2.4771371483802795,
+    "test_accuracy": 0.125,
+    "loss_at_least_1e10": false
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "method": "iid_ime",
+    "step": 1,
+    "negative_fraction": 0.4999686420764799,
+    "first_state_mse": 0.00015101144015623144,
+    "second_state_mse": 5.6712362751553793e-08,
+    "denominator_min": 0.00013866423978470266,
+    "denominator_p001": 0.017284482717514038,
+    "absolute_direction_p99": 2.251155138015747,
+    "absolute_direction_max": 1133.7843017578125
+  },
+  {
+    "method": "iid_ime",
+    "step": 2,
+    "negative_fraction": 0.5000968005465186,
+    "first_state_mse": 0.00027337544766455963,
+    "second_state_mse": 1.1326987675392777e-07,
+    "denominator_min": 8.533138316124678e-05,
+    "denominator_p001": 0.014477519318461418,
+    "absolute_direction_p99": 1.8940672874450684,
+    "absolute_direction_max": 593.8905029296875
+  },
+  {
+    "method": "iid_ime",
+    "step": 3,
+    "negative_fraction": 0.5001137974499918,
+    "first_state_mse": 0.0003724555902543514,
+    "second_state_mse": 1.6978232869589337e-07,
+    "denominator_min": 0.00015582276682835072,
+    "denominator_p001": 0.013092738576233387,
+    "absolute_direction_p99": 1.7156338691711426,
+    "absolute_direction_max": 436.9136657714844
+  },
+  {
+    "method": "iid_ime",
+    "step": 4,
+    "negative_fraction": 0.5002043264118065,
+    "first_state_mse": 0.0004527473768514293,
+    "second_state_mse": 2.2622266788763283e-07,
+    "denominator_min": 9.99999993922529e-09,
+    "denominator_p001": 0.012196915224194527,
+    "absolute_direction_p99": 1.6013305187225342,
+    "absolute_direction_max": 2381105.5
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "step": 1,
+    "negative_fraction": 0.4999686420764799,
+    "first_state_mse": 0.0002043850226164412,
+    "second_state_mse": 8.331398234676663e-08,
+    "denominator_min": 0.00015165894001256675,
+    "denominator_p001": 0.01902901567518711,
+    "absolute_direction_p99": 2.378889322280884,
+    "absolute_direction_max": 1206.03857421875
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "step": 2,
+    "negative_fraction": 0.5000371750455644,
+    "first_state_mse": 0.00022597925347249593,
+    "second_state_mse": 9.244103211847402e-08,
+    "denominator_min": 0.00014779098273720592,
+    "denominator_p001": 0.013889489695429802,
+    "absolute_direction_p99": 1.8085466623306274,
+    "absolute_direction_max": 724.5906372070312
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "step": 3,
+    "negative_fraction": 0.500045628051035,
+    "first_state_mse": 0.00023371523852000215,
+    "second_state_mse": 1.0002764677089047e-07,
+    "denominator_min": 6.969158857828006e-05,
+    "denominator_p001": 0.01151478011161089,
+    "absolute_direction_p99": 1.5523020029067993,
+    "absolute_direction_max": 453.953369140625
+  },
+  {
+    "method": "bandmf_ime_sep",
+    "step": 4,
+    "negative_fraction": 0.500130885245997,
+    "first_state_mse": 0.00024545120511421906,
+    "second_state_mse": 1.1353686762920224e-07,
+    "denominator_min": 0.00010455916344653815,
+    "denominator_p001": 0.0102823032066226,
+    "absolute_direction_p99": 1.399372935295105,
+    "absolute_direction_max": 613.1260986328125
+  }
+]

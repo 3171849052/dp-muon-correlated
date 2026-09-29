@@ -1,0 +1,22 @@
+[
+  {
+    "workload": "m",
+    "strategy": "C_m",
+    "objective": 0.02483023703098297
+  },
+  {
+    "workload": "m",
+    "strategy": "C_v",
+    "objective": 0.03916631639003754
+  },
+  {
+    "workload": "v",
+    "strategy": "C_m",
+    "objective": 5.983569280942902e-05
+  },
+  {
+    "workload": "v",
+    "strategy": "C_v",
+    "objective": 4.899415580439381e-05
+  }
+]

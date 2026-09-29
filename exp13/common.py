@@ -10,7 +10,7 @@ from dp_muon.training.cifar10_driver import build_fixed_cycle_logical_schedule
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / 'exp13'
-METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep', 'iid_ime_abs', 'bandmf_ime_sep_abs')
+METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep')
 GPUS = (1, 2, 3)
 
 def configuration(smoke=False):
@@ -44,10 +44,12 @@ def write_json(path, value):
 def table(path, rows):
     write_json(path.with_suffix('.json'), rows)
     with path.with_suffix('.csv').open('w') as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator='\n')
         w.writeheader()
         w.writerows(rows)
 
 def jobs(gpu, gpus=GPUS):
     rank = gpus.index(gpu)
-    return [(m, s) for i, (m, s) in enumerate((m, s) for m in METHODS for s in range(10)) if i % len(gpus) == rank]
+    seeds = configuration().seeds
+    ordered = [(method, seed) for method in METHODS for seed in seeds]
+    return [(method, seed) for i, (method, seed) in enumerate(ordered) if i % len(gpus) == rank]

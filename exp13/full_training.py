@@ -17,7 +17,7 @@ from dp_muon.privacy import make_clipped_gradient_query
 from dp_muon.training.cifar10_driver import cross_entropy_loss, evaluate_classifier_metrics
 from dp_muon.training.cifar10_experiment import derive_fixed_cycle_participation
 from exp13.common import ROOT, METHODS, configuration, dataset, output, schedule, table, write_json
-from exp13.adam import init, moments, channels, private_inputs, readout_for_method
+from exp13.adam import init, moments, channels, private_inputs, uses_ime
 from exp13.privacy import calibration
 
 
@@ -47,14 +47,14 @@ def train(method='iid_adam',seed=0,smoke=False):
     def step(params,state,noise_state,batch):
         g=query(params,batch)
         first,second,noise_state=private_inputs(g,noise_state,privatizers,method)
-        state,readout=moments(state,first,second,c,readout_for_method(method))
+        state,readout=moments(state,first,second,c,method=method)
         params=jax.tree.map(lambda x,d:x-c.learning_rate*d,params,readout[3])
         return params,state,noise_state
     strategy_meta={'method':method, 'first_strategy':'C_m' if method.startswith('bandmf') else 'identity',
-                   'second_strategy':'C_v' if method in ('bandmf_ime_sep','bandmf_ime_sep_abs') else None}
+                   'second_strategy':'C_v' if method == 'bandmf_ime_sep' else None}
     metadata=dict(method=method,seed=seed,config=vars(c),contract=asdict(p),
         privacy_calibration=cal,strategy=strategy_meta,
-        second_moment_readout=readout_for_method(method),
+        optimizer_second_moment=('abs(v_hat_raw)' if uses_ime(method) else 'v_hat_raw'),
         schedule_sha256=hashlib.sha256(np.asarray(batches).tobytes()).hexdigest(),
         pretrained_sha256=hashlib.sha256((ROOT/c.pretrained).read_bytes()).hexdigest())
     np.save(dest/'schedule.npy',np.asarray(batches))
@@ -85,18 +85,17 @@ def train(method='iid_adam',seed=0,smoke=False):
     write_json(dest/'summary.json',summary)
     return summary
 
-def smoke_comparisons(seed):
+def smoke_ime_diagnostics(seed):
     import json
     root=output(True)
     rows=[]
-    for base in ('iid_ime','bandmf_ime_sep'):
-        for method in (base,base+'_abs'):
-            metric=json.loads((root/'training'/f'{method}_seed{seed}'/'metrics.json').read_text())[-1]
-            rows.append(dict(pair=base,method=method,seed=seed,
-                **{k:metric[k] for k in ('train_loss','test_loss','test_accuracy')},
-                loss_at_least_1e10=max(metric['train_loss'],metric['test_loss'])>=1e10))
-    table(root/'readout_training_comparison',rows)
-    for row in rows: print('readout comparison',row,flush=True)
+    for method in ('iid_ime','bandmf_ime_sep'):
+        metric=json.loads((root/'training'/f'{method}_seed{seed}'/'metrics.json').read_text())[-1]
+        rows.append(dict(method=method,seed=seed,optimizer_second_moment='abs(v_hat_raw)',
+            **{k:metric[k] for k in ('train_loss','test_loss','test_accuracy')},
+            loss_at_least_1e10=max(metric['train_loss'],metric['test_loss'])>=1e10))
+    table(root/'ime_training_diagnostics',rows)
+    for row in rows: print('IME smoke diagnostic',row,flush=True)
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(); p.add_argument('--smoke',action='store_true')
@@ -104,5 +103,5 @@ if __name__=='__main__':
     a=p.parse_args()
     if a.smoke:
         for m in METHODS: train(m,a.seed,True)
-        smoke_comparisons(a.seed)
+        smoke_ime_diagnostics(a.seed)
     else: train(a.method,a.seed)

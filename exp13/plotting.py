@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 def replay_plot(dest,rows):
     fig,axes=plt.subplots(1,3,figsize=(14,4))
-    for ax,metric in zip(axes,('raw_second_moment_mse','adam_direction_rmse','negative_fraction')):
+    for ax,metric in zip(axes,('second_state_mse','adam_direction_rmse','negative_fraction')):
         ax.bar([r['method'] for r in rows],[r[metric] for r in rows])
         ax.set_title(metric); ax.tick_params(axis='x',rotation=35)
     fig.tight_layout(); fig.savefig(dest/'metrics.png',dpi=160); plt.close(fig)

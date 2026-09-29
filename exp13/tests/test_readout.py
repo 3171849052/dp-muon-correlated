@@ -1,91 +1,85 @@
-from types import SimpleNamespace
-import jax
+import json
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from exp13.adam import init, moments, channels, private_inputs, readout_for_method
-from exp13.common import configuration, HERE
+from exp13.adam import init, moments, uses_ime
+from exp13.common import configuration, METHODS, HERE
 from exp13.privacy import calibration
 
 
-def test_abs_readout_and_linear_recurrence():
-    c=configuration(True)
-    first=jnp.array([.1,.2,.3])
-    raw={mode:init(first) for mode in ('relu','abs')}
-    for second in (jnp.array([-2.,0.,3.]),jnp.array([0.,1.,-4.])):
-        previous=raw['abs'][2]
-        reads={}
-        for mode in raw:
-            raw[mode],reads[mode]=moments(raw[mode],first,second,c,mode)
-        for a,b in zip(jax.tree.leaves(raw['relu']),jax.tree.leaves(raw['abs'])):
-            np.testing.assert_array_equal(a,b)
-        np.testing.assert_array_equal(raw['abs'][2],c.beta2*previous+(1-c.beta2)*second)
-        relu,absolute=reads['relu'],reads['abs']
-        negative=np.asarray(absolute[1])<0
-        assert np.all(np.asarray(absolute[2])>=0)
-        np.testing.assert_array_equal(absolute[2][negative],-absolute[1][negative])
-        np.testing.assert_array_equal(relu[2][negative],0)
-        np.testing.assert_array_equal(absolute[2][~negative],relu[2][~negative])
-        np.testing.assert_array_equal(absolute[3][~negative],relu[3][~negative])
+def test_ime_methods_always_use_absolute_raw_second_moment():
+    c=configuration(True); g=jnp.array([.1,.2,.3])
+    state,read=moments(init(g),g,jnp.array([-2.,0.,4.]),c,method='iid_ime')
+    assert np.any(np.asarray(read[1])<0)
+    np.testing.assert_array_equal(read[2],jnp.abs(read[1]))
+    np.testing.assert_allclose(state[2],(1-c.beta2)*jnp.array([-2.,0.,4.]))
+    for method in ('iid_ime','bandmf_ime_sep'):
+        assert uses_ime(method)
+    assert not any(method.endswith('_abs') for method in METHODS)
 
 
-@pytest.mark.parametrize('base',['iid_ime','bandmf_ime_sep'])
-def test_paired_privacy_noise_and_states(base):
-    c=configuration(True); p=SimpleNamespace(horizon=4,min_sep=4,max_participations=1)
-    assert calibration(c,p,base)==calibration(c,p,base+'_abs')
-    methods=(base,base+'_abs'); g=jnp.linspace(-.1,.1,32)
-    priv={m:channels(c,p,m,HERE/'results_smoke',jax.random.key(72)) for m in methods}
-    noise={m:tuple(x.init(g) for x in priv[m]) for m in methods}
-    raw={m:init(g) for m in methods}
-    for t in range(4):
-        inputs={}
-        for m in methods:
-            first,second,noise[m]=private_inputs(g*(t+1),noise[m],priv[m],m)
-            inputs[m]=(first,second)
-            raw[m],_=moments(raw[m],first,second,c,readout_for_method(m))
-        for left,right in ((inputs[base],inputs[base+'_abs']),
-                           (raw[base],raw[base+'_abs']),
-                           (noise[base],noise[base+'_abs'])):
-            for a,b in zip(jax.tree.leaves(left),jax.tree.leaves(right)):
-                if jax.dtypes.issubdtype(a.dtype,jax.dtypes.prng_key):
-                    a,b=jax.random.key_data(a),jax.random.key_data(b)
-                np.testing.assert_array_equal(a,b)
+def test_absolute_readout_never_enters_raw_recurrence():
+    c=configuration(True); g=jnp.array([.1,.2])
+    state,read=moments(init(g),g,jnp.array([-3.,1.]),c,method='bandmf_ime_sep')
+    expected=c.beta2*state[2]+(1-c.beta2)*jnp.array([-2.,0.])
+    next_state,_=moments(state,g,jnp.array([-2.,0.]),c,method='bandmf_ime_sep')
+    np.testing.assert_allclose(next_state[2],expected,rtol=1e-6)
+    assert float(next_state[2][0])<0
 
 
-def test_non_ime_readout_unchanged():
-    for method in ('nonprivate_adam','iid_adam','bandmf_single_m','iid_ime','bandmf_ime_sep'):
-        assert readout_for_method(method)=='relu'
+def test_non_ime_methods_keep_raw_nonnegative_second_moment_behavior():
+    c=configuration(True); g=jnp.array([-.2,.3])
+    state,read=moments(init(g),g,g*g,c,method='iid_adam')
+    np.testing.assert_array_equal(read[2],read[1])
+    assert np.all(np.asarray(state[2])>=0)
+    assert not uses_ime('nonprivate_adam')
+    assert not uses_ime('iid_adam')
+    assert not uses_ime('bandmf_single_m')
 
 
-def test_replay_paired_diagnostics():
-    import json
+def test_workload_validation_contains_all_channels_and_valid_ratios():
     root=HERE/'results_smoke/replay'
-    records={r['method']:r for r in json.loads((root/'metrics.json').read_text())}
-    for base in ('iid_ime','bandmf_ime_sep'):
-        a,b=records[base],records[base+'_abs']
-        for metric in ('negative_fraction','raw_second_moment_mse','first_moment_mse'):
-            assert a[metric]==b[metric]
-        for r in (a,b):
-            assert r['absolute_direction_median']<=r['absolute_direction_p90']<=r['absolute_direction_p99']
-            assert 0<=r['denominator_le_eps_1p01_fraction']<=r['denominator_lt_1e6_fraction']<=r['denominator_lt_1e4_fraction']<=1
-    draws={(r['method'],r['draw']):r for r in json.loads((root/'draw_metrics.json').read_text())}
-    for ratio in json.loads((root/'paired_readout_ratios.json').read_text()):
-        a=draws[ratio['pair'],ratio['draw']]
-        b=draws[ratio['pair']+'_abs',ratio['draw']]
-        assert ratio['direction_rmse_abs_over_relu']==b['adam_direction_rmse']/a['adam_direction_rmse']
-        assert ratio['readout_mse_abs_over_relu']==b['readout_second_moment_mse']/a['readout_second_moment_mse']
+    records=json.loads((root/'workload_validation.json').read_text())
+    assert {(r['method'],r['channel']) for r in records}=={
+        ('iid_ime','first'),('iid_ime','second'),
+        ('bandmf_ime_sep','first'),('bandmf_ime_sep','second')}
+    for record in records:
+        assert record['theoretical_state_mse']>0
+        assert record['empirical_state_mse']>=0
+        assert record['empirical_over_theoretical']==record['empirical_state_mse']/record['theoretical_state_mse']
+        assert np.isfinite(record['empirical_over_theoretical'])
 
 
-@pytest.mark.parametrize('base',['iid_ime','bandmf_ime_sep'])
-def test_training_readout_pair_metadata(base):
-    import json
+def test_replay_denominator_names_and_per_step_shape():
+    metrics=json.loads((HERE/'results_smoke/replay/metrics.json').read_text())
+    for row in metrics:
+        assert row['optimizer_second_moment']=='abs(v_hat_raw)'
+        for exponent in (8,7,6,5,4):
+            assert f'denominator_lt_1e_minus_{exponent}_fraction' in row
+        assert 'denominator_lt_1e6_fraction' not in row
+        assert row['first_state_mse']>=0 and row['second_state_mse']>=0
+    rows=json.loads((HERE/'results_smoke/replay/per_step_diagnostics.json').read_text())
+    assert len(rows)==2*4
+    for method in ('iid_ime','bandmf_ime_sep'):
+        selected=[row for row in rows if row['method']==method]
+        assert [row['step'] for row in selected]==[1,2,3,4]
+        assert all(row['denominator_min']>0 for row in selected)
+        assert all(row['absolute_direction_max']>=row['absolute_direction_p99'] for row in selected)
+
+
+def test_training_metadata_records_single_ime_readout_and_privacy():
     root=HERE/'results_smoke/training'
     records=[json.loads((root/f'{method}_seed0/metadata.json').read_text())
-             for method in (base,base+'_abs')]
-    for field in ('config','contract','privacy_calibration','seed','initial_test_metrics',
-                  'schedule_sha256','pretrained_sha256'):
-        assert records[0][field]==records[1][field]
-    for field in ('first_strategy','second_strategy'):
-        assert records[0]['strategy'][field]==records[1]['strategy'][field]
-    assert records[0]['second_moment_readout']=='relu'
-    assert records[1]['second_moment_readout']=='abs'
+             for method in ('iid_ime','bandmf_ime_sep')]
+    for record in records:
+        assert record['optimizer_second_moment']=='abs(v_hat_raw)'
+        assert 'second_moment_readout' not in record
+        cal=record['privacy_calibration']
+        assert cal['mu1']==cal['mu2']
+        assert cal['mu1']**2+cal['mu2']**2==pytest.approx(cal['mu']**2)
+
+
+def test_ime_smoke_losses_do_not_explode():
+    rows=json.loads((HERE/'results_smoke/ime_training_diagnostics.json').read_text())
+    assert {row['method'] for row in rows}=={'iid_ime','bandmf_ime_sep'}
+    assert all(not row['loss_at_least_1e10'] for row in rows)

@@ -1,0 +1,12 @@
+{
+  "draws": 10,
+  "seed": 1202,
+  "coordinates": 5501002,
+  "horizon": 488,
+  "normalization": "uncorrected state errors averaged over draws, steps, and coordinates",
+  "reference": "clean Adam frozen clipped batch mean trajectory",
+  "fitting_objective": "sigma^2 * mean(banded.per_query_error(strategy, A=ema(beta)))",
+  "iid_strategy": "identity represented as a one-band column-normalized strategy",
+  "moment_readout": "IME denominator uses abs(v_hat_raw); abs is excluded from raw recurrence",
+  "quantiles": "exact pooled coordinate quantiles over all replay draws and steps"
+}

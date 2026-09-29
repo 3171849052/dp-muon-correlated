@@ -3,8 +3,8 @@
   "seed": 0,
   "final_test_accuracy": 0.046875,
   "best_test_accuracy": 0.046875,
-  "final_test_loss": 6.164424300193787,
-  "best_test_loss": 6.164424300193787,
+  "final_test_loss": 6.169781684875488,
+  "best_test_loss": 6.169781684875488,
   "accuracy_auc": 0.0703125,
-  "elapsed_seconds": 117.49793254490942
+  "elapsed_seconds": 100.6930574439466
 }

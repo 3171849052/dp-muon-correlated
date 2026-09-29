@@ -1,0 +1,10 @@
+{
+  "method": "nonprivate_adam",
+  "seed": 2,
+  "final_test_accuracy": 0.3484,
+  "best_test_accuracy": 0.3484,
+  "final_test_loss": 1.8764135131835937,
+  "best_test_loss": 1.8640001342773438,
+  "accuracy_auc": 0.2707164959016394,
+  "elapsed_seconds": 812.1160760102794
+}

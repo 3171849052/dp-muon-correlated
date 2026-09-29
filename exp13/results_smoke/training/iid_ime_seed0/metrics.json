@@ -4,11 +4,11 @@
     "step": 4,
     "effective_epoch": 1.0,
     "epsilon_full_mechanism": 3.0,
-    "train_loss": 164480638976.0,
-    "test_loss": 140428011520.0,
-    "test_accuracy": 0.125,
-    "elapsed_seconds": 160.65527730342,
-    "best_test_accuracy": 0.125,
-    "best_test_loss": 140428011520.0
+    "train_loss": 2.3948132395744324,
+    "test_loss": 2.4463080167770386,
+    "test_accuracy": 0.140625,
+    "elapsed_seconds": 158.79934282694012,
+    "best_test_accuracy": 0.140625,
+    "best_test_loss": 2.4463080167770386
   }
 ]

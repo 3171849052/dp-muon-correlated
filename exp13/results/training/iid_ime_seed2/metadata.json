@@ -1,0 +1,71 @@
+{
+  "method": "iid_ime",
+  "seed": 2,
+  "config": {
+    "data_dir": "data",
+    "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
+    "model": "pretrained_vit_tiny",
+    "epochs": 5,
+    "batch_size": 512,
+    "microbatch_size": 256,
+    "clip_norm": 1.0,
+    "optimizer": "adam",
+    "learning_rate": 0.005,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "adam_eps": 1e-08,
+    "weight_decay": 0,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "adjacency": "add_remove",
+    "schedule": "fixed_cycle",
+    "bandwidth": 4,
+    "reduction": "mean",
+    "fit_steps": 1000,
+    "replay_seed": 1202,
+    "replay_draws": 10,
+    "replay_chunk": 8192,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "gpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "contract": {
+    "horizon": 488,
+    "max_participations": 5,
+    "min_sep": 97,
+    "effective_epochs": 4.99712
+  },
+  "privacy_calibration": {
+    "mu": 0.7191174352217926,
+    "mu1": 0.5084928149148074,
+    "mu2": 0.5084928149148074,
+    "a1": 0.001953125,
+    "a2": 0.003902435302734375,
+    "temporal_sensitivity_squared": 5,
+    "sigma1": 0.008588755121910574,
+    "sigma2": 0.017160735331473664,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "amplification": false,
+    "adjacency": "fixed-denominator zero-out/add-remove"
+  },
+  "strategy": {
+    "method": "iid_ime",
+    "first_strategy": "identity",
+    "second_strategy": null
+  },
+  "optimizer_second_moment": "abs(v_hat_raw)",
+  "schedule_sha256": "9af3a5f8f14985080b254b120f9fad93fe2bfd40d46b8298e136b02d7a3227d7",
+  "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
+  "initial_test_metrics": {
+    "test_loss": 2.615870495605469,
+    "test_accuracy": 0.1225
+  }
+}

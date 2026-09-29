@@ -1,0 +1,272 @@
+[
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": 0.14889999999999998
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 0.26969999999999994
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": -0.07033691406250009
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": -0.4112008300781249
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 0.19018750000000006
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.1381
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": 0.23859999999999998
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.026957318115234274
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": -0.3034397674560547
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": 0.17229221311475418
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 0.14290000000000003
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 0.26609999999999995
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": -0.06539655761718732
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": -0.4251951660156248
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 0.1826770491803279
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": -0.032299999999999995
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": 9.999999999998899e-05
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 0.176274676513672
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": -0.04978969726562488
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": 0.02226393442622955
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": 0.00410000000000002
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": -0.2199
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": -0.0072684204101562955
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 0.47088483886718757
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": -0.06482161885245902
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": 0.0728
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": 0.016199999999999992
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": -0.18176162109375005
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": -0.09883554687500018
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": 0.017347950819672164
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 0,
+    "metric": "final_test_accuracy",
+    "difference": -0.28179999999999994
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 0,
+    "metric": "best_test_accuracy",
+    "difference": -0.375
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 0,
+    "metric": "final_test_loss",
+    "difference": 0.47077307128906254
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 0,
+    "metric": "best_test_loss",
+    "difference": 0.5974909545898437
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 0,
+    "metric": "accuracy_auc",
+    "difference": -0.30481854508196726
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 1,
+    "metric": "final_test_accuracy",
+    "difference": -0.2551
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 1,
+    "metric": "best_test_accuracy",
+    "difference": -0.3114
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 1,
+    "metric": "final_test_loss",
+    "difference": 0.22857171020507816
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 1,
+    "metric": "best_test_loss",
+    "difference": 0.42814883117675784
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 1,
+    "metric": "accuracy_auc",
+    "difference": -0.28361813524590174
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 2,
+    "metric": "final_test_accuracy",
+    "difference": -0.24710000000000001
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 2,
+    "metric": "best_test_accuracy",
+    "difference": -0.38569999999999993
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 2,
+    "metric": "final_test_loss",
+    "difference": 0.16754518432617171
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 2,
+    "metric": "best_test_loss",
+    "difference": 0.5213198364257812
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "seed": 2,
+    "metric": "accuracy_auc",
+    "difference": -0.29713381147540985
+  }
+]

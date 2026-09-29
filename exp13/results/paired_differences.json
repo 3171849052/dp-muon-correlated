@@ -1,0 +1,152 @@
+[
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 0.1433,
+    "sample_std": 0.00541109970338746,
+    "se": 0.0031240998703626543,
+    "ci95_low": 0.1298580831647742,
+    "ci95_high": 0.15674191683522581
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": 0.2581333333333333,
+    "sample_std": 0.017011858609021317,
+    "se": 0.009821801147334311,
+    "ci95_low": 0.21587353381569896,
+    "ci95_high": 0.3003931328509677
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": -0.0542302632649739,
+    "sample_std": 0.023747882712090676,
+    "se": 0.013710846476509213,
+    "ci95_low": -0.11322327428430205,
+    "ci95_high": 0.004762747754354257
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": -0.3799452545166015,
+    "sample_std": 0.06662415119430427,
+    "se": 0.0384654716265619,
+    "ci95_low": -0.5454488210117285,
+    "ci95_high": -0.21444168802147445
+  },
+  {
+    "comparison": "bandmf_single_m - iid_adam",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": 0.18171892076502738,
+    "sample_std": 0.00898603531717231,
+    "se": 0.0051880899093169185,
+    "ci95_low": 0.1593963715545193,
+    "ci95_high": 0.20404146997553546
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": 0.014866666666666676,
+    "sample_std": 0.05337080974964998,
+    "se": 0.03081365137582872,
+    "ci95_low": -0.11771377453909103,
+    "ci95_high": 0.14744710787242438
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": -0.06786666666666667,
+    "sample_std": 0.13191058840492426,
+    "se": 0.07615861372454495,
+    "ci95_low": -0.39555073390251483,
+    "ci95_high": 0.25981740056918146
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": -0.00425178833007811,
+    "sample_std": 0.17903721024674601,
+    "se": 0.10336718153091844,
+    "ci95_low": -0.4490048741105925,
+    "ci95_high": 0.44050129745043626
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 0.10741986490885418,
+    "sample_std": 0.3157237151559498,
+    "se": 0.18228317193483637,
+    "ci95_low": -0.67688132240396,
+    "ci95_high": 0.8917210522216683
+  },
+  {
+    "comparison": "bandmf_ime_sep - iid_ime",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": -0.0084032445355191,
+    "sample_std": 0.04892153354229346,
+    "se": 0.02824486055981244,
+    "ci95_low": -0.129931070924589,
+    "ci95_high": 0.1131245818535508
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "metric": "final_test_accuracy",
+    "n": 3,
+    "mean": -0.2613333333333333,
+    "sample_std": 0.018170397170489475,
+    "se": 0.010490683697664514,
+    "ci95_low": -0.3064711021820277,
+    "ci95_high": -0.2161955644846389
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "metric": "best_test_accuracy",
+    "n": 3,
+    "mean": -0.3573666666666666,
+    "sample_std": 0.04016619640111982,
+    "se": 0.023189964304509907,
+    "ci95_low": -0.45714502988425876,
+    "ci95_high": -0.25758830344907446
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "metric": "final_test_loss",
+    "n": 3,
+    "mean": 0.28896332194010416,
+    "sample_std": 0.16038125805081002,
+    "se": 0.092596162508606,
+    "ci95_low": -0.10944580944187421,
+    "ci95_high": 0.6873724533220825
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "metric": "best_test_loss",
+    "n": 3,
+    "mean": 0.5156532073974609,
+    "sample_std": 0.08481315761084274,
+    "se": 0.04896689937744222,
+    "ci95_low": 0.30496564412374194,
+    "ci95_high": 0.7263407706711799
+  },
+  {
+    "comparison": "bandmf_ime_sep - bandmf_single_m",
+    "metric": "accuracy_auc",
+    "n": 3,
+    "mean": -0.29519016393442626,
+    "sample_std": 0.010733017685020583,
+    "se": 0.006196710649663648,
+    "ci95_low": -0.3218524579266691,
+    "ci95_high": -0.2685278699421834
+  }
+]

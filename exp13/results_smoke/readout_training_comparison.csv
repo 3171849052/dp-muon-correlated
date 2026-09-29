@@ -1,5 +1,0 @@
-pair,method,seed,train_loss,test_loss,test_accuracy,loss_at_least_1e10
-iid_ime,iid_ime,0,164480638976.0,140428011520.0,0.125,True
-iid_ime,iid_ime_abs,0,2.3944719433784485,2.4460309743881226,0.140625,False
-bandmf_ime_sep,bandmf_ime_sep,0,244251611136.0,231000465408.0,0.109375,True
-bandmf_ime_sep,bandmf_ime_sep_abs,0,2.2915483117103577,2.4774985909461975,0.125,False

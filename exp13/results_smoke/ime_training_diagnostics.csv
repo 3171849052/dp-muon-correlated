@@ -1,0 +1,3 @@
+method,seed,optimizer_second_moment,train_loss,test_loss,test_accuracy,loss_at_least_1e10
+iid_ime,0,abs(v_hat_raw),2.3948132395744324,2.4463080167770386,0.140625,False
+bandmf_ime_sep,0,abs(v_hat_raw),2.291544020175934,2.4771371483802795,0.125,False

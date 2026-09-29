@@ -1,130 +1,92 @@
-# Exp13: Adam, single-channel BandMF, and separate-matrix IME
+# Exp13: Adam, BandMF, and separate-matrix IME
 
-All implementation and generated artifacts live in `exp13/`. The experiment
-imports existing `src/dp_muon` data, pretrained ViT-Tiny, global per-example
-clipping, fixed-cycle scheduling and non-amplified GDP calibration. Data is loaded
-from local `data/` with `download=False`; the checkpoint is the local exp12 NPZ.
+All Exp13 code and generated artifacts live in this directory. The experiment
+uses the repository's existing CIFAR-10 data, pretrained ViT-Tiny checkpoint,
+global per-example clipping, fixed-cycle schedule, and non-amplified GDP
+calibration. Data loading uses local files with `download=False`.
 
-The main configuration matches exp12: five epochs, batch 512, microbatch 256,
-clip 1, Adam beta1=.9, beta2=.999, eps=1e-8, learning rate .005, epsilon=3,
-delta=1e-5, bandwidth=4, seeds 0–9. There is no amplification or weight decay.
-For 50,000 examples the actual contract is horizon 488, min_sep 97, k=5.
+The formal configuration uses five epochs, batch size 512, microbatch size 256,
+clip norm 1, Adam beta1=.9, beta2=.999, epsilon 1e-8, learning rate .005,
+privacy epsilon 3, delta 1e-5, bandwidth 4, and seeds `[0, 1, 2]`. For 50,000
+training examples the contract is horizon 488, minimum separation 97, and
+maximum participations 5.
 
-## Mechanisms
+## Methods
 
-- `nonprivate_adam`: standard Adam on the clipped batch mean g.
-- `iid_adam`: standard Adam on g + IID Gaussian noise.
-- `bandmf_single_m`: standard Adam on g + C_m^{-1} z.
-- `iid_ime`: separate independent channels for g and g squared.
-- `bandmf_ime_sep`: C_m^{-1} z1 for g, C_v^{-1} z2 for g squared.
-- `iid_ime_abs`: the IID-IME mechanism with absolute-value second-moment readout.
-- `bandmf_ime_sep_abs`: the separate BandMF-IME mechanism with absolute-value readout.
+- `nonprivate_adam`: Adam on the clipped batch mean.
+- `iid_adam`: Adam on the clipped batch mean with IID Gaussian noise.
+- `bandmf_single_m`: Adam on the clipped batch mean with the fitted first-moment BandMF strategy.
+- `iid_ime`: independent IID Gaussian channels for the batch mean and its square.
+- `bandmf_ime_sep`: separate fitted `C_m` and `C_v` strategies for those channels.
 
 IME squares the clipped batch mean, not individual gradients. Its raw second
-state is linear: v_raw = beta2 v_raw + (1-beta2) private_q. Bias correction is
-applied at readout. The existing IME methods use max(v_hat_raw, 0); the new
-`_abs` methods use abs(v_hat_raw). `second_moment_readout` explicitly selects
-`relu` or `abs` in `adam.moments`. Both transformations are DP post-processing
-of the same private moment states and only affect the Adam denominator readout.
-Neither transformation changes privacy accounting, query sensitivity, noise
-scale/GDP split, C_m/C_v, or the linear BandMF workload. Projection never
-feeds back into the recurrence. With eps=1e-8, negative second-state estimates
-can cause very large updates; the experiment preserves the requested formula.
-This comparison diagnoses the current relu-to-zero instability; it is not a
-theoretical stability claim. No shared-C IME is implemented.
+state is the linear recurrence
+`v_raw = beta2 * v_raw + (1-beta2) * private_q`. Bias correction is applied
+after that recurrence, and IME uses `abs(v_hat_raw)` only in the optimizer
+denominator. This readout never enters the raw state update. Non-IME methods
+continue to use squared private gradients for their second moment.
 
-Fixed-denominator zero-out/add-remove sensitivities are a1=L/B and
- a2=(2B-1)L²/B². Single-channel methods use the full calibrated GDP mu. Dual
-channels each use mu/sqrt(2), with latent stddev a_i sqrt(k)/mu_i. Identity and
-column-normalized banded strategies both have temporal sensitivity squared k.
+Early ReLU readout smoke diagnostics had many denominators equal to `adam_eps`
+and unstable losses; formal Exp13 now uses abs readout.
 
-## BandMF and replay
+## Privacy and BandMF workload
 
-`workloads.py` implements H_beta[t,s]=(1-beta) beta^(t-s) as the installed
-jax_privacy StreamingMatrix. No bias correction, prefix sum, learning-rate,
-weight-decay or denominator factors enter fitting. `strategies.py` directly
-calls installed `banded.optimize`, `ColumnNormalizedBanded`, `per_query_error`,
-`minsep_sensitivity_squared`, and `inverse_as_streaming_matrix`; noise uses
-`noise_addition.matrix_factorization_privatizer`. The inspected version is
-2.3.0.dev0. The general optimizer uses its installed optimization defaults and
-1000 maximum steps (five in smoke). Strategies must satisfy bands <= min_sep.
+The fixed-denominator zero-out/add-remove sensitivities are
+`a1 = clip_norm / batch_size` and
+`a2 = (2*batch_size - 1) * clip_norm**2 / batch_size**2`. Single-channel
+methods use `mu1=mu`; IME uses `mu1=mu2=mu/sqrt(2)`. Channel noise is
+`sigma_i = a_i * sqrt(k) / mu_i`. The abs readout is DP post-processing and
+does not change privacy accounting.
 
-`fit_strategies.py` saves params, materialized C, objective, beta, horizon,
-bandwidth, min_sep, participation cap, sensitivity and library version in
-`results/strategies/{C_m,C_v}.npz`. It saves all four cross-evaluation cells as
-CSV/JSON and `1-J_v(C_v)/J_v(C_m)` in `specialization_gain.json`.
+`workloads.py` defines the uncorrected EMA workload
+`H_beta[t,s] = (1-beta) * beta**(t-s)` for `s <= t`. Strategy fitting excludes
+bias correction, learning rate, prefix sum, weight decay, and Adam denominator.
+Formal fitting uses 1000 optimizer steps; smoke fitting uses five. The four
+cross-evaluation cells `J_m(C_m)`, `J_m(C_v)`, `J_v(C_m)`, and `J_v(C_v)`, plus
+`1 - J_v(C_v)/J_v(C_m)`, are saved under `results/` and `results_smoke/`.
 
-`replay.py` first collects a clean Adam trajectory using all model parameters,
-then replays frozen clipped gradients for all four IME methods. It reports negative
-raw v_hat fraction, raw/readout second-moment MSE, first-moment MSE and Adam
-direction RMSE, averaged over coordinates, steps and ten independent draws.
-Moment errors compare bias-corrected readouts against their clean counterparts;
-“raw” means unprojected v_hat_raw, not a clamped recurrence state.
-It also reports mean/median/p90/p99 absolute coordinate direction magnitude and
-fractions of actual denominators <= 1.01e-8, < 1e-6, and < 1e-4. Exact pooled
-quantiles use a temporary disk-backed magnitude array, deleted after replay.
-`replay/draw_metrics` and `replay/paired_readout_ratios` (CSV/JSON) record
-per-draw metrics and abs/relu direction-RMSE and readout-MSE ratios.
-Coordinate blocks keep memory bounded; both channel keys are paired between
-relu/abs versions. Frozen raw m/v states are identical between each pair; live
-training gradients can diverge after their first differing parameter update.
-Clean gradients are internal diagnostics, not private releases.
+Frozen replay saves raw uncorrected `first_state_mse` and `second_state_mse`,
+along with separately named bias-corrected `first_hat_mse`,
+`second_hat_raw_mse`, and `second_hat_abs_mse`. Its
+`workload_validation.{csv,json}` compares the theoretical per-coordinate
+state MSE `sigma**2 * mean(banded.per_query_error(strategy, A=ema(beta)))`
+against replay across draws, steps, and coordinates for all four IME channels.
+IID uses an identity noising strategy in the same workload calculation.
 
-Within each training seed all methods share initialization, batch schedule,
-clipping and channel-1 latent keys. Channel 2 has a distinct folded key. Training
-records schedule/checkpoint hashes, schedule arrays, calibration, initial test
-metrics, epoch metrics and summaries. Aggregate requires all 70 jobs and reports
-final/best accuracy/loss and normalized accuracy AUC, mean, sample std, SE,
-Student-t 95% CI, all 21 method pairs, and each paired seed difference.
-Accuracy AUC includes the initial evaluation and integrates effective epochs.
+`replay/metrics.{csv,json}` records negative raw second estimates, denominator
+minimum and quantiles, explicitly named `1e_minus_*` denominator fractions,
+and absolute direction magnitude and RMSE. `replay/per_step_diagnostics` has
+step-level negative fractions, denominator minimum and p001, plus direction p99
+and maximum. Quantiles pool all replay draws and coordinates.
 
-## Execution on GPUs 1–3
+## Jobs and GPUs
 
-The user's GPU assignment overrides the attachment's four-GPU schedule. Jobs
-are method-major, seed-minor, with job_index % 3 selecting physical GPU 1, 2, 3.
-Each worker runs its assigned jobs serially (24, 23, 23 jobs with seven methods). The launcher first
-fits and replays on GPU 1, then starts three workers. It waits for all workers;
-any failure returns nonzero, and aggregation/plotting require complete success.
-There is no resume, missing-task skipping, download, or automatic retry.
+The formal run contains 5 methods × 3 seeds = 15 jobs. Method-major, seed-minor
+ordering assigns five jobs each to GPUs 1, 2, and 3. `GPUS`, the config GPU IDs,
+worker behavior, and launcher bindings remain `(1, 2, 3)`. Aggregation requires
+all configured method/seed summaries and reports mean, sample standard
+deviation, standard error, and Student-t 95% confidence intervals. Paired
+comparisons use the same three seeds for:
 
-Smoke uses 64 local train/test examples, batch/microbatch 16, one epoch/four
-steps, five fitting steps and two replay draws. Run from the repository root:
+- `bandmf_single_m - iid_adam`
+- `bandmf_ime_sep - iid_ime`
+- `bandmf_ime_sep - bandmf_single_m`
+
+## Smoke and full experiment
+
+Smoke uses 64 local train/test examples, batch and microbatch size 16, one epoch
+and four steps, five fitting steps, and two replay draws. From the repository
+root, run:
 
 ```bash
-export PYTHONDONTWRITEBYTECODE=1
-export XLA_PYTHON_CLIENT_PREALLOCATE=false
-export MPLCONFIGDIR="$PWD/exp13/results_smoke/matplotlib"
 CUDA_VISIBLE_DEVICES=1 conda run --no-capture-output -n curve python -B exp13/fit_strategies.py --smoke
 CUDA_VISIBLE_DEVICES=1 conda run --no-capture-output -n curve python -B exp13/replay.py --smoke
 CUDA_VISIBLE_DEVICES=2 conda run --no-capture-output -n curve python -B exp13/full_training.py --smoke
 conda run -n curve pytest exp13/tests
 ```
 
-For the readout diagnostic, use the existing fitted strategies; no refit is
-needed or performed. `readout_training_comparison.{csv,json}` compares train
-loss, test loss, accuracy and whether loss remains >=1e10 for both pairs.
-GPU configuration, `GPUS`, launcher bindings and worker partition logic are
-unchanged. Non-IME methods retain their original behavior.
-
-Tests cover workload equality, fitted strategy column norms/inverse/objective,
-multi-participation sensitivity, calibration, GDP composition, square-after-mean,
-linear raw recurrence and projection, standard Adam agreement, three-/four-worker
-partitions, and real GPU smoke artifacts (run the smoke commands before these integration checks).
-Only smoke was requested; the full ten-seed experiment is not launched during
-development. All smoke artifacts and logs are in `results_smoke/`.
-
-Full experiment command (uses GPUs 1, 2, 3):
+The full experiment command uses GPUs 1, 2, and 3:
 
 ```bash
 bash exp13/launch_full.sh
 ```
-
-## Readout diagnostic smoke result
-
-All seven methods completed. IID relu/abs test loss was 1.40428e11 / 2.44603;
-separate BandMF relu/abs test loss was 2.31000e11 / 2.47750. The paired replay
-shows identical raw-state errors but sharply fewer near-epsilon denominators
-and much smaller directions with abs. These smoke results support the
-relu-to-zero denominator as the primary explosion source in this setup; they
-are not a theoretical stability proof. Abs can still encounter rare tiny
-denominators. See `results_smoke/VALIDATION.md` for full statistics and caveats.

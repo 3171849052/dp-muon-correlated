@@ -28,14 +28,7 @@
     "seeds": [
       0,
       1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9
+      2
     ],
     "gpus": [
       1,
@@ -68,11 +61,11 @@
     "first_strategy": "identity",
     "second_strategy": null
   },
-  "second_moment_readout": "relu",
+  "optimizer_second_moment": "abs(v_hat_raw)",
   "schedule_sha256": "011372db4e7c5820020949d3ddb0d49337583c120902c5d106ada21602a76f5c",
   "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
   "initial_test_metrics": {
-    "test_loss": 2.59634530544281,
+    "test_loss": 2.5963452458381653,
     "test_accuracy": 0.09375
   }
 }
