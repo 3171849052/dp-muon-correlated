@@ -63,8 +63,14 @@ def validate(root, c, p):
                 bandwidth=c.bandwidth, min_sep=p.min_sep, max_participations=p.max_participations,
                 sensitivity_squared=p.max_participations, fit_steps=c.fit_steps,
                 beta=c.beta1 if '_m_' in name else c.beta2, corrected=name.endswith('_bc'))
-            if any(meta.get(k) != v for k,v in expected.items()):
-                raise ValueError(f'Stage 1 strategy/config mismatch: {path}')
+            mismatches = {key: (meta.get(key), value) for key, value in expected.items()
+                          if meta.get(key) != value}
+            if mismatches:
+                raise ValueError(
+                    f'Stage 1 strategy/config mismatch: {path}; '
+                    f'(artifact, current) values: {mismatches}. '
+                    'Regenerate Stage 1 artifacts with `bash exp13/run_numerical.sh` '
+                    'using the current config before starting Stage 2.')
             matrix = np.asarray(banded.ColumnNormalizedBanded(jnp.asarray(data['params'])).materialize())
             np.testing.assert_allclose(matrix, data['C'])
             np.testing.assert_allclose(np.linalg.norm(matrix, axis=0), 1, atol=2e-6)

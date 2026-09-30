@@ -1,10 +1,10 @@
 {
   "method": "iid_adam",
   "seed": 2,
-  "final_test_accuracy": 0.2909,
-  "best_test_accuracy": 0.294,
-  "final_test_loss": 2.0104405395507814,
-  "best_test_loss": 2.0104405395507814,
-  "accuracy_auc": 0.27061752049180327,
-  "elapsed_seconds": 779.7103544445708
+  "final_test_accuracy": 0.2948,
+  "best_test_accuracy": 0.2953,
+  "final_test_loss": 2.0033476806640627,
+  "best_test_loss": 1.9999926818847655,
+  "accuracy_auc": 0.27302366803278694,
+  "elapsed_seconds": 790.344545122236
 }

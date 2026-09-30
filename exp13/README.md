@@ -26,9 +26,10 @@ Outputs are under `results/stage1_numerical/`:
 
 The streaming workload is `H[t,s]=(1-beta)*beta**(t-s)` for `s<=t`.
 The BC workload divides row `t` by `1-beta**(t+1)` (zero-based indexing).
-Official `jax_privacy.banded.optimize` uses mean reduction, bandwidth 4,
-1000 fit steps, column normalization, and the same participation sensitivity
-constraints for raw and BC. Bias correction changes utility only.
+Official `jax_privacy.banded.optimize` uses mean reduction, the configured
+bandwidth (47 in the current config), 1000 fit steps, column normalization,
+and the same participation sensitivity constraints for raw and BC. Bias
+correction changes utility only.
 
 The trajectory is **clipped DP-query gradients evaluated along a clean Adam
 parameter trajectory**. At the same pre-update parameters and batch, collection

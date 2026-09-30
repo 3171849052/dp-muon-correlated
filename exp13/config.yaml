@@ -3,7 +3,7 @@ pretrained: checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0
 model: pretrained_vit_tiny
 epochs: 5
 batch_size: 512
-microbatch_size: 256
+microbatch_size: 32
 clip_norm: 1.0
 optimizer: adam
 learning_rate: 0.005

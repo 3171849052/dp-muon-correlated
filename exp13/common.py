@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import csv
 import json
+import os
 import numpy as np
 import yaml
 from dp_muon.data import load_cifar10
@@ -12,17 +13,22 @@ ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / 'exp13'
 METHODS = ('nonprivate_adam', 'iid_adam', 'bandmf_single_m', 'iid_ime', 'bandmf_ime_sep_raw', 'bandmf_ime_sep_vbc', 'bandmf_ime_sep_bc')
 GPUS = (1, 2, 3)
+SMOKE_EXAMPLES = 64
 
 def configuration(smoke=False):
-    c = yaml.safe_load((HERE / 'config.yaml').read_text())
+    config_path = Path(os.environ.get('EXP13_CONFIG', HERE / 'config.yaml'))
+    c = yaml.safe_load(config_path.read_text())
     if smoke:
         c.update(epochs=1, batch_size=16, microbatch_size=16, fit_steps=5, replay_draws=2)
+        smoke_contract = derive_fixed_cycle_participation(
+            SMOKE_EXAMPLES, c['epochs'], c['batch_size'])
+        c['bandwidth'] = min(c['bandwidth'], smoke_contract.min_sep)
     return SimpleNamespace(**c)
 
 def dataset(c, smoke=False, train=True):
     x, y = load_cifar10(ROOT / c.data_dir, train=train, download=False)
     if smoke:
-        x, y = x[:64], y[:64]
+        x, y = x[:SMOKE_EXAMPLES], y[:SMOKE_EXAMPLES]
     return x, y
 
 def contract(c, smoke=False):

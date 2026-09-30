@@ -1,0 +1,10 @@
+{
+  "method": "iid_ime",
+  "seed": 2,
+  "final_test_accuracy": 0.1024,
+  "best_test_accuracy": 0.3189,
+  "final_test_loss": 2.5900739318847656,
+  "best_test_loss": 1.9474203735351563,
+  "accuracy_auc": 0.18539600409836068,
+  "elapsed_seconds": 883.1022316105664
+}

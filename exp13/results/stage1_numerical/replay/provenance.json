@@ -9,6 +9,6 @@
   "iid_strategy": "identity represented as a one-band column-normalized strategy",
   "moment_readout": "IME denominator uses abs(v_hat_raw); abs is excluded from raw recurrence",
   "quantile_coordinates": 8192,
-  "runtime_seconds": 27.13893762137741,
+  "runtime_seconds": 26.441136893816292,
   "quantiles": "quantiles are computed from a deterministic coordinate subsample."
 }

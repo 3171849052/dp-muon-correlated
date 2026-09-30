@@ -1,0 +1,10 @@
+{
+  "method": "bandmf_single_m",
+  "seed": 0,
+  "final_test_accuracy": 0.6051,
+  "best_test_accuracy": 0.7032,
+  "final_test_loss": 1.7233439697265625,
+  "best_test_loss": 1.1946843566894532,
+  "accuracy_auc": 0.5983772540983606,
+  "elapsed_seconds": 807.7301904968917
+}

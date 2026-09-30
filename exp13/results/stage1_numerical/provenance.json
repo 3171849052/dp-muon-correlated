@@ -5,7 +5,7 @@
     "model": "pretrained_vit_tiny",
     "epochs": 5,
     "batch_size": 512,
-    "microbatch_size": 256,
+    "microbatch_size": 32,
     "clip_norm": 1.0,
     "optimizer": "adam",
     "learning_rate": 0.005,
@@ -17,7 +17,7 @@
     "delta": 1e-05,
     "adjacency": "add_remove",
     "schedule": "fixed_cycle",
-    "bandwidth": 4,
+    "bandwidth": 47,
     "reduction": "mean",
     "fit_steps": 1000,
     "replay_seed": 1202,
@@ -37,11 +37,11 @@
       3
     ]
   },
-  "config_hash": "1a14c81a5be334624bb6ee540283967111cea91bbfa964128070483e8b56065d",
-  "runtime_seconds": 664.532417952083,
+  "config_hash": "44f3f1988adc00ec8d59c3570b9313f49c21b12ae0330db8ed33d204def63f8f",
+  "runtime_seconds": 725.0165152270347,
   "timings": {
-    "fit_strategies.py": 292.0263891797513,
-    "collect_trajectory.py": 339.3844074383378,
-    "replay.py": 32.80784406326711
+    "fit_strategies.py": 343.54221405647695,
+    "collect_trajectory.py": 349.0171952350065,
+    "replay.py": 32.14931192342192
   }
 }

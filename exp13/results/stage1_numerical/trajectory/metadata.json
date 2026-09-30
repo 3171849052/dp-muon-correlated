@@ -1,12 +1,12 @@
 {
-  "config_hash": "1a14c81a5be334624bb6ee540283967111cea91bbfa964128070483e8b56065d",
+  "config_hash": "44f3f1988adc00ec8d59c3570b9313f49c21b12ae0330db8ed33d204def63f8f",
   "config": {
     "data_dir": "data",
     "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
     "model": "pretrained_vit_tiny",
     "epochs": 5,
     "batch_size": 512,
-    "microbatch_size": 256,
+    "microbatch_size": 32,
     "clip_norm": 1.0,
     "optimizer": "adam",
     "learning_rate": 0.005,
@@ -18,7 +18,7 @@
     "delta": 1e-05,
     "adjacency": "add_remove",
     "schedule": "fixed_cycle",
-    "bandwidth": 4,
+    "bandwidth": 47,
     "reduction": "mean",
     "fit_steps": 1000,
     "replay_seed": 1202,

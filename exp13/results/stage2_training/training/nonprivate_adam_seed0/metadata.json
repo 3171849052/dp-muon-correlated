@@ -7,7 +7,7 @@
     "model": "pretrained_vit_tiny",
     "epochs": 5,
     "batch_size": 512,
-    "microbatch_size": 256,
+    "microbatch_size": 32,
     "clip_norm": 1.0,
     "optimizer": "adam",
     "learning_rate": 0.005,
@@ -19,7 +19,7 @@
     "delta": 1e-05,
     "adjacency": "add_remove",
     "schedule": "fixed_cycle",
-    "bandwidth": 4,
+    "bandwidth": 47,
     "reduction": "mean",
     "fit_steps": 1000,
     "replay_seed": 1202,
@@ -61,7 +61,7 @@
   "schedule_sha256": "bd796fbdc5e1ecdb4782555c2525265258f191dfc19c6c506cdeb6fe35f3be9d",
   "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
   "initial_test_metrics": {
-    "test_loss": 2.6492976806640627,
+    "test_loss": 2.6492976257324217,
     "test_accuracy": 0.0976
   }
 }

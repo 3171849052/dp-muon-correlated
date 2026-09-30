@@ -1,0 +1,93 @@
+{
+  "method": "bandmf_ime_sep_raw",
+  "seed": 1,
+  "config": {
+    "data_dir": "data",
+    "pretrained": "checkpoints/Ti_16-i21k-300ep-lr_0.001-aug_none-wd_0.03-do_0.0-sd_0.0.npz",
+    "model": "pretrained_vit_tiny",
+    "epochs": 5,
+    "batch_size": 512,
+    "microbatch_size": 32,
+    "clip_norm": 1.0,
+    "optimizer": "adam",
+    "learning_rate": 0.005,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "adam_eps": 1e-08,
+    "weight_decay": 0,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "adjacency": "add_remove",
+    "schedule": "fixed_cycle",
+    "bandwidth": 47,
+    "reduction": "mean",
+    "fit_steps": 1000,
+    "replay_seed": 1202,
+    "replay_draws": 3,
+    "replay_chunk": 32768,
+    "replay_num_coordinates": 262144,
+    "replay_quantile_coordinates": 8192,
+    "replay_coordinate_seed": 1203,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "gpus": [
+      1,
+      2,
+      3
+    ]
+  },
+  "contract": {
+    "horizon": 488,
+    "max_participations": 5,
+    "min_sep": 97,
+    "effective_epochs": 4.99712
+  },
+  "privacy_calibration": {
+    "mu": 0.7191174352217926,
+    "mu1": 0.5084928149148074,
+    "mu2": 0.5084928149148074,
+    "a1": 0.001953125,
+    "a2": 0.003902435302734375,
+    "temporal_sensitivity_squared": 5,
+    "sigma1": 0.008588755121910574,
+    "sigma2": 0.017160735331473664,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "amplification": false,
+    "adjacency": "fixed-denominator zero-out/add-remove"
+  },
+  "privacy": {
+    "mu": 0.7191174352217926,
+    "mu1": 0.5084928149148074,
+    "mu2": 0.5084928149148074,
+    "a1": 0.001953125,
+    "a2": 0.003902435302734375,
+    "temporal_sensitivity_squared": 5,
+    "sigma1": 0.008588755121910574,
+    "sigma2": 0.017160735331473664,
+    "epsilon": 3.0,
+    "delta": 1e-05,
+    "amplification": false,
+    "adjacency": "fixed-denominator zero-out/add-remove"
+  },
+  "clipping": true,
+  "noise": true,
+  "optimizer": "bandmf_ime_sep_raw",
+  "privacy_accounting": "non_amplified_fixed_cycle_gdp",
+  "sampling_amplification": false,
+  "strategy": {
+    "method": "bandmf_ime_sep_raw",
+    "first_strategy": "C_m_raw",
+    "second_strategy": "C_v_raw"
+  },
+  "optimizer_second_moment": "abs(v_hat_raw)",
+  "schedule_sha256": "34d8a6037d6d0b8bb63c018fec335544df4c72c802d9679eee7907182acad2a2",
+  "pretrained_sha256": "fb2d916f8ea4ada5ab098c7bcd7695dbfbde0fa8a8df0df7fe9b76e17c4d23ce",
+  "initial_test_metrics": {
+    "test_loss": 2.711784307861328,
+    "test_accuracy": 0.1752
+  }
+}
