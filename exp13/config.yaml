@@ -15,7 +15,7 @@ epsilon: 3.0
 delta: 1.0e-5
 adjacency: add_remove
 schedule: fixed_cycle
-bandwidth: 4
+bandwidth: 47
 reduction: mean
 fit_steps: 1000
 replay_seed: 1202
